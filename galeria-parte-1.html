@@ -323,9 +323,11 @@
         renderer = new THREE.WebGLRenderer({ canvas:canvas, antialias:!ehToque, preserveDrawingBuffer:true, powerPreference:'high-performance' });
       } catch(err){ mostraErro('WebGL não abriu neste aparelho.'); return; }
       /* FLUIDEZ no celular dela (regra dela: página 3D nasce fluida na
-         primeira versão): pixelRatio 1.0 em tela de toque, 1,5 no
-         computador — e SOMBRAS DESLIGADAS no toque. */
-      renderer.setPixelRatio(Math.min(window.devicePixelRatio||1, ehToque ? 1.0 : 1.5));
+         primeira versão): pixelRatio 1.0 em tela de toque, teto de
+         1,25 no computador — e SOMBRAS DESLIGADAS no toque. O conserto
+         da textura nas trocas NÃO muda este peso: continua uma peça
+         por vez na memória e texturas de no máximo 1024px. */
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio||1, ehToque ? 1.0 : 1.25));
       renderer.shadowMap.enabled = sombrasLigadas;
       renderer.shadowMap.type = THREE.PCFShadowMap;
       /* luz e peças não se movem (quem gira é a câmera): a sombra é
@@ -487,7 +489,14 @@
       var loader = new THREE.GLTFLoader();
 
       function montaNoPalco(obj, def, diagHTML){
-        limpaAtual();
+        /* NÃO limpar aqui: quem pede a carga (carregaEmbutido,
+           carregaArquivo, placaRelevo) já esvaziou o palco ANTES de
+           carregar. Limpar neste ponto era o defeito das trocas: os
+           materiais da peça NOVA (paresAtual) já estavam montados
+           quando montaNoPalco rodava, e o limpaAtual descartava os
+           dois materiais e apagava o registro dos pares — a prova de
+           cor ficava sem como confirmar/aplicar a textura e a peça
+           trocada caía no tom de reserva. Só a 1ª peça escapava. */
         if (def && def.giroY) obj.rotation.y = def.giroY;
         atual = encaixa(obj, def ? def.alturaAlvo : 2.2);
         atualDef = def;
@@ -647,8 +656,9 @@
         if (media.espalha > 0.05 && (rend.espalha || 0) < media.espalha * 0.45) return false;
         return true;
       }
-      /* A PROVA DA PEÇA, em dois níveis — devolve 'std' (com luz),
-         'bas' (sem luz) ou 'reserva':
+      /* A PROVA DA PEÇA, em dois níveis — devolve 'std' (com luz) ou
+         'bas' (textura pura, sem luz). 'reserva' NÃO sai daqui: quem
+         tem textura decodificada fica com ela, sempre:
          NÍVEL 1 (o decisivo): a referência é a própria peça SEM luz —
          a textura pura através dos UVs reais, neste aparelho. Se esse
          render tem VARIAÇÃO de luminosidade de verdade (desv ≥ 6), a
@@ -673,8 +683,17 @@
           return 'bas';
         }
         if (corConfereMedia(rend, media)) return 'std';
-        if (ref) { aplicarModoPeca('bas'); return 'bas'; }
-        return 'reserva';
+        /* A textura FOI extraída e decodificada pela página — ela
+           nunca é descartada por causa da leitura de pixels do palco:
+           no celular, essa leitura pode voltar vazia justamente nas
+           trocas de peça, mesmo com a textura perfeita (era o que
+           jogava Sarcófago, Pirâmide, Paimon e Sigilo no tom de
+           reserva, um por um). Sem prova conclusiva, a peça fica com
+           a textura pura, sem depender da luz — o modo que mostra a
+           cor em qualquer aparelho. Tom de reserva, agora, só quando
+           não existe textura extraível de verdade. */
+        aplicarModoPeca('bas');
+        return 'bas';
       }
       /* os dois materiais de cada malha da peça da vez (com luz e sem
          luz), para a prova trocar entre eles sem reconstruir nada */
