@@ -114,7 +114,7 @@
 <button id="btnAcao">OLHAR</button>
 
 <footer id="rodape" style="display:none">
-  <span class="areaAtual">📍 Ala Egípcia · Parte 1</span>
+  <span class="areaAtual">📍 Ala Egípcia · Parte 1 — Pedro Reis</span>
   <button id="btnBolinhas">Bolinhas: ligadas</button>
   <button id="btnSarcofago">⚱️ Sarcófago</button>
   <button id="btnAjuda">? Ajuda</button>
@@ -127,12 +127,13 @@
   <div class="caixa">
     <h1>𓂀 ALA EGÍPCIA 𓂀</h1>
     <h2>Parte 1 · Sala 1: a Esfinge · Sala 2: o Sarcófago do Faraó</h2>
-    <p>Uma ala de galeria: cada peça do Tripo na sua própria sala, sobre o plinto,
+    <div style="margin-top:9px; font-size:15px; letter-spacing:3px; color:#e8c37a;">Pedro Reis</div>
+    <p>Uma ala de galeria: cada peça na sua própria sala, sobre o plinto,
        com luz de destaque e placa de museu. Você nasce na Sala 1, de cara com a
-       <b style="color:#e8c37a">Grande Esfinge</b>, gerada no Tripo especialmente para cá.
+       <b style="color:#e8c37a">Grande Esfinge</b>, feita sob encomenda especialmente para cá.
        No vestíbulo, atrás de você, a porta oeste — aberta — leva à Sala 2, a do
        <b style="color:#e8c37a">Sarcófago do Faraó</b>: pedra escura, máscara dourada e
-       hieróglifos em relevo, também gerado no Tripo. Ande em volta das peças e toque
+       hieróglifos em relevo, também feito sob encomenda. Ande em volta das peças e toque
        nas placas ao lado para conhecê-las. Esta é a <b style="color:#e8c37a">Parte 1</b> da ala: a cada duas salas, nasce uma parte nova, sempre com o mesmo estilo. A <b style="color:#e8c37a">Parte 2</b> abre com a Sala da Pirâmide — a porta leste do vestíbulo, hoje selada, é a passagem para ela.</p>
     <div class="teclas">
       🖱️ Mouse — olhar ao redor &nbsp;·&nbsp; <b>W A S D</b> ou setas — andar (Shift corre)<br>
@@ -173,12 +174,12 @@ window.addEventListener('unhandledrejection', function(e){
 var MANIFESTO = {
   esfinge: {
     arquivo: 'embutido:esfinge', titulo: 'Grande Esfinge',
-    autor: 'Tripo AI — gerada na conta da Reis', licenca: 'modelo sob encomenda',
+    autor: 'Pedro Reis', licenca: 'modelo sob encomenda',
     fonte: 'master guardado no projeto (fora da ala); aqui o modelo (glTF-Transform) viaja EMBUTIDO na página em base64 e as texturas de 1024px são reatribuídas pela página — no celular da Reis, arquivo separado não carrega e textura interna do GLB sai branca',
   },
   sarcofago: {
     arquivo: 'embutido:sarcofago', titulo: 'Sarcófago do Faraó',
-    autor: 'Tripo AI — gerado na conta da Reis', licenca: 'modelo sob encomenda',
+    autor: 'Pedro Reis', licenca: 'modelo sob encomenda',
     fonte: 'master guardado no projeto (fora da ala); aqui entra a versão leve (glTF-Transform) EMBUTIDA na página em base64, com as texturas de 1024px repintadas em canvas da página e reatribuídas, com teste de cor na GPU e tom de reserva — a técnica final provada no mundo',
   },
 };
@@ -200,16 +201,16 @@ var ALA = {
     selo: 'Ala Egípcia · Sala 1',
     titulo: 'A Grande Esfinge', tituloPlaca: 'GRANDE ESFINGE',
     sub: 'corpo de leão, cabeça humana — esculpida num só bloco de pedra',
-    texto: 'A guardiã da necrópole de Gizé: corpo de leão e cabeça humana — que muitos creem ser o rosto do faraó Quéfren. Foi esculpida há cerca de 4.500 anos num único monólito de calcário, de frente para o nascer do sol, como manda a tradição. A Esfinge desta ala é especial: foi gerada no Tripo AI sob encomenda, com o detalhe na textura e a geometria leve, para correr solta no seu celular. Ande em volta dela: a sala foi feita para isso.',
-    lista: ['A verdadeira: 73,5 m de comprimento e 20,2 m de altura', 'Esculpida num único bloco de calcário', 'Modelo desta sala: Tripo AI (ver créditos no botão ©)'],
+    texto: 'A guardiã da necrópole de Gizé: corpo de leão e cabeça humana — que muitos creem ser o rosto do faraó Quéfren. Foi esculpida há cerca de 4.500 anos num único monólito de calcário, de frente para o nascer do sol, como manda a tradição. A Esfinge desta ala é especial: foi feita sob encomenda, com o detalhe na textura e a geometria leve, para correr solta no seu celular. Ande em volta dela: a sala foi feita para isso.',
+    lista: ['A verdadeira: 73,5 m de comprimento e 20,2 m de altura', 'Esculpida num único bloco de calcário', 'Peça desta sala: Pedro Reis (ver créditos no botão ©)'],
   },
 
   boasVindas: {
     placa: { x: -2.9, z: 3.6, rotY: 0.30 },
     selo: 'Ala Egípcia',
     titulo: 'Bem-vinda à Ala Egípcia', tituloPlaca: 'ALA EGÍPCIA',
-    sub: 'salas de museu — uma peça do Tripo em cada sala',
-    texto: 'Esta ala guarda as peças egípcias geradas no Tripo AI, cada uma exposta na sua própria sala de galeria: plinto, luz de destaque e placa de museu, para andar em volta e conhecer de perto. A primeira sala, logo atrás de você, é a da Grande Esfinge; a porta oeste do vestíbulo leva à Sala 2, a do Sarcófago do Faraó.',
+    sub: 'salas de museu — uma peça em cada sala',
+    texto: 'Esta ala guarda as peças egípcias feitas sob encomenda, cada uma exposta na sua própria sala de galeria: plinto, luz de destaque e placa de museu, para andar em volta e conhecer de perto. A primeira sala, logo atrás de você, é a da Grande Esfinge; a porta oeste do vestíbulo leva à Sala 2, a do Sarcófago do Faraó.',
     lista: ['Sala 1: a Grande Esfinge — já aberta', 'Sala 2: o Sarcófago do Faraó — já aberta (porta oeste do vestíbulo)', 'Parte 2 (no mesmo estilo desta): abre com a Sala da Pirâmide de Gizé'],
   },
 
@@ -220,30 +221,29 @@ var ALA = {
     selo: 'Ala Egípcia · Sala 2',
     titulo: 'O Sarcófago do Faraó', tituloPlaca: 'SARCÓFAGO DO FARAÓ',
     sub: 'pedra escura, máscara dourada e hieróglifos em relevo',
-    texto: 'O sarcófago era a morada final do corpo: caixa dentro de caixa, protegia a múmia e, com ela, a promessa de vida no além. Este tem a forma do próprio corpo — o chamado sarcófago antropoide — com a máscara dourada do faraó sobre o rosto: para os egípcios, o ouro era a carne dos deuses, que não enferruja nem escurece, e prometia eternidade. Nas laterais, os hieróglifos em relevo guardam fórmulas e proteções para a viagem. A peça desta sala foi gerada no Tripo AI sob encomenda: ande em volta da base e repare na pedra escura, no brilho da máscara e no relevo das inscrições.',
-    lista: ['Forma antropoide: o sarcófago desenhado como o próprio corpo', 'Máscara dourada: o ouro era tido como a carne dos deuses', 'Modelo desta sala: Tripo AI (ver créditos no botão ©)'],
+    texto: 'O sarcófago era a morada final do corpo: caixa dentro de caixa, protegia a múmia e, com ela, a promessa de vida no além. Este tem a forma do próprio corpo — o chamado sarcófago antropoide — com a máscara dourada do faraó sobre o rosto: para os egípcios, o ouro era a carne dos deuses, que não enferruja nem escurece, e prometia eternidade. Nas laterais, os hieróglifos em relevo guardam fórmulas e proteções para a viagem. A peça desta sala foi feita sob encomenda: ande em volta da base e repare na pedra escura, no brilho da máscara e no relevo das inscrições.',
+    lista: ['Forma antropoide: o sarcófago desenhado como o próprio corpo', 'Máscara dourada: o ouro era tido como a carne dos deuses', 'Peça desta sala: Pedro Reis (ver créditos no botão ©)'],
   },
 
   portaPiramide: {
     selo: 'Ala Egípcia · Parte 2',
     titulo: 'Parte 2 — Sala da Pirâmide de Gizé', tituloPlaca: 'PARTE 2 · SALA DA PIRÂMIDE',
     sub: 'a próxima parte da ala, no mesmo estilo desta Parte 1',
-    texto: 'A ala cresce de duas em duas salas: completadas a Esfinge e o Sarcófago nesta Parte 1, a Parte 2 abre com a Sala da Pirâmide de Gizé — a peça será gerada no Tripo AI, sob encomenda, e exposta do mesmo jeito: plinto, luz de destaque e placa de museu. Esta porta leste se abre quando a Parte 2 estiver pronta.',
-    lista: ['Parte 2: o mesmo desenho e o mesmo jeito de explorar desta Parte 1', 'Primeira sala da Parte 2: a Pirâmide de Gizé (Tripo AI)'],
+    texto: 'A ala cresce de duas em duas salas: completadas a Esfinge e o Sarcófago nesta Parte 1, a Parte 2 abre com a Sala da Pirâmide de Gizé — a peça será feita sob encomenda e exposta do mesmo jeito: plinto, luz de destaque e placa de museu. Esta porta leste se abre quando a Parte 2 estiver pronta.',
+    lista: ['Parte 2: o mesmo desenho e o mesmo jeito de explorar desta Parte 1', 'Primeira sala da Parte 2: a Pirâmide de Gizé'],
   },
 };
 
 var CREDITOS_PAINEL = {
   selo: 'Ala Egípcia — créditos',
   titulo: 'Créditos',
-  sub: 'a peça é obra sob encomenda; nada aqui é gerado por código com cara de protótipo',
-  texto: 'A Grande Esfinge foi gerada no Tripo AI, na conta da Reis, sob encomenda para esta ala. O arquivo master fica guardado no projeto; na sala entra a versão leve (glTF-Transform, 1,19 MB, texturas em 1024px) EMBUTIDA na própria página, com as texturas reatribuídas pela página — no celular dela, modelo em arquivo separado não carrega e a textura interna do GLB sai branca. A lista completa e permanente está no arquivo CREDITS.md do projeto.',
+  sub: 'peças feitas sob encomenda para esta ala',
+  texto: 'Todas as peças expostas nesta ala — a Grande Esfinge e o Sarcófago do Faraó — foram criadas sob encomenda para esta exposição, cada uma na sua própria sala, com plinto, luz de destaque e placa de museu.',
   lista: [
-    'Grande Esfinge — Tripo AI, gerada na conta da Reis (modelo sob encomenda)',
-    'Sarcófago do Faraó — Tripo AI, gerado na conta da Reis (modelo sob encomenda)',
-    'Textura de pedra dos blocos — “Brown Brick”, Textures.com (uso livre nos termos do site)',
-    'Faixas de hieróglifos: desenho em canvas feito para esta ala',
-    'Motor: Three.js (licença MIT)',
+    'Grande Esfinge — Pedro Reis',
+    'Sarcófago do Faraó — Pedro Reis',
+    'Faixas de hieróglifos: desenho feito para esta ala',
+    'Assinatura: Pedro Reis',
   ],
 };
 
@@ -1362,7 +1362,7 @@ async function construirAla() {
       console.warn('esfinge falhou', e);
       avisos.push('Grande Esfinge');
       placaAviso(E.centro.x, E.plinto.h + 0.85, E.centro.z, 0,
-        ['✦', 'GRANDE ESFINGE', 'modelo a caminho do Tripo'], 1.3);
+        ['✦', 'GRANDE ESFINGE', 'peça em montagem'], 1.3);
     }
     porPlaca(E.placa, E); // placa de museu ao lado da peça
   }
@@ -1393,7 +1393,7 @@ async function construirAla() {
       console.warn('sarcófago falhou', e);
       avisos.push('Sarcófago do Faraó');
       placaAviso(S.centro.x, S.base.h + 0.85, S.centro.z, Math.PI / 2,
-        ['✦', 'SARCÓFAGO DO FARAÓ', 'modelo a caminho do Tripo'], 1.3);
+        ['✦', 'SARCÓFAGO DO FARAÓ', 'peça em montagem'], 1.3);
     }
     porPlaca(S.placa, S); // placa de museu ao lado da peça
   }

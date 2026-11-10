@@ -28,6 +28,7 @@
   #btnEntrar:active { transform:scale(.97); }
   @keyframes pulsar { 0%,100%{opacity:.75} 50%{opacity:1} }
   #carga { margin-top:12px; font-size:13px; color:#b7a67f; min-height:18px; }
+  #inicio .assinatura { margin-top:20px; font-size:16px; font-style:italic; letter-spacing:2px; color:#e8c37a; }
 
   /* ---------- Mira e dica de interação ---------- */
   #mira { position:fixed; left:50%; top:50%; width:6px; height:6px; margin:-3px 0 0 -3px; border-radius:50%;
@@ -157,6 +158,7 @@
     <br>
     <button type="button" id="btnEntrar">Entrar no museu</button>
     <div id="carga">Carregando os modelos…</div>
+    <div class="assinatura">Pedro Reis</div>
   </div>
 </div>
 
@@ -180,7 +182,7 @@ window.addEventListener('unhandledrejection', function(e){
 // Ala dos Pecados. Three.js (build clássico local) + GLTFLoader.
 // Objetos = modelos GLB de artistas de bibliotecas gratuitas.
 // O que ainda não tem modelo fica como pedestal com placa
-// "modelo exclusivo em breve (Tripo)" — nenhum objeto falso.
+// "modelo exclusivo em breve" — nenhum objeto falso.
 // ============================================================
 
 // ---------- manifesto: tema -> arquivo (modelos de artistas) ----------
@@ -672,7 +674,7 @@ function montarEstacao(cfg){
   }).then(function(comModelo){
     var algumModelo = comModelo || (cfg.modelos||[]).some(function(m){ return !!acharModelo(m.temas); });
     if (!algumModelo && cfg.suporte !== 'parede'){
-      placaEstacao(x, topoY+0.28, z, rotY, ['✦','modelo exclusivo','em breve (Tripo)'], { w:0.62, fonte:40 }, g);
+      placaEstacao(x, topoY+0.28, z, rotY, ['✦','modelo exclusivo','em breve'], { w:0.62, fonte:40 }, g);
     }
     var py = cfg.suporte === 'parede' ? 2.0 : topoY + (algumModelo ? (cfg.alturaAlvo||0.55)+0.35 : 0.78);
     if (cfg.suporte === 'parede') placaEstacao(x, py, z, rotY, [cfg.tituloPlaca||cfg.titulo], { w:cfg.placaW||1.9 }, g);
@@ -1128,11 +1130,11 @@ function construirCozinha(){
     placaEstacao(-19.2, 2.35, 7.55, Math.PI,
       ['“Você atrai o que você pensa.','Você atrai o que você fala.','Você atrai o que você teme.','Você atrai o que você reclama.','Então, mude seus pensamentos','e mudará sua realidade!”'],
       { w:2.3, fonte:36 });
-    // vitrine da Mandrágora (peça exclusiva — Tripo)
+    // vitrine da Mandrágora (peça exclusiva)
     return montarEstacao({
       id:'mandragora', selo:'Cozinha · Ervas', titulo:'A Mandrágora', tituloPlaca:'MANDRÁGORA',
       sub:'“Maçã de Satã, vela do diabo” — capítulo do livro',
-      texto:'A raiz de forma humana que habita o imaginário das bruxas ganha uma vitrine só dela nesta ala. O modelo escultórico da mandrágora é uma peça exclusiva, feita sob medida no Tripo — o espaço dela já está reservado aqui.',
+      texto:'A raiz de forma humana que habita o imaginário das bruxas ganha uma vitrine só dela nesta ala. O modelo escultórico da mandrágora é uma peça exclusiva, feita sob medida — o espaço dela já está reservado aqui.',
       x:-22.2, z:8.1, rotY:Math.PI, suporte:'vitrine', temas:['mandragora'], alturaAlvo:0.5
     });
   })
@@ -1191,7 +1193,7 @@ function construirPecados(){
     return montarEstacao({
       id:'cordeiro', selo:'Ala dos Pecados · peça central', titulo:'O Cordeiro do Eneagrama',
       sub:'a escultura do centro do diagrama',
-      texto:'No centro do eneagrama dorme o cordeiro da imagem que inspirou esta ala — gravura antiga, pedra e osso. É a peça-herói da sala; a escultura definitiva será feita sob medida no Tripo a partir da própria imagem. Por enquanto, quem ocupa o centro é este cordeiro de biblioteca gratuita, guardando o lugar.',
+      texto:'No centro do eneagrama dorme o cordeiro da imagem que inspirou esta ala — gravura antiga, pedra e osso. É a peça-herói da sala; a escultura definitiva será feita sob medida a partir da própria imagem. Por enquanto, quem ocupa o centro é este cordeiro de biblioteca gratuita, guardando o lugar.',
       x:PC.x, z:PC.z, rotY:0, suporte:'pedestal', temas:['cordeiro','ovelha'], alturaAlvo:0.65
     });
   })
