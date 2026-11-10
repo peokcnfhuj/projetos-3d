@@ -513,7 +513,15 @@
       var loader = new THREE.GLTFLoader();
 
       function montaNoPalco(obj, diagHTML){
-        limpaAtual();
+        /* NÃO limpar aqui: quem pede a carga (carregaEmbutido) já
+           esvaziou o palco ANTES de carregar. Limpar neste ponto era
+           o defeito do "só aparece a sombra": os materiais da peça
+           NOVA (paresAtual) já estavam montados quando montaNoPalco
+           rodava, e o limpaAtual descartava os dois materiais e
+           apagava o registro dos pares — a prova de cor ficava sem
+           como confirmar/aplicar a textura e, no celular, a peça
+           entrava sem o material de cor: só a forma/sombra dela.
+           É o mesmo conserto já provado na Galeria — Parte 1. */
         if (PECA.giroY) obj.rotation.y = PECA.giroY;
         atual = encaixa(obj, PECA.alturaAlvo);
         renderer.shadowMap.needsUpdate = true;
@@ -671,15 +679,25 @@
         if (media.espalha > 0.05 && (rend.espalha || 0) < media.espalha * 0.45) return false;
         return true;
       }
-      /* A PROVA DA PEÇA, em dois níveis — devolve 'std' (com luz),
-         'bas' (sem luz) ou 'reserva':
+      /* A PROVA DA PEÇA, em dois níveis — devolve 'std' (com luz) ou
+         'bas' (sem luz). 'reserva' NÃO sai daqui: quem tem textura
+         decodificada fica com ela, sempre:
          NÍVEL 1 (o decisivo): a referência é a própria peça SEM luz —
          a textura pura através dos UVs reais, neste aparelho. Se esse
          render tem VARIAÇÃO de luminosidade de verdade (desv ≥ 6), a
          textura ESTÁ aplicada e visível aqui. Provada a textura, o
-         modo com luz só é rejeitado se estiver estourado ou com a
-         tinta colapsada.
-         NÍVEL 2: comparação clássica com a média do atlas. */
+         modo com luz é rejeitado se estiver estourado, com a tinta
+         colapsada OU VIRADO SOMBRA — render com luz quase preto
+         (luminosidade despencada em relação à textura pura, ou
+         leitura vazia) era o sintoma "só aparece a sombra deles"
+         no celular: nesse caso a peça fica com a textura pura, sem
+         depender da luz, que é o modo que mostra a cor em qualquer
+         aparelho.
+         NÍVEL 2 (peça escura demais p/ o nível 1): comparação
+         clássica com a média do atlas. Sem prova conclusiva, a peça
+         AINDA fica com a textura pura — a leitura de pixels pode
+         voltar vazia no celular mesmo com a textura perfeita, e
+         textura decodificada nunca é descartada por causa dela. */
       function provaDaPeca(media){
         function lum(c){ return (c.r + c.g + c.b) / 3; }
         aplicarModoPeca('bas');
@@ -690,13 +708,16 @@
           var estourou = !rend ||
             (lum(rend) > 235 && rend.desv < 8) ||
             (ref.espalha > 0.05 && (rend.espalha || 0) < ref.espalha * 0.3);
-          if (!estourou) return 'std';
+          var virouSombra = !rend ||
+            lum(rend) < Math.max(12, lum(ref) * 0.35) ||
+            (rend.desv || 0) < ref.desv * 0.3;
+          if (!estourou && !virouSombra) return 'std';
           aplicarModoPeca('bas');
           return 'bas';
         }
         if (corConfereMedia(rend, media)) return 'std';
-        if (ref) { aplicarModoPeca('bas'); return 'bas'; }
-        return 'reserva';
+        aplicarModoPeca('bas');
+        return 'bas';
       }
       function aplicarModoPeca(modo){
         if (!paresAtual) return;
@@ -806,11 +827,24 @@
                 if (def.papeis[slot]) tarefas.push({ di: di, slot: slot, url: def.papeis[slot] });
               });
             });
-            Promise.all(tarefas.map(function(t){ return imagemDaPagina(t.url); })).then(function(imgs){
+            /* cada imagem vale por si: se UMA textura falhar ao
+               decodificar neste aparelho, as outras continuam — antes
+               o Promise.all rejeitava tudo por causa de uma e a peça
+               inteira caía no tom de reserva escuro (a "sombra") */
+            Promise.all(tarefas.map(function(t){
+              return imagemDaPagina(t.url).then(function(img){ return img; }, function(){ return null; });
+            })).then(function(imgs){
               tarefas.forEach(function(t){ URL.revokeObjectURL(t.url); });
               if (minhaFicha !== fichaCarga) return;
               var imgDe = {};
-              tarefas.forEach(function(t, i){ (imgDe[t.di] = imgDe[t.di] || {})[t.slot] = imgs[i]; });
+              tarefas.forEach(function(t, i){ if (imgs[i]) (imgDe[t.di] = imgDe[t.di] || {})[t.slot] = imgs[i]; });
+              var temMapa = Object.keys(imgDe).some(function(k){ return imgDe[k] && imgDe[k].map; });
+              if (!temMapa) {
+                aplicarTomReserva(obj, PECA.reserva);
+                fim('modelo <b class="ok">embutido na página ✓</b> · cor: <b>tom de reserva</b> da peça · ' +
+                    total + (total === 1 ? ' parte' : ' partes'));
+                return;
+              }
               var media = imgDe[0] && imgDe[0].map ? corMediaDaImagem(imgDe[0].map) : null;
               function defDoMaterial(m){
                 for (var i = 0; i < defs.length; i++) if (defs[i].nome && m && m.name === defs[i].nome) return i;
@@ -827,9 +861,11 @@
                 });
                 return achado;
               }
-              /* texturas via canvas, UMA por (material, papel) */
+              /* texturas via canvas, UMA por (material, papel) — só
+                 das imagens que decodificaram de verdade */
               var texDe = {};
               tarefas.forEach(function(t){
+                if (!imgDe[t.di] || !imgDe[t.di][t.slot]) return;
                 (texDe[t.di] = texDe[t.di] || {})[t.slot] =
                   texturaViaCanvas(imgDe[t.di][t.slot], modeloSlot(t.di, t.slot), t.slot === 'map');
               });
@@ -896,8 +932,10 @@
               } else if (modo === 'bas') {
                 diagTxt.innerHTML = 'modelo <b class="ok">embutido na página ✓</b> · textura original <b class="ok">aplicada sem depender da luz ✓</b> · ' + partesTxt;
               } else {
-                aplicarCorBasica(media, PECA.reserva);
-                diagTxt.innerHTML = 'modelo <b class="ok">embutido na página ✓</b> · cor: <b>tom de reserva</b> (a média real da textura da peça) · ' + partesTxt;
+                /* a prova só devolve 'std' ou 'bas' — qualquer outro
+                   desfecho mantém a textura pura, sem depender da luz */
+                aplicarModoPeca('bas');
+                diagTxt.innerHTML = 'modelo <b class="ok">embutido na página ✓</b> · textura original <b class="ok">aplicada sem depender da luz ✓</b> · ' + partesTxt;
               }
             }).catch(function(){
               tarefas.forEach(function(t){ URL.revokeObjectURL(t.url); });
