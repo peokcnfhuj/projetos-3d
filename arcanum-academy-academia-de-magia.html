@@ -1,0 +1,2941 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>Arcanum Academy — Academia de Magia</title>
+
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <!-- Fontes Gótico-Arcanas: Cinzel, Cormorant Garamond & Inter -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;600;700;800&family=Cormorant+Garamond:ital,wght@0,500;0,600;1,500&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+  <!-- Three.js r128 Clássico (sem importmaps para máxima compatibilidade) -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+
+  <!-- Tone.js para efeitos sonoros arcanos sintetizados -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
+
+  <style>
+    :root {
+      --bg-midnight: #080614;
+      --gold-primary: #d4af37;
+      --cyan-arcane: #38bdf8;
+      --amethyst-glow: #a855f7;
+      --glass-bg: rgba(10, 8, 24, 0.78);
+      --glass-border: rgba(212, 175, 55, 0.36);
+    }
+
+    * {
+      box-sizing: border-box;
+      user-select: none;
+      -webkit-user-select: none;
+      -webkit-touch-callout: none;
+    }
+
+    html, body {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background-color: var(--bg-midnight);
+      font-family: 'Inter', sans-serif;
+      color: #f4efe6;
+      touch-action: none;
+    }
+
+    #canvas-container {
+      position: fixed;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 1;
+    }
+
+    canvas#world-canvas {
+      display: block;
+      width: 100%;
+      height: 100%;
+      touch-action: none;
+      pointer-events: auto;
+      cursor: grab;
+    }
+
+    canvas#world-canvas:active {
+      cursor: grabbing;
+    }
+
+    /* Camada HUD blindada: wrapper transparente a cliques, controles filhos interativos */
+    #hud {
+      position: fixed;
+      inset: 0;
+      z-index: 20;
+      pointer-events: none;
+    }
+
+    .interactive-ui {
+      pointer-events: auto;
+      touch-action: none;
+    }
+
+    .font-cinzel { font-family: 'Cinzel', serif; }
+    .font-lore { font-family: 'Cormorant Garamond', serif; }
+
+    .arcane-panel {
+      background: var(--glass-bg);
+      backdrop-filter: blur(14px);
+      -webkit-backdrop-filter: blur(14px);
+      border: 1px solid var(--glass-border);
+      box-shadow: 0 8px 30px rgba(0, 0, 0, 0.65), inset 0 0 16px rgba(212, 175, 55, 0.08);
+    }
+
+    .arcane-btn {
+      background: rgba(20, 16, 44, 0.86);
+      border: 1px solid rgba(212, 175, 55, 0.32);
+      color: #f0e8d8;
+      transition: transform 0.12s ease, background 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+      cursor: pointer;
+    }
+
+    .arcane-btn:hover {
+      background: rgba(46, 34, 92, 0.95);
+      border-color: rgba(212, 175, 55, 0.85);
+      color: #fff7db;
+      box-shadow: 0 0 14px rgba(212, 175, 55, 0.35);
+    }
+
+    .arcane-btn:active {
+      transform: scale(0.94);
+    }
+
+    .arcane-btn.active {
+      background: linear-gradient(135deg, rgba(212, 175, 55, 0.34), rgba(168, 85, 247, 0.38));
+      border-color: #d4af37;
+      color: #ffebb0;
+      box-shadow: 0 0 16px rgba(212, 175, 55, 0.42);
+    }
+
+    .arcane-btn.cyan-active {
+      background: linear-gradient(135deg, rgba(56, 189, 248, 0.34), rgba(168, 85, 247, 0.38));
+      border-color: #38bdf8;
+      color: #e0f7ff;
+      box-shadow: 0 0 18px rgba(56, 189, 248, 0.55);
+    }
+
+    .crystal-ready {
+      background: linear-gradient(135deg, rgba(56, 189, 248, 0.46), rgba(212, 175, 55, 0.46)) !important;
+      border-color: #38bdf8 !important;
+      color: #ffffff !important;
+      box-shadow: 0 0 22px rgba(56, 189, 248, 0.85), inset 0 0 12px rgba(212, 175, 55, 0.55) !important;
+      animation: crystalPulse 1.4s infinite ease-in-out;
+    }
+
+    @keyframes crystalPulse {
+      0%, 100% { transform: scale(1); }
+      50% { transform: scale(1.06); }
+    }
+
+    .spell-btn.casting {
+      animation: spellPulse 0.42s ease-out;
+      border-color: #38bdf8;
+      box-shadow: 0 0 22px rgba(56, 189, 248, 0.8);
+    }
+
+    @keyframes spellPulse {
+      0% { transform: scale(1); }
+      35% { transform: scale(1.08); }
+      100% { transform: scale(1); }
+    }
+
+    /* Joystick Analógico Virtual 360° */
+    #joystick-base {
+      background: radial-gradient(circle, rgba(24, 19, 52, 0.76) 0%, rgba(8, 6, 20, 0.9) 100%);
+      border: 2px solid rgba(212, 175, 55, 0.48);
+      box-shadow: 0 0 24px rgba(0, 0, 0, 0.7), inset 0 0 18px rgba(56, 189, 248, 0.16);
+    }
+
+    #joystick-knob {
+      background: radial-gradient(circle at 35% 35%, #fff6cf, #d4af37 55%, #8a6812 100%);
+      border: 2px solid #ffffff;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.7), 0 0 14px rgba(212, 175, 55, 0.7);
+      pointer-events: none;
+    }
+
+    .no-scrollbar::-webkit-scrollbar { display: none; }
+    .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+    @keyframes spinSlow {
+      from { transform: rotate(0deg); }
+      to { transform: rotate(360deg); }
+    }
+    .animate-spin-slow { animation: spinSlow 10s linear infinite; }
+  </style>
+</head>
+<body>
+
+  <!-- Container do Canvas 3D -->
+  <div id="canvas-container"></div>
+
+  <!-- Tela Inicial de Carregamento -->
+  <div id="loading-screen" class="fixed inset-0 z-50 flex flex-col items-center justify-center bg-[#080614] transition-opacity duration-500">
+    <div class="relative w-20 h-20 flex items-center justify-center mb-5">
+      <div class="absolute inset-0 rounded-full border-2 border-dashed border-[#d4af37]/65 animate-spin-slow"></div>
+      <div class="absolute inset-2 rounded-full border border-[#38bdf8]/55 animate-ping"></div>
+      <span class="text-3xl text-[#d4af37]">✦</span>
+    </div>
+    <h1 class="font-cinzel text-2xl sm:text-3xl tracking-[0.2em] text-[#f6e3a4] font-bold text-center px-4">
+      ARCANUM ACADEMY
+    </h1>
+    <p class="font-lore italic text-lg sm:text-xl text-purple-200/85 mt-2 text-center px-6">
+      Materializando as ilhas flutuantes e calibrando sua varinha...
+    </p>
+  </div>
+
+  <!-- Mira Central em 1ª Pessoa -->
+  <div id="crosshair" class="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-10 pointer-events-none flex items-center justify-center">
+    <div class="w-4 h-4 rotate-45 border border-[#d4af37]/85 shadow-[0_0_10px_rgba(56,189,248,0.85)] flex items-center justify-center">
+      <div class="w-1 h-1 bg-[#38bdf8] rounded-full"></div>
+    </div>
+  </div>
+
+  <!-- Banner de Proximidade de Cristal de Lore -->
+  <div id="proximity-banner" class="fixed top-24 sm:top-20 left-1/2 -translate-x-1/2 z-30 hidden pointer-events-none">
+    <div class="arcane-panel px-4 py-1.5 rounded-full border-[#38bdf8]/80 text-xs sm:text-sm font-cinzel tracking-wider text-[#e0f7ff] shadow-2xl flex items-center gap-2">
+      <span class="text-[#38bdf8] animate-pulse">🔮</span>
+      <span id="proximity-label">Ler Cristal [F]</span>
+    </div>
+  </div>
+
+  <!-- Toast de Feedback Rápido -->
+  <div id="spell-toast" class="fixed top-32 sm:top-28 left-1/2 -translate-x-1/2 z-30 pointer-events-none opacity-0 transition-opacity duration-200 px-4 py-1.5 rounded-full arcane-panel border-[#d4af37]/65 text-xs sm:text-sm font-cinzel tracking-widest text-[#ffebb0] shadow-xl whitespace-nowrap">
+    Feitiço Conjurado
+  </div>
+
+  <!-- ========================================================================
+       HUD COMPLETO E CONTROLES NA TELA
+       ======================================================================== -->
+  <div id="hud" class="flex flex-col justify-between p-2.5 sm:p-4">
+
+    <!-- 1. BARRA SUPERIOR: Identidade/Status/Clima (Esquerda), Teleporte (Centro), Minimapa/Controles (Direita) -->
+    <header class="flex items-start justify-between gap-2">
+
+      <!-- TOP-LEFT: Título, Marco Atual, Status ao Vivo de Movimento e Seletor de Clima -->
+      <div class="flex flex-col gap-1.5 shrink-0">
+        <div class="arcane-panel interactive-ui rounded-2xl px-3 py-2 flex items-center gap-2.5">
+          <div class="w-9 h-9 rounded-xl bg-gradient-to-br from-[#d4af37]/30 to-[#a855f7]/40 border border-[#d4af37]/65 flex items-center justify-center text-[#d4af37] text-lg shrink-0">
+            ✦
+          </div>
+          <div>
+            <h1 class="font-cinzel text-xs sm:text-sm md:text-base font-bold tracking-[0.14em] text-[#f6e3a4] leading-tight">
+              ARCANUM ACADEMY
+            </h1>
+            <div class="flex items-center gap-2 mt-0.5 flex-wrap">
+              <span id="location-subtitle" class="text-[10px] sm:text-xs text-[#38bdf8] font-semibold tracking-wide">
+                📍 Pátio das Runas
+              </span>
+              <span id="move-status-badge" class="text-[10px] px-2 py-0.5 rounded-full bg-white/10 border border-white/15 text-amber-200 font-medium">
+                ✨ Parado
+              </span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Seletor de Atmosfera Celeste -->
+        <div class="arcane-panel interactive-ui rounded-full p-1 flex items-center gap-1 self-start">
+          <button id="preset-twilight" onclick="setAtmospherePreset('twilight')" class="arcane-btn active px-2.5 py-1 rounded-full text-[10px] sm:text-xs font-medium">
+            🌅 Crepúsculo
+          </button>
+          <button id="preset-starry" onclick="setAtmospherePreset('starry')" class="arcane-btn px-2.5 py-1 rounded-full text-[10px] sm:text-xs font-medium">
+            🌌 Noite Estrelada
+          </button>
+          <button id="preset-aurora" onclick="setAtmospherePreset('aurora')" class="arcane-btn px-2.5 py-1 rounded-full text-[10px] sm:text-xs font-medium">
+            ✨ Aurora
+          </button>
+        </div>
+      </div>
+
+      <!-- TOP-CENTER: Pílulas Compactas de Teleporte Rápido & Modo de Câmera -->
+      <div class="hidden md:flex flex-col items-center gap-1.5">
+        <div class="arcane-panel interactive-ui rounded-full px-2 py-1 flex items-center gap-1">
+          <button id="tp-courtyard" onclick="teleportPlayer('courtyard')" class="tp-btn arcane-btn active rounded-full px-2.5 py-1 text-[11px] whitespace-nowrap">
+            ⛲ Pátio
+          </button>
+          <button id="tp-grandhall" onclick="teleportPlayer('grandhall')" class="tp-btn arcane-btn rounded-full px-2.5 py-1 text-[11px] whitespace-nowrap">
+            🏰 Grande Salão
+          </button>
+          <button id="tp-astronomy" onclick="teleportPlayer('astronomy')" class="tp-btn arcane-btn rounded-full px-2.5 py-1 text-[11px] whitespace-nowrap">
+            🔭 Astronomia
+          </button>
+          <button id="tp-arena" onclick="teleportPlayer('arena')" class="tp-btn arcane-btn rounded-full px-2.5 py-1 text-[11px] whitespace-nowrap">
+            ⚔️ Arena
+          </button>
+          <button id="tp-grove" onclick="teleportPlayer('grove')" class="tp-btn arcane-btn rounded-full px-2.5 py-1 text-[11px] whitespace-nowrap">
+            🍄 Bosque
+          </button>
+          <button id="tp-library" onclick="teleportPlayer('library')" class="tp-btn arcane-btn rounded-full px-2.5 py-1 text-[11px] whitespace-nowrap">
+            📚 Biblioteca
+          </button>
+        </div>
+
+        <div class="arcane-panel interactive-ui rounded-full p-1 flex items-center gap-1">
+          <button id="btn-mode-fp" onclick="setCameraMode('fp')" class="arcane-btn active px-3 py-1 rounded-full text-[11px] font-medium">
+            🚶 1ª Pessoa
+          </button>
+          <button id="btn-mode-orbit" onclick="setCameraMode('orbit')" class="arcane-btn px-3 py-1 rounded-full text-[11px] font-medium">
+            🎥 Órbita
+          </button>
+          <button id="btn-pointer-lock" onclick="requestDesktopPointerLock()" class="arcane-btn px-3 py-1 rounded-full text-[11px] font-medium" title="Travar Mira do Mouse (ESC para soltar)">
+            🎯 Trava de Mira
+          </button>
+          <button id="btn-sound" onclick="toggleSound()" class="arcane-btn w-7 h-7 rounded-full flex items-center justify-center text-xs" title="Som Arcano">
+            🔇
+          </button>
+        </div>
+      </div>
+
+      <!-- TOP-RIGHT: Minimapa/Bússola Circular em Tempo Real + Botão Controles -->
+      <div class="flex flex-col items-end gap-1.5 shrink-0">
+        <div class="arcane-panel interactive-ui rounded-2xl p-1.5 sm:p-2 flex flex-col items-center">
+          <div class="relative w-20 h-20 sm:w-24 sm:h-24 rounded-full overflow-hidden border border-[#d4af37]/55 bg-[#080614]/95">
+            <canvas id="minimap-canvas" width="120" height="120" class="w-full h-full"></canvas>
+            <span class="absolute top-0.5 left-1/2 -translate-x-1/2 text-[8px] font-cinzel font-bold text-[#d4af37]">N</span>
+            <span class="absolute bottom-0.5 left-1/2 -translate-x-1/2 text-[8px] font-cinzel text-purple-300/80">S</span>
+            <span class="absolute left-1 top-1/2 -translate-y-1/2 text-[8px] font-cinzel text-purple-300/80">O</span>
+            <span class="absolute right-1 top-1/2 -translate-y-1/2 text-[8px] font-cinzel text-purple-300/80">L</span>
+          </div>
+          <div class="mt-1 text-[9px] sm:text-[10px] font-cinzel text-[#d4af37] tracking-wider">
+            🔮 <span id="lore-counter" class="text-[#38bdf8] font-bold">0/6</span>
+          </div>
+        </div>
+
+        <div class="flex items-center gap-1.5">
+          <button id="btn-sound-mobile" onclick="toggleSound()" class="arcane-btn interactive-ui md:hidden w-8 h-8 rounded-full flex items-center justify-center text-xs" title="Som Arcano">
+            🔇
+          </button>
+          <button id="btn-toggle-controls" onclick="toggleOnScreenControls()" class="arcane-btn active interactive-ui px-2.5 sm:px-3 py-1.5 rounded-full text-[11px] sm:text-xs font-medium flex items-center gap-1">
+            <span>🎮</span> <span>Controles</span>
+          </button>
+        </div>
+      </div>
+    </header>
+
+    <!-- Barra Mobile Compacta de Teleporte (visível apenas em telas pequenas) -->
+    <div class="flex md:hidden justify-center my-1">
+      <div class="arcane-panel interactive-ui rounded-full px-2 py-1 flex items-center gap-1 max-w-full overflow-x-auto no-scrollbar">
+        <button onclick="teleportPlayer('courtyard')" class="arcane-btn rounded-full px-2 py-0.5 text-[10px] whitespace-nowrap">⛲ Pátio</button>
+        <button onclick="teleportPlayer('grandhall')" class="arcane-btn rounded-full px-2 py-0.5 text-[10px] whitespace-nowrap">🏰 Salão</button>
+        <button onclick="teleportPlayer('astronomy')" class="arcane-btn rounded-full px-2 py-0.5 text-[10px] whitespace-nowrap">🔭 Astronomia</button>
+        <button onclick="teleportPlayer('arena')" class="arcane-btn rounded-full px-2 py-0.5 text-[10px] whitespace-nowrap">⚔️ Arena</button>
+        <button onclick="teleportPlayer('grove')" class="arcane-btn rounded-full px-2 py-0.5 text-[10px] whitespace-nowrap">🍄 Bosque</button>
+        <button onclick="teleportPlayer('library')" class="arcane-btn rounded-full px-2 py-0.5 text-[10px] whitespace-nowrap">📚 Biblioteca</button>
+      </div>
+    </div>
+
+    <!-- 2. CAMADA INFERIOR: Joystick (Esquerda), Feitiços + Passo (Centro), Direcional Câmera + Ações (Direita) -->
+    <div id="virtual-controls-layer" class="w-full flex items-end justify-between gap-2 mt-auto">
+
+      <!-- BOTTOM-LEFT: Joystick Analógico Virtual 360° -->
+      <div class="flex flex-col items-start gap-2 pl-0.5 sm:pl-2 shrink-0">
+        <div id="joystick-base" class="interactive-ui relative w-28 h-28 sm:w-36 sm:h-36 rounded-full flex items-center justify-center">
+          <div class="absolute inset-3 rounded-full border border-dashed border-[#d4af37]/30 pointer-events-none"></div>
+          <span class="absolute top-1.5 text-[9px] font-cinzel text-[#d4af37]/75 pointer-events-none">W</span>
+          <span class="absolute bottom-1.5 text-[9px] font-cinzel text-[#d4af37]/75 pointer-events-none">S</span>
+          <span class="absolute left-2 text-[9px] font-cinzel text-[#d4af37]/75 pointer-events-none">A</span>
+          <span class="absolute right-2 text-[9px] font-cinzel text-[#d4af37]/75 pointer-events-none">D</span>
+
+          <div id="joystick-knob" class="w-11 h-11 sm:w-14 sm:h-14 rounded-full flex items-center justify-center text-[#080614] font-bold text-xs">
+            ✦
+          </div>
+        </div>
+      </div>
+
+      <!-- BOTTOM-CENTER: Seletor de Passo + Hotbar de 4 Feitiços [1–4] -->
+      <div class="flex flex-col items-center gap-1.5 max-w-[54vw] sm:max-w-none">
+        <!-- Botão de Alternância de Passo -->
+        <button id="btn-pace-toggle" onclick="togglePaceMode()" class="arcane-btn active interactive-ui px-3.5 py-1.5 rounded-full text-[11px] sm:text-xs font-cinzel font-semibold tracking-wider flex items-center gap-1.5 shadow-lg">
+          <span id="pace-icon">🚶</span>
+          <span id="pace-label">Passo: Caminhada (4.6)</span>
+        </button>
+
+        <!-- Barra de 4 Feitiços -->
+        <div class="arcane-panel interactive-ui rounded-2xl p-1.5 flex items-center gap-1.5 max-w-full overflow-x-auto no-scrollbar">
+          <button id="spell-1" onclick="castSpell(1)" class="spell-btn arcane-btn rounded-xl px-2.5 py-1.5 flex items-center gap-1.5 shrink-0">
+            <span class="text-sm sm:text-base">🪄</span>
+            <span class="text-[11px] sm:text-xs font-semibold text-[#38bdf8] whitespace-nowrap">[1] Raio de Mana</span>
+          </button>
+
+          <button id="spell-2" onclick="castSpell(2)" class="spell-btn arcane-btn rounded-xl px-2.5 py-1.5 flex items-center gap-1.5 shrink-0">
+            <span class="text-sm sm:text-base">☄️</span>
+            <span class="text-[11px] sm:text-xs font-semibold text-purple-300 whitespace-nowrap">[2] Chuva de Meteoros</span>
+          </button>
+
+          <button id="spell-3" onclick="castSpell(3)" class="spell-btn arcane-btn rounded-xl px-2.5 py-1.5 flex items-center gap-1.5 shrink-0">
+            <span class="text-sm sm:text-base">🔯</span>
+            <span class="text-[11px] sm:text-xs font-semibold text-[#d4af37] whitespace-nowrap">[3] Círculo Rúnico</span>
+          </button>
+
+          <button id="spell-4" onclick="castSpell(4)" class="spell-btn arcane-btn rounded-xl px-2.5 py-1.5 flex items-center gap-1.5 shrink-0">
+            <span class="text-sm sm:text-base">🌪️</span>
+            <span class="text-[11px] sm:text-xs font-semibold text-emerald-300 whitespace-nowrap">[4] Tempestade de Mana</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- BOTTOM-RIGHT: Mini-Direcional de Câmera + Botões de Ação (Pular, Atacar, Ler Cristal) -->
+      <div class="flex flex-col items-end gap-2 pr-0.5 sm:pr-2 shrink-0">
+
+        <!-- D-Pad de Câmera -->
+        <div class="arcane-panel interactive-ui p-1.5 rounded-2xl flex flex-col items-center gap-0.5 shadow-lg">
+          <span class="text-[8px] font-cinzel uppercase tracking-widest text-[#d4af37]/85">Câmera</span>
+          <div class="grid grid-cols-3 gap-1">
+            <div></div>
+            <button data-cam="up" class="cam-pad-btn arcane-btn w-7 h-7 sm:w-8 sm:h-8 rounded-lg text-xs font-bold flex items-center justify-center">▲</button>
+            <div></div>
+            <button data-cam="left" class="cam-pad-btn arcane-btn w-7 h-7 sm:w-8 sm:h-8 rounded-lg text-xs font-bold flex items-center justify-center">◀</button>
+            <button onclick="resetCameraPitch()" class="arcane-btn w-7 h-7 sm:w-8 sm:h-8 rounded-lg text-[10px] text-[#38bdf8] flex items-center justify-center" title="Centralizar Horizonte">◎</button>
+            <button data-cam="right" class="cam-pad-btn arcane-btn w-7 h-7 sm:w-8 sm:h-8 rounded-lg text-xs font-bold flex items-center justify-center">▶</button>
+            <div></div>
+            <button data-cam="down" class="cam-pad-btn arcane-btn w-7 h-7 sm:w-8 sm:h-8 rounded-lg text-xs font-bold flex items-center justify-center">▼</button>
+            <div></div>
+          </div>
+        </div>
+
+        <!-- Botões de Ação -->
+        <div class="flex items-end gap-1.5 sm:gap-2">
+          <button id="btn-read-crystal" onclick="interactWithNearestLore()" class="arcane-btn interactive-ui px-3 py-2.5 sm:px-3.5 sm:py-3 rounded-2xl text-[11px] sm:text-xs font-cinzel font-bold flex flex-col items-center justify-center gap-0.5 shadow-xl">
+            <span class="text-base sm:text-lg">🔮</span>
+            <span>Ler Cristal</span>
+          </button>
+
+          <div class="flex flex-col gap-1.5">
+            <button id="btn-jump" onclick="triggerJump()" class="arcane-btn interactive-ui px-3.5 py-2 sm:px-4 sm:py-2.5 rounded-2xl text-xs font-cinzel font-bold flex items-center justify-center gap-1 shadow-xl">
+              <span>⬆️</span> <span>Pular</span>
+            </button>
+
+            <button id="btn-attack" onclick="castSpell(1)" class="arcane-btn cyan-active interactive-ui px-3.5 py-2.5 sm:px-4 sm:py-3 rounded-2xl text-xs font-cinzel font-bold flex items-center justify-center gap-1 shadow-xl">
+              <span>✨</span> <span>Atacar</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL DE LORE (Pergaminho Arcano ao Ler Cristais) -->
+  <div id="lore-modal" class="fixed inset-0 z-40 hidden items-center justify-center p-4 bg-black/75 backdrop-blur-sm interactive-ui">
+    <div class="arcane-panel rounded-3xl max-w-lg w-full p-6 sm:p-8 relative border-[#d4af37]/70 shadow-2xl">
+      <div class="flex items-center justify-between border-b border-[#d4af37]/25 pb-4 mb-4">
+        <div class="flex items-center gap-3">
+          <div class="w-10 h-10 rounded-full bg-[#38bdf8]/15 border border-[#38bdf8]/55 flex items-center justify-center text-[#38bdf8] text-xl">
+            🔮
+          </div>
+          <div>
+            <span id="lore-category" class="text-[11px] uppercase tracking-[0.2em] text-[#d4af37] font-semibold block">
+              Registro Arcano
+            </span>
+            <h2 id="lore-title" class="font-cinzel text-lg sm:text-2xl font-bold text-[#fff3cd]">
+              Título do Cristal
+            </h2>
+          </div>
+        </div>
+        <button onclick="closeLoreModal()" class="arcane-btn w-9 h-9 rounded-full flex items-center justify-center text-sm">
+          ✕
+        </button>
+      </div>
+
+      <p id="lore-description" class="font-lore text-lg sm:text-xl leading-relaxed text-indigo-100/95 mb-5">
+        Descrição da lore...
+      </p>
+
+      <div class="rounded-2xl bg-[#130e2b]/90 border border-[#38bdf8]/35 p-3.5 mb-6">
+        <div class="text-xs font-cinzel uppercase tracking-wider text-[#38bdf8] mb-1">
+          ✦ Segredo dos Arquimagos
+        </div>
+        <p id="lore-secret" class="text-xs sm:text-sm text-purple-100/90 leading-relaxed">
+          Segredo arcano...
+        </p>
+      </div>
+
+      <div class="flex justify-end">
+        <button onclick="closeLoreModal()" class="arcane-btn active px-6 py-2.5 rounded-full text-xs font-cinzel tracking-wider">
+          Continuar Exploração
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    /**
+     * ============================================================================
+     * ARCANUM ACADEMY — ACADEMIA DE MAGIA 3D (THREE.JS r128)
+     * ============================================================================
+     * Arquitetura:
+     * 1. Física de Movimentação Imediata e Engrenada:
+     *    - Deadzone mínima de 0.08 no joystick analógico.
+     *    - Aceleração linear ultrarrápida (0.045s) até 4.6 u/s (Caminhada) ou 7.0 u/s (Trote),
+     *      e parada limpa em 0.04s ao soltar os controles — zero inércia pegajosa.
+     *    - Terreno analítico getGroundHeight(x, z) cobrindo a Ilha Central (R=31),
+     *      rampa suave e piso do Grande Salão (y=0.2), as 4 Pontes de Energia (largura 4.8)
+     *      e as 4 Ilhas Satélites, com colisão deslizante suave apenas nos obstáculos sólidos.
+     * 2. Viewmodel 3D em 1ª Pessoa:
+     *    - Varinha arcana esculpida em madeira negra, anéis dourados, cristal luminoso com
+     *      PointLight dinâmico e punho de túnica de mago com balanço rítmico e recuo de magia.
+     * 3. Arquipélago Flutuante Completo (6 Marcos), 4 Feitiços [1-4], 6 Cristais de Lore,
+     *    3 Climas Dinâmicos, Minimapa Circular em Tempo Real e Áudio Sintetizado.
+     */
+
+    // --------------------------------------------------------------------------
+    // 1. CONSTANTES DE MOVIMENTO & ESTADO DO JOGADOR
+    // --------------------------------------------------------------------------
+    const EYE_HEIGHT = 1.75;
+    const WALK_SPEED = 4.6;          // Caminhada natural e engrenada (4.6 unidades/s)
+    const TROT_SPEED = 7.0;          // Trote opcional (7.0 unidades/s)
+    const ACCEL_TIME = 0.045;        // 45ms para engrenar velocidade total
+    const DECEL_TIME = 0.040;        // 40ms para parada limpa sem deslizar
+    const JOYSTICK_DEADZONE = 0.08;  // Zona morta mínima para resposta imediata
+    const GRAVITY = 24.0;
+    const JUMP_FORCE = 9.4;
+    const DOUBLE_JUMP_FORCE = 10.2;
+
+    let scene, camera, renderer, orbitControls;
+    const clock = new THREE.Clock();
+    let cameraMode = 'fp'; // 'fp' (1ª Pessoa) | 'orbit' (Órbita)
+
+    const player = {
+      pos: new THREE.Vector3(0, EYE_HEIGHT, 19), // Pátio das Runas, de frente para a Fonte e o Grande Salão
+      velY: 0,
+      vx: 0,
+      vz: 0,
+      yaw: 0,
+      pitch: 0.02,
+      grounded: true,
+      jumpsUsed: 0,
+      bobTimer: 0,
+      currentArea: 'Pátio das Runas',
+      isMoving: false
+    };
+
+    const keyInput = {
+      forward: false,
+      backward: false,
+      left: false,
+      right: false,
+      sprint: false,
+      turnLeft: false,
+      turnRight: false
+    };
+
+    const virtualState = {
+      joyX: 0,
+      joyY: 0,
+      trotMode: false, // Padrão: Caminhada (4.6)
+      camUp: false,
+      camDown: false,
+      camLeft: false,
+      camRight: false,
+      controlsVisible: true
+    };
+
+    // Controle Multi-Touch / Mouse independente para Joystick e Câmera Livre
+    let joystickPointerId = null;
+    let lookPointerId = null;
+    let lastLookX = 0;
+    let lastLookY = 0;
+
+    // --------------------------------------------------------------------------
+    // 2. COLEÇÕES DE OBJETOS DO MUNDO 3D
+    // --------------------------------------------------------------------------
+    let skyMesh, starField, hemiLight, dirLight, ambientLight;
+    let wandGroup, wandTipLight, wandTipSprite;
+    let wandRecoil = 0;
+
+    const animatedObjects = [];
+    const courtyardRuneRings = [];
+    let fountainParticles;
+    const floatingCandles = [];
+    const armillaryRings = [];
+    const floatingBooks = [];
+    const fireflies = [];
+    const floatingLanterns = [];
+    const floatingShields = [];
+    const trainingTargets = [];
+    const distantRocks = [];
+    const loreInteractables = [];
+
+    // Feitiços Ativos
+    const activeBolts = [];
+    const activeMeteors = [];
+    const activeShockwaves = [];
+    const activeParticles = [];
+    let runeCircleGroup = null;
+    let runeCircleTimer = 0;
+    let manaStormGroup = null;
+    let manaStormTimer = 0;
+
+    // --------------------------------------------------------------------------
+    // 3. TEXTURAS PROCEDURAIS & MATERIAIS COMPARTILHADOS
+    // --------------------------------------------------------------------------
+    let MATS = {};
+    let glowTex = null;
+
+    function createGlowTexture() {
+      const c = document.createElement('canvas');
+      c.width = 128;
+      c.height = 128;
+      const ctx = c.getContext('2d');
+      const grad = ctx.createRadialGradient(64, 64, 0, 64, 64, 64);
+      grad.addColorStop(0.0, 'rgba(255,255,255,1.0)');
+      grad.addColorStop(0.28, 'rgba(255,255,255,0.75)');
+      grad.addColorStop(0.65, 'rgba(255,255,255,0.2)');
+      grad.addColorStop(1.0, 'rgba(255,255,255,0.0)');
+      ctx.fillStyle = grad;
+      ctx.fillRect(0, 0, 128, 128);
+      return new THREE.CanvasTexture(c);
+    }
+
+    function createStoneTexture() {
+      const c = document.createElement('canvas');
+      c.width = 512;
+      c.height = 512;
+      const ctx = c.getContext('2d');
+      ctx.fillStyle = '#25213b';
+      ctx.fillRect(0, 0, 512, 512);
+
+      // Lajotas de pedra arcana
+      const rows = 8;
+      const cols = 8;
+      const w = 512 / cols;
+      const h = 512 / rows;
+      for (let r = 0; r < rows; r++) {
+        const offset = (r % 2) * (w * 0.5);
+        for (let col = -1; col <= cols; col++) {
+          const shade = 32 + Math.floor(Math.random() * 16);
+          ctx.fillStyle = `rgb(${shade}, ${shade - 4}, ${shade + 22})`;
+          ctx.fillRect(col * w + offset + 2, r * h + 2, w - 4, h - 4);
+        }
+      }
+      // Filetes sutis dourados
+      ctx.strokeStyle = 'rgba(212, 175, 55, 0.14)';
+      ctx.lineWidth = 1.5;
+      for (let i = 0; i <= 512; i += 64) {
+        ctx.beginPath();
+        ctx.moveTo(0, i);
+        ctx.lineTo(512, i);
+        ctx.stroke();
+      }
+      const tex = new THREE.CanvasTexture(c);
+      tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+      tex.repeat.set(9, 9);
+      return tex;
+    }
+
+    function createRuneRingTexture(primaryHex, secondaryHex) {
+      const c = document.createElement('canvas');
+      c.width = 512;
+      c.height = 512;
+      const ctx = c.getContext('2d');
+      ctx.clearRect(0, 0, 512, 512);
+      ctx.translate(256, 256);
+
+      ctx.strokeStyle = primaryHex;
+      ctx.lineWidth = 6;
+      ctx.beginPath();
+      ctx.arc(0, 0, 232, 0, Math.PI * 2);
+      ctx.stroke();
+
+      ctx.strokeStyle = secondaryHex;
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.arc(0, 0, 196, 0, Math.PI * 2);
+      ctx.stroke();
+
+      // Estrela geométrica de 8 pontas
+      ctx.strokeStyle = primaryHex;
+      ctx.lineWidth = 2.5;
+      for (let s = 0; s < 2; s++) {
+        ctx.save();
+        ctx.rotate((s * Math.PI) / 4);
+        ctx.strokeRect(-135, -135, 270, 270);
+        ctx.restore();
+      }
+
+      // Glifos rúnicos ao redor do anel
+      ctx.fillStyle = primaryHex;
+      ctx.font = 'bold 22px Cinzel, serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      const glyphs = ['✦', '◈', '✧', '❖', '☉', '☽', '✶', '❂', '✦', '◈', '✧', '❖'];
+      glyphs.forEach((g, idx) => {
+        const ang = (idx / glyphs.length) * Math.PI * 2;
+        ctx.save();
+        ctx.rotate(ang);
+        ctx.fillText(g, 0, -214);
+        ctx.restore();
+      });
+
+      return new THREE.CanvasTexture(c);
+    }
+
+    function createStainedGlassTexture(hueA, hueB) {
+      const c = document.createElement('canvas');
+      c.width = 256;
+      c.height = 512;
+      const ctx = c.getContext('2d');
+      const grad = ctx.createLinearGradient(0, 0, 0, 512);
+      grad.addColorStop(0, hueA);
+      grad.addColorStop(0.5, hueB);
+      grad.addColorStop(1, '#1e1b4b');
+      ctx.fillStyle = grad;
+      ctx.fillRect(0, 0, 256, 512);
+
+      // Rosácea superior e nervuras góticas
+      ctx.strokeStyle = '#d4af37';
+      ctx.lineWidth = 6;
+      ctx.beginPath();
+      ctx.arc(128, 130, 74, 0, Math.PI * 2);
+      ctx.stroke();
+
+      for (let i = 0; i < 8; i++) {
+        const a = (i / 8) * Math.PI * 2;
+        ctx.beginPath();
+        ctx.moveTo(128, 130);
+        ctx.lineTo(128 + Math.cos(a) * 74, 130 + Math.sin(a) * 74);
+        ctx.stroke();
+      }
+
+      for (let y = 230; y < 512; y += 56) {
+        ctx.beginPath();
+        ctx.moveTo(0, y);
+        ctx.lineTo(256, y);
+        ctx.stroke();
+      }
+      ctx.beginPath();
+      ctx.moveTo(128, 204);
+      ctx.lineTo(128, 512);
+      ctx.stroke();
+
+      return new THREE.CanvasTexture(c);
+    }
+
+    function initMaterials() {
+      glowTex = createGlowTexture();
+      const stoneTex = createStoneTexture();
+      const hallTex = stoneTex.clone();
+      hallTex.needsUpdate = true;
+      hallTex.repeat.set(6, 6);
+
+      MATS = {
+        stone: new THREE.MeshStandardMaterial({ map: stoneTex, roughness: 0.78, metalness: 0.12 }),
+        hallFloor: new THREE.MeshStandardMaterial({ map: hallTex, color: 0x342d56, roughness: 0.45, metalness: 0.25 }),
+        darkWall: new THREE.MeshStandardMaterial({ color: 0x1a1532, roughness: 0.72, metalness: 0.18 }),
+        rock: new THREE.MeshStandardMaterial({ color: 0x161229, roughness: 0.92, flatShading: true }),
+        gold: new THREE.MeshStandardMaterial({ color: 0xd4af37, roughness: 0.28, metalness: 0.85, emissive: 0x3b2c06, emissiveIntensity: 0.35 }),
+        wood: new THREE.MeshStandardMaterial({ color: 0x2c1a12, roughness: 0.65, metalness: 0.1 }),
+        cyanCrystal: new THREE.MeshStandardMaterial({
+          color: 0x38bdf8,
+          emissive: 0x38bdf8,
+          emissiveIntensity: 1.35,
+          roughness: 0.15,
+          metalness: 0.2
+        }),
+        violetCrystal: new THREE.MeshStandardMaterial({
+          color: 0xa855f7,
+          emissive: 0x9333ea,
+          emissiveIntensity: 1.25,
+          roughness: 0.18,
+          metalness: 0.2
+        }),
+        emeraldCrystal: new THREE.MeshStandardMaterial({
+          color: 0x34d399,
+          emissive: 0x10b981,
+          emissiveIntensity: 1.15,
+          roughness: 0.2
+        }),
+        energyBridge: new THREE.MeshBasicMaterial({
+          color: 0x38bdf8,
+          transparent: true,
+          opacity: 0.42,
+          side: THREE.DoubleSide
+        }),
+        glassCyan: new THREE.MeshBasicMaterial({ map: createStainedGlassTexture('#38bdf8', '#7e22ce'), side: THREE.DoubleSide }),
+        glassGold: new THREE.MeshBasicMaterial({ map: createStainedGlassTexture('#f59e0b', '#6d28d9'), side: THREE.DoubleSide })
+      };
+    }
+
+    function makeGlowSprite(hexColor, scale = 4, opacity = 0.85) {
+      const mat = new THREE.SpriteMaterial({
+        map: glowTex,
+        color: hexColor,
+        transparent: true,
+        opacity,
+        blending: THREE.AdditiveBlending,
+        depthWrite: false
+      });
+      const sp = new THREE.Sprite(mat);
+      sp.scale.set(scale, scale, 1);
+      return sp;
+    }
+
+    // --------------------------------------------------------------------------
+    // 4. FÍSICA ANALÍTICA DE TERRENO (getGroundHeight) & COLISÕES DESLIZANTES
+    // --------------------------------------------------------------------------
+    /**
+     * Retorna a altura exata caminhável y para qualquer coordenada (x, z),
+     * ou null se o jogador estiver sobre o abismo celeste.
+     * Garante transições 100% suaves entre Pátio, Grande Salão, Pontes e Ilhas Satélites.
+     */
+    function getGroundHeight(x, z) {
+      const distCenter = Math.hypot(x, z);
+
+      // 1. Ilha Central (Raio = 31)
+      if (distCenter <= 31.0) {
+        // Interior do Grande Salão: x in [-10.7, 10.7], z in [-26.7, -8.0] -> y = 0.2
+        if (Math.abs(x) <= 10.7 && z <= -8.0 && z >= -26.7) {
+          return 0.2;
+        }
+        // Rampa suave de entrada na porta larga do Grande Salão (z de -6.2 a -8.0, |x| <= 3.8)
+        if (Math.abs(x) <= 3.8 && z < -6.2 && z > -8.0) {
+          const t = (-6.2 - z) / 1.8; // 0 -> 1
+          return THREE.MathUtils.clamp(t * 0.2, 0, 0.2);
+        }
+        return 0.0;
+      }
+
+      // 2. Ponte Norte -> Torre de Astronomia (x in [-2.4, 2.4], z de -30.5 a -51.5)
+      if (Math.abs(x) <= 2.4 && z <= -30.5 && z >= -51.5) {
+        const t = (-30.5 - z) / 21.0;
+        return THREE.MathUtils.clamp(t * 0.4, 0, 0.4);
+      }
+      // Ilha Norte: Torre de Astronomia (centro (0, -64), raio 14.5, y = 0.4)
+      if (Math.hypot(x, z + 64) <= 14.5) {
+        return 0.4;
+      }
+
+      // 3. Ponte Leste -> Arena de Duelos (z in [1.6, 6.4], x de 30.5 a 51.5)
+      if (Math.abs(z - 4.0) <= 2.4 && x >= 30.5 && x <= 51.5) {
+        return 0.0;
+      }
+      // Ilha Leste: Arena de Duelos (centro (65, 4), raio 15.0, y = 0.0)
+      if (Math.hypot(x - 65, z - 4) <= 15.0) {
+        return 0.0;
+      }
+
+      // 4. Ponte Sul -> Bosque Luminescente (x in [-2.4, 2.4], z de 30.5 a 51.5)
+      if (Math.abs(x) <= 2.4 && z >= 30.5 && z <= 51.5) {
+        return 0.0;
+      }
+      // Ilha Sul: Bosque Luminescente (centro (0, 65), raio 15.0, y = 0.0)
+      if (Math.hypot(x, z - 65) <= 15.0) {
+        return 0.0;
+      }
+
+      // 5. Ponte Oeste -> Biblioteca Flutuante (z in [1.6, 6.4], x de -30.5 a -51.5)
+      if (Math.abs(z - 4.0) <= 2.4 && x <= -30.5 && x >= -51.5) {
+        const t = (-30.5 - x) / 21.0;
+        return THREE.MathUtils.clamp(t * 0.2, 0, 0.2);
+      }
+      // Ilha Oeste: Biblioteca Flutuante (centro (-65, 4), raio 14.5, y = 0.2)
+      if (Math.hypot(x + 65, z - 4) <= 14.5) {
+        return 0.2;
+      }
+
+      return null;
+    }
+
+    // Lista de obstáculos sólidos (círculos e caixas AABB) com folga generosa nas portas
+    const SOLID_CIRCLES = [
+      { x: 0, z: 7, r: 2.75 },      // Fonte de Mana no Pátio das Runas
+      { x: 0, z: -64, r: 2.6 },     // Pedestal da Esfera Armilar (Torre de Astronomia)
+      { x: -65, z: 4, r: 1.9 },     // Pedestal central da Biblioteca Flutuante
+      // Pilares da Arena de Duelos
+      { x: 65 + Math.cos(0) * 11.5, z: 4 + Math.sin(0) * 11.5, r: 0.7 },
+      { x: 65 + Math.cos(Math.PI / 2) * 11.5, z: 4 + Math.sin(Math.PI / 2) * 11.5, r: 0.7 },
+      { x: 65 + Math.cos(Math.PI) * 11.5, z: 4 + Math.sin(Math.PI) * 11.5, r: 0.7 },
+      { x: 65 + Math.cos((3 * Math.PI) / 2) * 11.5, z: 4 + Math.sin((3 * Math.PI) / 2) * 11.5, r: 0.7 }
+    ];
+
+    const SOLID_BOXES = [
+      // Paredes externas do Grande Salão (porta larga central de x = -3.6 a +3.6 totalmente livre!)
+      { minX: -11.4, maxX: -3.6, minZ: -8.4, maxZ: -7.6 },  // Parede frontal esquerda
+      { minX: 3.6, maxX: 11.4, minZ: -8.4, maxZ: -7.6 },    // Parede frontal direita
+      { minX: -11.4, maxX: 11.4, minZ: -27.4, maxZ: -26.6 },// Parede fundo norte
+      { minX: -11.4, maxX: -10.6, minZ: -27.4, maxZ: -7.6 },// Parede lateral oeste
+      { minX: 10.6, maxX: 11.4, minZ: -27.4, maxZ: -7.6 },  // Parede lateral leste
+      // Mesas de estudo no Grande Salão (corredor central amplo de 9.6 unidades)
+      { minX: -6.7, maxX: -4.9, minZ: -22.5, maxZ: -11.5 },
+      { minX: 4.9, maxX: 6.7, minZ: -22.5, maxZ: -11.5 },
+      // Púlpito do Diretor no fundo do salão
+      { minX: -1.6, maxX: 1.6, minZ: -25.2, maxZ: -23.8 }
+    ];
+
+    function resolveSlidingCollisions(x, z) {
+      const playerRadius = 0.52;
+      let rx = x;
+      let rz = z;
+
+      // 1. Círculos sólidos (Fonte, pedestais, pilares)
+      for (const c of SOLID_CIRCLES) {
+        const dx = rx - c.x;
+        const dz = rz - c.z;
+        const dist = Math.hypot(dx, dz);
+        const minDist = playerRadius + c.r;
+        if (dist < minDist) {
+          if (dist > 0.0001) {
+            const push = (minDist - dist) / dist;
+            rx += dx * push;
+            rz += dz * push;
+          } else {
+            rz += minDist;
+          }
+        }
+      }
+
+      // 2. Caixas AABB (Paredes do Grande Salão, mesas, púlpito)
+      for (const b of SOLID_BOXES) {
+        const closestX = THREE.MathUtils.clamp(rx, b.minX, b.maxX);
+        const closestZ = THREE.MathUtils.clamp(rz, b.minZ, b.maxZ);
+        const dx = rx - closestX;
+        const dz = rz - closestZ;
+        const distSq = dx * dx + dz * dz;
+
+        if (distSq < playerRadius * playerRadius) {
+          const dist = Math.sqrt(distSq);
+          if (dist > 0.0001) {
+            const overlap = playerRadius - dist;
+            rx += (dx / dist) * overlap;
+            rz += (dz / dist) * overlap;
+          } else {
+            // Caso raro dentro da caixa: empurra pela menor penetração
+            const penLeft = Math.abs(rx - b.minX);
+            const penRight = Math.abs(b.maxX - rx);
+            const penTop = Math.abs(rz - b.minZ);
+            const penBottom = Math.abs(b.maxZ - rz);
+            const minPen = Math.min(penLeft, penRight, penTop, penBottom);
+            if (minPen === penLeft) rx = b.minX - playerRadius;
+            else if (minPen === penRight) rx = b.maxX + playerRadius;
+            else if (minPen === penTop) rz = b.minZ - playerRadius;
+            else rz = b.maxZ + playerRadius;
+          }
+        }
+      }
+
+      return { x: rx, z: rz };
+    }
+
+    // --------------------------------------------------------------------------
+    // 5. CONSTRUÇÃO DO MUNDO 3D FLUTUANTE DA ARCANUM ACADEMY
+    // --------------------------------------------------------------------------
+    function buildSkyAndLighting() {
+      // Cúpula celeste com gradiente vertical
+      const skyGeo = new THREE.SphereGeometry(280, 32, 24);
+      const skyCanvas = document.createElement('canvas');
+      skyCanvas.width = 64;
+      skyCanvas.height = 256;
+      const ctx = skyCanvas.getContext('2d');
+      const g = ctx.createLinearGradient(0, 0, 0, 256);
+      g.addColorStop(0.0, '#070514');
+      g.addColorStop(0.48, '#1b123d');
+      g.addColorStop(0.82, '#3b1d5e');
+      g.addColorStop(1.0, '#120b29');
+      ctx.fillStyle = g;
+      ctx.fillRect(0, 0, 64, 256);
+
+      skyMesh = new THREE.Mesh(
+        skyGeo,
+        new THREE.MeshBasicMaterial({ map: new THREE.CanvasTexture(skyCanvas), side: THREE.BackSide, depthWrite: false })
+      );
+      scene.add(skyMesh);
+
+      // Campo de Estrelas Cintilantes
+      const starCount = 1800;
+      const starPos = new Float32Array(starCount * 3);
+      for (let i = 0; i < starCount; i++) {
+        const theta = Math.random() * Math.PI * 2;
+        const phi = Math.acos(2 * Math.random() - 1);
+        const r = 190 + Math.random() * 65;
+        starPos[i * 3] = r * Math.sin(phi) * Math.cos(theta);
+        starPos[i * 3 + 1] = Math.abs(r * Math.cos(phi)) - 20;
+        starPos[i * 3 + 2] = r * Math.sin(phi) * Math.sin(theta);
+      }
+      const starGeo = new THREE.BufferGeometry();
+      starGeo.setAttribute('position', new THREE.BufferAttribute(starPos, 3));
+      starField = new THREE.Points(
+        starGeo,
+        new THREE.PointsMaterial({ color: 0xfff3d1, size: 1.15, map: glowTex, transparent: true, opacity: 0.9, depthWrite: false })
+      );
+      scene.add(starField);
+
+      scene.fog = new THREE.FogExp2(0x140e2e, 0.0046);
+
+      ambientLight = new THREE.AmbientLight(0x6d5fa8, 0.65);
+      scene.add(ambientLight);
+
+      hemiLight = new THREE.HemisphereLight(0x93c5fd, 0x2e1065, 0.85);
+      scene.add(hemiLight);
+
+      dirLight = new THREE.DirectionalLight(0xffe4a3, 1.15);
+      dirLight.position.set(45, 78, 35);
+      scene.add(dirLight);
+    }
+
+    function createFloatingIslandBase(cx, cz, radius, topY, crystalColor) {
+      const grp = new THREE.Group();
+      grp.position.set(cx, topY, cz);
+
+      // Plataforma superior caminhável
+      const deck = new THREE.Mesh(new THREE.CylinderGeometry(radius, radius * 0.96, 1.2, 36), MATS.stone);
+      deck.position.y = -0.6;
+      grp.add(deck);
+
+      // Borda dourada ornamental
+      const rim = new THREE.Mesh(new THREE.TorusGeometry(radius, 0.16, 8, 48), MATS.gold);
+      rim.rotation.x = Math.PI / 2;
+      rim.position.y = 0.02;
+      grp.add(rim);
+
+      // Cone rochoso invertido sob a ilha flutuante
+      const coneHeight = radius * 1.15;
+      const underRock = new THREE.Mesh(new THREE.ConeGeometry(radius * 0.95, coneHeight, 14), MATS.rock);
+      underRock.rotation.x = Math.PI;
+      underRock.position.y = -1.2 - coneHeight * 0.5;
+      grp.add(underRock);
+
+      // Cristal de sustentação antigravidade na ponta inferior
+      const anchorCrystal = new THREE.Mesh(
+        new THREE.OctahedronGeometry(radius * 0.14, 0),
+        crystalColor === 'cyan' ? MATS.cyanCrystal : MATS.violetCrystal
+      );
+      anchorCrystal.position.y = -1.2 - coneHeight - 0.6;
+      grp.add(anchorCrystal);
+      animatedObjects.push({ mesh: anchorCrystal, rotY: 1.2, bobAmp: 0.25, baseY: anchorCrystal.position.y });
+
+      scene.add(grp);
+      return grp;
+    }
+
+    function buildEnergyBridge(x1, z1, y1, x2, z2, y2, width = 4.8) {
+      const dx = x2 - x1;
+      const dz = z2 - z1;
+      const length = Math.hypot(dx, dz);
+      const midX = (x1 + x2) * 0.5;
+      const midZ = (z1 + z2) * 0.5;
+      const midY = (y1 + y2) * 0.5;
+      const angle = Math.atan2(dx, dz);
+      const slope = Math.atan2(y2 - y1, length);
+
+      const bridgeGroup = new THREE.Group();
+      bridgeGroup.position.set(midX, midY, midZ);
+      bridgeGroup.rotation.y = angle;
+      bridgeGroup.rotation.x = -slope;
+
+      // Passarela translúcida de energia arcana
+      const deck = new THREE.Mesh(new THREE.BoxGeometry(width, 0.16, length), MATS.energyBridge);
+      deck.position.y = -0.08;
+      bridgeGroup.add(deck);
+
+      // Trilhos laterais dourados e runas
+      [-width * 0.48, width * 0.48].forEach(rx => {
+        const rail = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.24, length), MATS.gold);
+        rail.position.set(rx, 0.06, 0);
+        bridgeGroup.add(rail);
+      });
+
+      // Degraus de luz ao longo da ponte
+      const steps = 7;
+      for (let i = 1; i < steps; i++) {
+        const sz = -length * 0.5 + (i / steps) * length;
+        const bar = new THREE.Mesh(new THREE.BoxGeometry(width * 0.85, 0.04, 0.28), MATS.cyanCrystal);
+        bar.position.set(0, 0.01, sz);
+        bridgeGroup.add(bar);
+      }
+
+      scene.add(bridgeGroup);
+    }
+
+    function buildCentralIslandAndGrandHall() {
+      // Ilha Central (Raio = 31)
+      createFloatingIslandBase(0, 0, 31.0, 0.0, 'cyan');
+
+      // --- 1. PÁTIO DAS RUNAS & FONTE DE MANA (x = 0, z = 7) ---
+      const fountainGroup = new THREE.Group();
+      fountainGroup.position.set(0, 0, 7);
+
+      const basin = new THREE.Mesh(new THREE.CylinderGeometry(2.65, 2.95, 0.9, 24), MATS.stone);
+      basin.position.y = 0.45;
+      fountainGroup.add(basin);
+
+      const basinRim = new THREE.Mesh(new THREE.TorusGeometry(2.72, 0.14, 8, 32), MATS.gold);
+      basinRim.rotation.x = Math.PI / 2;
+      basinRim.position.y = 0.9;
+      fountainGroup.add(basinRim);
+
+      const waterPool = new THREE.Mesh(
+        new THREE.CircleGeometry(2.55, 24),
+        new THREE.MeshBasicMaterial({ color: 0x38bdf8, transparent: true, opacity: 0.72 })
+      );
+      waterPool.rotation.x = -Math.PI / 2;
+      waterPool.position.y = 0.85;
+      fountainGroup.add(waterPool);
+
+      const spire = new THREE.Mesh(new THREE.CylinderGeometry(0.45, 0.85, 2.3, 12), MATS.stone);
+      spire.position.y = 1.4;
+      fountainGroup.add(spire);
+
+      // Esfera de Cristal de Mana flutuante acima da Fonte
+      const manaOrb = new THREE.Mesh(new THREE.OctahedronGeometry(0.85, 1), MATS.cyanCrystal);
+      manaOrb.position.y = 3.55;
+      manaOrb.add(makeGlowSprite(0x38bdf8, 5.5, 0.9));
+      fountainGroup.add(manaOrb);
+      animatedObjects.push({ mesh: manaOrb, rotY: 1.5, bobAmp: 0.22, baseY: 3.55 });
+
+      const fountainLight = new THREE.PointLight(0x38bdf8, 1.8, 22);
+      fountainLight.position.set(0, 3.8, 7);
+      scene.add(fountainLight);
+
+      // Círculos Rúnicos Concêntricos Giratórios no Chão ao redor da Fonte
+      const runeConfigs = [
+        { r: 5.4, speed: 0.35, c1: '#38bdf8', c2: '#d4af37' },
+        { r: 8.6, speed: -0.24, c1: '#d4af37', c2: '#a855f7' },
+        { r: 12.2, speed: 0.18, c1: '#a855f7', c2: '#38bdf8' }
+      ];
+      runeConfigs.forEach(cfg => {
+        const ring = new THREE.Mesh(
+          new THREE.PlaneGeometry(cfg.r * 2, cfg.r * 2),
+          new THREE.MeshBasicMaterial({
+            map: createRuneRingTexture(cfg.c1, cfg.c2),
+            transparent: true,
+            opacity: 0.85,
+            blending: THREE.AdditiveBlending,
+            depthWrite: false
+          })
+        );
+        ring.rotation.x = -Math.PI / 2;
+        ring.position.set(0, 0.03, 7);
+        scene.add(ring);
+        courtyardRuneRings.push({ mesh: ring, speed: cfg.speed });
+      });
+
+      // Partículas ascendentes da Fonte de Mana
+      const pCount = 90;
+      const pPos = new Float32Array(pCount * 3);
+      for (let i = 0; i < pCount; i++) {
+        const a = Math.random() * Math.PI * 2;
+        const rad = Math.random() * 2.2;
+        pPos[i * 3] = Math.cos(a) * rad;
+        pPos[i * 3 + 1] = 1.0 + Math.random() * 4.5;
+        pPos[i * 3 + 2] = 7 + Math.sin(a) * rad;
+      }
+      const pGeo = new THREE.BufferGeometry();
+      pGeo.setAttribute('position', new THREE.BufferAttribute(pPos, 3));
+      fountainParticles = new THREE.Points(
+        pGeo,
+        new THREE.PointsMaterial({ size: 0.38, color: 0x38bdf8, map: glowTex, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false })
+      );
+      scene.add(fountainParticles);
+
+      // Balaustradas e Braseiros Flamejantes no Pátio
+      for (let i = 0; i < 16; i++) {
+        const a = (i / 16) * Math.PI * 2;
+        const bx = Math.cos(a) * 26.5;
+        const bz = Math.sin(a) * 26.5;
+        // Deixa aberturas largas para as 4 pontes e para a entrada do Grande Salão
+        if (Math.abs(bx) < 4.5 || Math.abs(bz - 4) < 4.5) continue;
+
+        const post = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.36, 1.2, 8), MATS.stone);
+        post.position.set(bx, 0.6, bz);
+        scene.add(post);
+
+        if (i % 2 === 0) {
+          const bowl = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.25, 0.35, 8), MATS.gold);
+          bowl.position.set(bx, 1.35, bz);
+          scene.add(bowl);
+
+          const flame = new THREE.Mesh(new THREE.OctahedronGeometry(0.28, 0), MATS.cyanCrystal);
+          flame.position.set(bx, 1.72, bz);
+          flame.add(makeGlowSprite(i % 4 === 0 ? 0x38bdf8 : 0xd4af37, 3.0, 0.85));
+          scene.add(flame);
+          animatedObjects.push({ mesh: flame, rotY: 1.8, bobAmp: 0.08, baseY: 1.72 });
+        }
+      }
+
+      // Marcadores Rúnicos Direcionais apontando para as 4 Pontes
+      const markers = [
+        { x: 0, z: -28.5, col: 0x38bdf8 },  // Norte -> Astronomia
+        { x: 28.5, z: 4, col: 0xd4af37 },   // Leste -> Arena
+        { x: 0, z: 28.5, col: 0x34d399 },   // Sul -> Bosque
+        { x: -28.5, z: 4, col: 0xa855f7 }   // Oeste -> Biblioteca
+      ];
+      markers.forEach(m => {
+        const disc = new THREE.Mesh(
+          new THREE.CircleGeometry(1.5, 20),
+          new THREE.MeshBasicMaterial({ color: m.col, transparent: true, opacity: 0.45 })
+        );
+        disc.rotation.x = -Math.PI / 2;
+        disc.position.set(m.x, 0.025, m.z);
+        scene.add(disc);
+      });
+
+      // --- 2. GRANDE SALÃO GÓTICO-ARCANO (x in [-11, 11], z in [-27, -8], y = 0.2) ---
+      const hall = new THREE.Group();
+
+      // Piso elevado do Grande Salão (y = 0.2) + rampa suave de entrada
+      const hallFloor = new THREE.Mesh(new THREE.BoxGeometry(22.0, 0.4, 19.0), MATS.hallFloor);
+      hallFloor.position.set(0, 0.0, -17.5);
+      hall.add(hallFloor);
+
+      const ramp = new THREE.Mesh(new THREE.BoxGeometry(7.6, 0.2, 2.0), MATS.hallFloor);
+      ramp.position.set(0, 0.03, -7.1);
+      ramp.rotation.x = 0.11;
+      hall.add(ramp);
+
+      // Parede frontal Sul com PORTAL GÓTICO LARGO E ABERTO (7.2 unidades de abertura: x de -3.6 a +3.6)
+      const wallHeight = 9.5;
+      const frontLeft = new THREE.Mesh(new THREE.BoxGeometry(7.6, wallHeight, 0.8), MATS.darkWall);
+      frontLeft.position.set(-7.4, wallHeight * 0.5, -8.0);
+      hall.add(frontLeft);
+
+      const frontRight = new THREE.Mesh(new THREE.BoxGeometry(7.6, wallHeight, 0.8), MATS.darkWall);
+      frontRight.position.set(7.4, wallHeight * 0.5, -8.0);
+      hall.add(frontRight);
+
+      // Verga superior do Portal (y = 6.5 até 9.5, totalmente livre para caminhar)
+      const lintel = new THREE.Mesh(new THREE.BoxGeometry(7.6, 3.0, 0.9), MATS.darkWall);
+      lintel.position.set(0, 8.0, -8.0);
+      hall.add(lintel);
+
+      // Pilares dourados emoldurando o portal de entrada
+      [-3.7, 3.7].forEach(px => {
+        const archPillar = new THREE.Mesh(new THREE.CylinderGeometry(0.45, 0.55, 7.2, 12), MATS.gold);
+        archPillar.position.set(px, 3.6, -7.8);
+        hall.add(archPillar);
+
+        const orb = new THREE.Mesh(new THREE.OctahedronGeometry(0.42, 0), MATS.cyanCrystal);
+        orb.position.set(px, 7.5, -7.6);
+        orb.add(makeGlowSprite(0x38bdf8, 3.5, 0.9));
+        hall.add(orb);
+      });
+
+      // Paredes Laterais (Oeste/Leste) e Parede Norte
+      const westWall = new THREE.Mesh(new THREE.BoxGeometry(0.8, wallHeight, 19.4), MATS.darkWall);
+      westWall.position.set(-11.0, wallHeight * 0.5, -17.5);
+      hall.add(westWall);
+
+      const eastWall = new THREE.Mesh(new THREE.BoxGeometry(0.8, wallHeight, 19.4), MATS.darkWall);
+      eastWall.position.set(11.0, wallHeight * 0.5, -17.5);
+      hall.add(eastWall);
+
+      const northWall = new THREE.Mesh(new THREE.BoxGeometry(22.4, wallHeight, 0.8), MATS.darkWall);
+      northWall.position.set(0, wallHeight * 0.5, -27.0);
+      hall.add(northWall);
+
+      // Torres e Pináculos Externos do Castelo
+      [[-11, -8], [11, -8], [-11, -27], [11, -27]].forEach(([tx, tz]) => {
+        const turret = new THREE.Mesh(new THREE.CylinderGeometry(1.5, 1.75, 14.5, 12), MATS.darkWall);
+        turret.position.set(tx, 7.25, tz);
+        hall.add(turret);
+
+        const roof = new THREE.Mesh(new THREE.ConeGeometry(1.9, 5.2, 12), MATS.gold);
+        roof.position.set(tx, 17.1, tz);
+        hall.add(roof);
+      });
+
+      // Abóbada Estrelada do Grande Salão
+      const ceiling = new THREE.Mesh(
+        new THREE.CylinderGeometry(11.2, 11.2, 19.2, 16, 1, true, 0, Math.PI),
+        new THREE.MeshBasicMaterial({ color: 0x160f36, side: THREE.BackSide })
+      );
+      ceiling.rotation.z = Math.PI / 2;
+      ceiling.rotation.y = Math.PI / 2;
+      ceiling.position.set(0, 9.5, -17.5);
+      hall.add(ceiling);
+
+      // Vitrais Luminosos Altos nas Paredes Laterais e no Fundo Norte
+      [-22, -17.5, -13].forEach((wz, idx) => {
+        const glassMat = idx % 2 === 0 ? MATS.glassCyan : MATS.glassGold;
+        const winW = new THREE.Mesh(new THREE.PlaneGeometry(2.6, 5.6), glassMat);
+        winW.position.set(-10.52, 5.0, wz);
+        winW.rotation.y = Math.PI / 2;
+        hall.add(winW);
+
+        const winE = new THREE.Mesh(new THREE.PlaneGeometry(2.6, 5.6), glassMat);
+        winE.position.set(10.52, 5.0, wz);
+        winE.rotation.y = -Math.PI / 2;
+        hall.add(winE);
+      });
+
+      // Grande Vitral Central no Fundo Norte
+      const apseGlass = new THREE.Mesh(new THREE.PlaneGeometry(5.2, 6.4), MATS.glassGold);
+      apseGlass.position.set(0, 5.4, -26.52);
+      hall.add(apseGlass);
+
+      // Longas Mesas de Estudo/Banquete com Livros Abertos, Cálices e Velas
+      [-5.8, 5.8].forEach(tx => {
+        const table = new THREE.Mesh(new THREE.BoxGeometry(1.7, 0.85, 10.8), MATS.wood);
+        table.position.set(tx, 0.625, -17.0);
+        hall.add(table);
+
+        for (let bz = -21; bz <= -13; bz += 2.6) {
+          const book = new THREE.Mesh(
+            new THREE.BoxGeometry(0.55, 0.12, 0.72),
+            new THREE.MeshStandardMaterial({ color: bz % 2 === 0 ? 0x4c1d95 : 0x0e7490, roughness: 0.55 })
+          );
+          book.position.set(tx + 0.22, 1.11, bz);
+          book.rotation.y = bz * 0.25;
+          hall.add(book);
+
+          const chalice = new THREE.Mesh(new THREE.CylinderGeometry(0.11, 0.07, 0.25, 8), MATS.gold);
+          chalice.position.set(tx - 0.3, 1.18, bz + 0.5);
+          hall.add(chalice);
+        }
+      });
+
+      // Púlpito Arcano do Diretor no Fundo (z = -24.5)
+      const podium = new THREE.Mesh(new THREE.BoxGeometry(2.8, 1.35, 1.1), MATS.gold);
+      podium.position.set(0, 0.88, -24.5);
+      hall.add(podium);
+
+      const hallLight = new THREE.PointLight(0xffd27d, 1.65, 28);
+      hallLight.position.set(0, 7.2, -17.5);
+      hall.add(hallLight);
+
+      // Velas Encantadas Flutuando sob a Abóbada Estrelada
+      for (let i = 0; i < 24; i++) {
+        const cx = (Math.random() - 0.5) * 16;
+        const cz = -10 - Math.random() * 15;
+        const cy = 5.4 + Math.random() * 3.0;
+        const candle = new THREE.Group();
+        const wax = new THREE.Mesh(
+          new THREE.CylinderGeometry(0.06, 0.06, 0.55, 6),
+          new THREE.MeshBasicMaterial({ color: 0xfff8e7 })
+        );
+        const flame = makeGlowSprite(0xffc966, 0.75, 0.95);
+        flame.position.y = 0.36;
+        candle.add(wax, flame);
+        candle.position.set(cx, cy, cz);
+        hall.add(candle);
+        floatingCandles.push({ mesh: candle, baseY: cy, phase: i * 0.7 });
+      }
+
+      scene.add(hall);
+    }
+
+    function buildAstronomyTower() {
+      // Ilha Norte: Torre de Astronomia (centro (0, -64), raio 14.5, y = 0.4)
+      const grp = createFloatingIslandBase(0, -64, 14.5, 0.4, 'cyan');
+
+      // Pedestal central
+      const base = new THREE.Mesh(new THREE.CylinderGeometry(2.2, 2.6, 1.3, 16), MATS.stone);
+      base.position.y = 0.65;
+      grp.add(base);
+
+      // Esfera Armilar Dourada Gigante com Anéis Celestes Orbitando
+      const armillaryCenter = new THREE.Group();
+      armillaryCenter.position.set(0, 5.4, 0);
+
+      const sunCore = new THREE.Mesh(new THREE.OctahedronGeometry(1.1, 1), MATS.cyanCrystal);
+      sunCore.add(makeGlowSprite(0x38bdf8, 6.5, 0.95));
+      armillaryCenter.add(sunCore);
+
+      [2.3, 3.2, 4.1].forEach((rad, idx) => {
+        const ring = new THREE.Mesh(
+          new THREE.TorusGeometry(rad, 0.11, 10, 48),
+          idx === 1 ? MATS.cyanCrystal : MATS.gold
+        );
+        ring.rotation.x = idx * 0.7;
+        ring.rotation.y = idx * 0.5;
+        armillaryCenter.add(ring);
+        armillaryRings.push({
+          mesh: ring,
+          rx: (idx % 2 === 0 ? 1 : -1) * (0.45 + idx * 0.18),
+          ry: 0.55 - idx * 0.15
+        });
+      });
+
+      grp.add(armillaryCenter);
+
+      // Telescópios de Latão Dourado apontados para as estrelas
+      [-6.5, 6.5].forEach((tx, idx) => {
+        const tripod = new THREE.Mesh(new THREE.CylinderGeometry(0.15, 0.55, 1.4, 6), MATS.wood);
+        tripod.position.set(tx, 0.7, idx === 0 ? -5.0 : 4.5);
+        grp.add(tripod);
+
+        const tube = new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.28, 2.2, 12), MATS.gold);
+        tube.position.set(tx, 1.65, idx === 0 ? -5.2 : 4.3);
+        tube.rotation.x = -0.65;
+        tube.rotation.z = idx === 0 ? 0.25 : -0.25;
+        grp.add(tube);
+      });
+
+      const astroLight = new THREE.PointLight(0x38bdf8, 1.6, 26);
+      astroLight.position.set(0, 6.2, -64);
+      scene.add(astroLight);
+    }
+
+    function buildDuelArena() {
+      // Ilha Leste: Arena de Duelos (centro (65, 4), raio 15.0, y = 0.0)
+      const grp = createFloatingIslandBase(65, 4, 15.0, 0.0, 'violet');
+
+      // Círculo rúnico de combate no centro da arena
+      const duelRing = new THREE.Mesh(
+        new THREE.PlaneGeometry(18, 18),
+        new THREE.MeshBasicMaterial({
+          map: createRuneRingTexture('#d4af37', '#a855f7'),
+          transparent: true,
+          opacity: 0.85,
+          blending: THREE.AdditiveBlending,
+          depthWrite: false
+        })
+      );
+      duelRing.rotation.x = -Math.PI / 2;
+      duelRing.position.y = 0.03;
+      grp.add(duelRing);
+
+      // 4 Pilares Rúnicos no perímetro
+      for (let i = 0; i < 4; i++) {
+        const a = (i / 4) * Math.PI * 2;
+        const px = Math.cos(a) * 11.5;
+        const pz = Math.sin(a) * 11.5;
+        const pillar = new THREE.Mesh(new THREE.CylinderGeometry(0.55, 0.65, 4.8, 8), MATS.stone);
+        pillar.position.set(px, 2.4, pz);
+        grp.add(pillar);
+
+        const capCrystal = new THREE.Mesh(new THREE.OctahedronGeometry(0.45, 0), MATS.violetCrystal);
+        capCrystal.position.set(px, 5.2, pz);
+        capCrystal.add(makeGlowSprite(0xa855f7, 3.2, 0.85));
+        grp.add(capCrystal);
+      }
+
+      // Escudos Arcanos Flutuantes
+      for (let i = 0; i < 6; i++) {
+        const shield = new THREE.Mesh(
+          new THREE.CircleGeometry(0.95, 6),
+          new THREE.MeshBasicMaterial({ color: 0x38bdf8, transparent: true, opacity: 0.38, side: THREE.DoubleSide })
+        );
+        grp.add(shield);
+        floatingShields.push({
+          mesh: shield,
+          angle: (i / 6) * Math.PI * 2,
+          radius: 12.6,
+          baseY: 2.3 + (i % 2) * 0.55
+        });
+      }
+
+      // Alvos de Treino Interativos (reagem com faíscas douradas e recuo ao serem atingidos por feitiços!)
+      for (let i = 0; i < 4; i++) {
+        const ta = (i / 4) * Math.PI * 2 + Math.PI / 4;
+        const tx = Math.cos(ta) * 7.2;
+        const tz = Math.sin(ta) * 7.2;
+
+        const targetGroup = new THREE.Group();
+        targetGroup.position.set(tx, 2.1, tz);
+        targetGroup.lookAt(65, 2.1, 4);
+
+        const outerRing = new THREE.Mesh(new THREE.TorusGeometry(0.95, 0.1, 8, 24), MATS.gold);
+        const core = new THREE.Mesh(new THREE.OctahedronGeometry(0.48, 0), MATS.cyanCrystal);
+        core.add(makeGlowSprite(0x38bdf8, 3.4, 0.85));
+        targetGroup.add(outerRing, core);
+        grp.add(targetGroup);
+
+        trainingTargets.push({
+          group: targetGroup,
+          core,
+          worldPos: new THREE.Vector3(65 + tx, 2.1, 4 + tz),
+          baseY: 2.1,
+          phase: i * 1.3,
+          hitSpin: 0
+        });
+      }
+    }
+
+    function buildLuminescentGrove() {
+      // Ilha Sul: Bosque Luminescente (centro (0, 65), raio 15.0, y = 0.0)
+      const grp = createFloatingIslandBase(0, 65, 15.0, 0.0, 'cyan');
+
+      // Árvores Cristalinas
+      const treeCoords = [[-6.5, -5.5], [7.0, -4.5], [-7.5, 5.5], [6.5, 6.5], [0, 9.5]];
+      treeCoords.forEach(([tx, tz], idx) => {
+        const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.28, 0.52, 4.2, 7), MATS.wood);
+        trunk.position.set(tx, 2.1, tz);
+        grp.add(trunk);
+
+        const canopy = new THREE.Mesh(
+          new THREE.DodecahedronGeometry(1.9, 0),
+          idx % 2 === 0 ? MATS.emeraldCrystal : MATS.cyanCrystal
+        );
+        canopy.position.set(tx, 4.8, tz);
+        canopy.add(makeGlowSprite(idx % 2 === 0 ? 0x34d399 : 0x38bdf8, 5.2, 0.55));
+        grp.add(canopy);
+      });
+
+      // Aglomerados de Cogumelos Bioluminescentes
+      for (let i = 0; i < 12; i++) {
+        const a = (i / 12) * Math.PI * 2;
+        const r = 4.2 + (i % 3) * 2.8;
+        const mx = Math.cos(a) * r;
+        const mz = Math.sin(a) * r;
+        const stem = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.16, 0.75, 6), MATS.stone);
+        stem.position.set(mx, 0.375, mz);
+        const cap = new THREE.Mesh(
+          new THREE.SphereGeometry(0.45, 10, 8, 0, Math.PI * 2, 0, Math.PI * 0.55),
+          i % 2 === 0 ? MATS.violetCrystal : MATS.emeraldCrystal
+        );
+        cap.position.set(mx, 0.72, mz);
+        grp.add(stem, cap);
+      }
+
+      // Pedras Rúnicas Entalhadas
+      [[-4.0, -9.5], [4.0, -9.5]].forEach(([rx, rz]) => {
+        const stone = new THREE.Mesh(new THREE.BoxGeometry(1.1, 3.8, 0.65), MATS.stone);
+        stone.position.set(rx, 1.9, rz);
+        const gem = new THREE.Mesh(new THREE.OctahedronGeometry(0.32, 0), MATS.emeraldCrystal);
+        gem.position.set(0, 0.5, 0.36);
+        stone.add(gem);
+        grp.add(stone);
+      });
+
+      // Vagalumes Dourado-Esverdeados Flutuantes
+      for (let i = 0; i < 28; i++) {
+        const fx = (Math.random() - 0.5) * 20;
+        const fz = (Math.random() - 0.5) * 20;
+        const fy = 1.0 + Math.random() * 3.8;
+        const fly = makeGlowSprite(i % 2 === 0 ? 0x34d399 : 0xfef08a, 0.65, 0.9);
+        fly.position.set(fx, fy, fz);
+        grp.add(fly);
+        fireflies.push({ mesh: fly, baseX: fx, baseY: fy, baseZ: fz, phase: i * 0.6 });
+      }
+    }
+
+    function buildFloatingLibrary() {
+      // Ilha Oeste: Biblioteca Flutuante (centro (-65, 4), raio 14.5, y = 0.2)
+      const grp = createFloatingIslandBase(-65, 4, 14.5, 0.2, 'violet');
+
+      // Pedestal Central
+      const centerCol = new THREE.Mesh(new THREE.CylinderGeometry(1.6, 1.85, 3.6, 12), MATS.stone);
+      centerCol.position.y = 1.8;
+      grp.add(centerCol);
+
+      // Estantes Curvas em Rotunda Aberta
+      for (let i = 0; i < 8; i++) {
+        const a = (i / 8) * Math.PI * 2;
+        // Mantém abertura ampla voltada para a Ponte Leste (a = 0)
+        if (Math.abs(Math.sin(a)) < 0.35 && Math.cos(a) > 0.5) continue;
+
+        const sx = Math.cos(a) * 10.6;
+        const sz = Math.sin(a) * 10.6;
+        const shelf = new THREE.Mesh(new THREE.BoxGeometry(3.4, 5.2, 0.85), MATS.wood);
+        shelf.position.set(sx, 2.6, sz);
+        shelf.lookAt(-65, 2.6, 4);
+        grp.add(shelf);
+      }
+
+      // Grimórios Voadores Animados
+      for (let i = 0; i < 12; i++) {
+        const bookGroup = new THREE.Group();
+        const leftPage = new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.05, 0.58), MATS.gold);
+        leftPage.position.x = -0.21;
+        const rightPage = new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.05, 0.58), MATS.gold);
+        rightPage.position.x = 0.21;
+        bookGroup.add(leftPage, rightPage);
+        grp.add(bookGroup);
+
+        floatingBooks.push({
+          mesh: bookGroup,
+          leftPage,
+          rightPage,
+          angle: (i / 12) * Math.PI * 2,
+          radius: 4.5 + (i % 3) * 1.9,
+          baseY: 2.6 + (i % 4) * 0.7,
+          speed: 0.45 + (i % 3) * 0.12
+        });
+      }
+
+      // Lanternas Acolhedoras Flutuantes
+      for (let i = 0; i < 6; i++) {
+        const la = (i / 6) * Math.PI * 2;
+        const lantern = new THREE.Mesh(new THREE.OctahedronGeometry(0.32, 0), MATS.gold);
+        lantern.add(makeGlowSprite(0xffd27d, 3.0, 0.9));
+        const ly = 3.8 + (i % 2) * 0.8;
+        lantern.position.set(Math.cos(la) * 7.8, ly, Math.sin(la) * 7.8);
+        grp.add(lantern);
+        floatingLanterns.push({ mesh: lantern, baseY: ly, phase: i * 1.1 });
+      }
+    }
+
+    function buildDistantFloatingRocks() {
+      for (let i = 0; i < 18; i++) {
+        const a = (i / 18) * Math.PI * 2;
+        const dist = 95 + (i % 4) * 24;
+        const rx = Math.cos(a) * dist;
+        const rz = Math.sin(a) * dist;
+        const ry = -12 + (i % 5) * 9;
+        const scale = 2.5 + (i % 4) * 1.8;
+
+        const rock = new THREE.Mesh(new THREE.DodecahedronGeometry(scale, 0), MATS.rock);
+        rock.position.set(rx, ry, rz);
+        scene.add(rock);
+        distantRocks.push({ mesh: rock, baseY: ry, phase: i * 0.8 });
+      }
+    }
+
+    // --------------------------------------------------------------------------
+    // 6. 6 CRISTAIS DE LORE INTERATIVOS
+    // --------------------------------------------------------------------------
+    const LORE_ENTRIES = [
+      {
+        id: 'lore-courtyard',
+        category: 'Pátio das Runas',
+        title: 'O Selo da Fundação',
+        pos: new THREE.Vector3(4.6, 1.65, 11.2),
+        color: 0x38bdf8,
+        description: 'Erguida sobre um nódulo convergente de correntes astrais, a Arcanum Academy permanece suspensa acima do Mar de Nuvens há mil e duzentos invernos.',
+        secret: 'A Fonte de Mana no centro do Pátio sincroniza os batimentos arcanos de todos os aprendizes com o núcleo cristalino da ilha.'
+      },
+      {
+        id: 'lore-grandhall',
+        category: 'Grande Salão',
+        title: 'A Chama Eterna do Salão',
+        pos: new THREE.Vector3(0, 2.35, -22.2),
+        color: 0xd4af37,
+        description: 'Sob esta abóbada estrelada, gerações de magos prestaram o Juramento da Claridade antes de receberem sua primeira varinha de madeira estelar.',
+        secret: 'As velas encantadas nunca se apagam; cada chama representa um arquimago que dedicou sua vida à preservação do saber.'
+      },
+      {
+        id: 'lore-astronomy',
+        category: 'Torre de Astronomia',
+        title: 'O Astrolábio das Sete Esferas',
+        pos: new THREE.Vector3(0, 2.1, -57.2),
+        color: 0x38bdf8,
+        description: 'Forjada em ouro celeste pelos mestres astrônomos, a Esfera Armilar mapeia os alinhamentos planetários que amplificam a magia elemental.',
+        secret: 'Durante a Aurora Boreal Arcana, os anéis giram em ressonância perfeita e revelam constelações invisíveis ao olho comum.'
+      },
+      {
+        id: 'lore-arena',
+        category: 'Arena de Duelos',
+        title: 'O Código dos Duelistas Arcanos',
+        pos: new THREE.Vector3(58.5, 1.65, 4.0),
+        color: 0xa855f7,
+        description: 'Neste octógono sagrado, aprendizes aprimoram precisão, reflexos e domínio elemental sem jamais ferir um companheiro.',
+        secret: 'Experimente disparar o Raio de Mana [1] contra os quatro alvos cristalinos da arena para testar sua pontaria.'
+      },
+      {
+        id: 'lore-grove',
+        category: 'Bosque Luminescente',
+        title: 'As Raízes de Éter Luminescente',
+        pos: new THREE.Vector3(0, 1.65, 58.5),
+        color: 0x34d399,
+        description: 'As árvores cristalinas deste bosque absorvem a luz das estrelas e a convertem em névoa curativa que nutre toda a academia.',
+        secret: 'Os vagalumes dourados guiam viajantes perdidos e reagem à conjuração do Círculo Rúnico [3].'
+      },
+      {
+        id: 'lore-library',
+        category: 'Biblioteca Flutuante',
+        title: 'Os Grimórios Sussurrantes',
+        pos: new THREE.Vector3(-58.5, 1.85, 4.0),
+        color: 0xa855f7,
+        description: 'Estantes em rotunda guardam tratados de alquimia, runas antigas e encantamentos que voam livremente entre os leitores.',
+        secret: 'Dizem que os tomos mais sábios escolhem o próprio leitor, pousando suavemente sobre o atril quando reconhecem curiosidade genuína.'
+      }
+    ];
+
+    const discoveredLoreIds = new Set();
+    let nearestLore = null;
+
+    function buildLoreCrystals() {
+      LORE_ENTRIES.forEach((entry, idx) => {
+        const group = new THREE.Group();
+        group.position.copy(entry.pos);
+
+        const mat = entry.color === 0x38bdf8
+          ? MATS.cyanCrystal
+          : entry.color === 0x34d399
+            ? MATS.emeraldCrystal
+            : MATS.violetCrystal;
+
+        const crystal = new THREE.Mesh(new THREE.OctahedronGeometry(0.55, 0), mat);
+        const ring = new THREE.Mesh(new THREE.TorusGeometry(0.88, 0.04, 8, 24), MATS.gold);
+        ring.rotation.x = Math.PI / 2;
+
+        group.add(crystal, ring, makeGlowSprite(entry.color, 3.8, 0.85));
+        scene.add(group);
+
+        loreInteractables.push({
+          entry,
+          group,
+          crystal,
+          ring,
+          baseY: entry.pos.y,
+          phase: idx * 1.1
+        });
+      });
+    }
+
+    // --------------------------------------------------------------------------
+    // 7. VIEWMODEL 3D DA VARINHA ARCANA & PUNHO DE TÚNICA EM 1ª PESSOA
+    // --------------------------------------------------------------------------
+    function buildFirstPersonWandViewmodel() {
+      wandGroup = new THREE.Group();
+
+      // Punho da túnica azul-meia-noite com bordado dourado
+      const cuff = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.085, 0.11, 0.28, 12),
+        new THREE.MeshStandardMaterial({ color: 0x171236, roughness: 0.7 })
+      );
+      cuff.position.set(0.04, -0.18, 0.24);
+      cuff.rotation.x = 0.55;
+      wandGroup.add(cuff);
+
+      const goldTrim = new THREE.Mesh(new THREE.TorusGeometry(0.086, 0.012, 8, 16), MATS.gold);
+      goldTrim.position.set(0.03, -0.09, 0.13);
+      goldTrim.rotation.x = 0.55 + Math.PI / 2;
+      wandGroup.add(goldTrim);
+
+      // Haste esculpida da varinha em madeira negra
+      const shaft = new THREE.Mesh(new THREE.CylinderGeometry(0.014, 0.028, 0.56, 10), MATS.wood);
+      shaft.rotation.x = -Math.PI / 2;
+      shaft.position.set(0, 0, -0.14);
+      wandGroup.add(shaft);
+
+      // Anéis dourados ornamentais ao longo da haste
+      [-0.02, -0.22, -0.38].forEach(zPos => {
+        const ring = new THREE.Mesh(new THREE.TorusGeometry(0.024, 0.006, 8, 16), MATS.gold);
+        ring.position.set(0, 0, zPos);
+        wandGroup.add(ring);
+      });
+
+      // Ponta de Cristal Ciano-Violeta com PointLight Dinâmico
+      const tipCrystal = new THREE.Mesh(new THREE.OctahedronGeometry(0.044, 0), MATS.cyanCrystal);
+      tipCrystal.scale.set(0.85, 0.85, 1.55);
+      tipCrystal.position.set(0, 0, -0.44);
+      wandGroup.add(tipCrystal);
+
+      wandTipSprite = makeGlowSprite(0x38bdf8, 0.28, 0.95);
+      wandTipSprite.position.set(0, 0, -0.46);
+      wandGroup.add(wandTipSprite);
+
+      wandTipLight = new THREE.PointLight(0x38bdf8, 1.1, 14);
+      wandTipLight.position.set(0, 0.05, -0.5);
+      wandGroup.add(wandTipLight);
+
+      wandGroup.position.set(0.35, -0.32, -0.55);
+      wandGroup.rotation.set(0.24, -0.12, 0);
+      camera.add(wandGroup);
+    }
+
+    // --------------------------------------------------------------------------
+    // 8. SISTEMA DE 4 FEITIÇOS INTERATIVOS [1–4]
+    // --------------------------------------------------------------------------
+    function getWandTipWorldPos() {
+      const worldPos = new THREE.Vector3(0, 0, -0.46);
+      if (wandGroup) {
+        wandGroup.updateMatrixWorld(true);
+        worldPos.applyMatrix4(wandGroup.matrixWorld);
+      } else {
+        camera.getWorldPosition(worldPos);
+      }
+      return worldPos;
+    }
+
+    function spawnBurst(pos, hexColor, count = 24) {
+      for (let i = 0; i < count; i++) {
+        const sp = makeGlowSprite(hexColor, 0.55 + Math.random() * 0.4, 0.95);
+        sp.position.copy(pos);
+        const speed = 2.5 + Math.random() * 6.5;
+        const theta = Math.random() * Math.PI * 2;
+        const phi = Math.acos(2 * Math.random() - 1);
+        const vel = new THREE.Vector3(
+          speed * Math.sin(phi) * Math.cos(theta),
+          Math.abs(speed * Math.cos(phi)) + 1.2,
+          speed * Math.sin(phi) * Math.sin(theta)
+        );
+        scene.add(sp);
+        activeParticles.push({ sprite: sp, vel, life: 0.65 + Math.random() * 0.35, maxLife: 1.0 });
+      }
+    }
+
+    function castSpell(spellId) {
+      // Destaca botão na hotbar
+      const btn = document.getElementById(`spell-${spellId}`);
+      if (btn) {
+        btn.classList.remove('casting');
+        void btn.offsetWidth;
+        btn.classList.add('casting');
+      }
+
+      wandRecoil = 1.0;
+      playArcaneSound(spellId);
+
+      const forward = new THREE.Vector3();
+      camera.getWorldDirection(forward);
+
+      if (spellId === 1) {
+        // [1] RAIO DE MANA: Projétil luminoso ciano-violeta da ponta da varinha
+        const startPos = cameraMode === 'fp' ? getWandTipWorldPos() : player.pos.clone().addScaledVector(forward, 1.2);
+        const boltGroup = new THREE.Group();
+        boltGroup.position.copy(startPos);
+
+        const core = new THREE.Mesh(new THREE.SphereGeometry(0.18, 10, 10), MATS.cyanCrystal);
+        const halo = makeGlowSprite(0xa855f7, 2.2, 0.95);
+        const light = new THREE.PointLight(0x38bdf8, 1.8, 12);
+        boltGroup.add(core, halo, light);
+        scene.add(boltGroup);
+
+        activeBolts.push({
+          group: boltGroup,
+          vel: forward.clone().multiplyScalar(34.0),
+          life: 2.2,
+          trailTimer: 0
+        });
+        showToast('🪄 Raio de Mana!');
+      } else if (spellId === 2) {
+        // [2] CHUVA DE METEOROS: 6 meteoros arcanos descendo à frente do jogador
+        const targetCenter = player.pos.clone().addScaledVector(forward, 12);
+        targetCenter.y = 0;
+        for (let i = 0; i < 6; i++) {
+          const offsetX = (Math.random() - 0.5) * 9;
+          const offsetZ = (Math.random() - 0.5) * 9;
+          const mGroup = new THREE.Group();
+          const rock = new THREE.Mesh(new THREE.DodecahedronGeometry(0.55, 0), MATS.violetCrystal);
+          const glow = makeGlowSprite(0xd4af37, 3.8, 0.95);
+          mGroup.add(rock, glow);
+          mGroup.position.set(
+            targetCenter.x + offsetX + 4,
+            18 + i * 3.2,
+            targetCenter.z + offsetZ + 4
+          );
+          scene.add(mGroup);
+
+          activeMeteors.push({
+            group: mGroup,
+            vel: new THREE.Vector3(-4.5, -22.0, -4.5)
+          });
+        }
+        showToast('☄️ Chuva de Meteoros Arcanos!');
+      } else if (spellId === 3) {
+        // [3] CÍRCULO RÚNICO: Selo dourado-ciano giratório sob os pés do jogador
+        if (runeCircleGroup) scene.remove(runeCircleGroup);
+        runeCircleGroup = new THREE.Group();
+
+        const groundY = getGroundHeight(player.pos.x, player.pos.z) ?? (player.pos.y - EYE_HEIGHT);
+        runeCircleGroup.position.set(player.pos.x, groundY + 0.06, player.pos.z);
+
+        const outerPlane = new THREE.Mesh(
+          new THREE.PlaneGeometry(7.2, 7.2),
+          new THREE.MeshBasicMaterial({
+            map: createRuneRingTexture('#d4af37', '#38bdf8'),
+            transparent: true,
+            opacity: 0.95,
+            blending: THREE.AdditiveBlending,
+            depthWrite: false
+          })
+        );
+        outerPlane.rotation.x = -Math.PI / 2;
+
+        const innerPlane = new THREE.Mesh(
+          new THREE.PlaneGeometry(4.4, 4.4),
+          new THREE.MeshBasicMaterial({
+            map: createRuneRingTexture('#38bdf8', '#a855f7'),
+            transparent: true,
+            opacity: 0.9,
+            blending: THREE.AdditiveBlending,
+            depthWrite: false
+          })
+        );
+        innerPlane.rotation.x = -Math.PI / 2;
+        innerPlane.position.y = 0.04;
+
+        runeCircleGroup.add(outerPlane, innerPlane);
+        scene.add(runeCircleGroup);
+        runeCircleTimer = 6.5;
+        spawnBurst(new THREE.Vector3(player.pos.x, groundY + 0.4, player.pos.z), 0xd4af37, 22);
+        showToast('🔯 Círculo Rúnico de Proteção!');
+      } else if (spellId === 4) {
+        // [4] TEMPESTADE DE MANA: 14 orbes orbitais girando ao redor do jogador
+        if (manaStormGroup) scene.remove(manaStormGroup);
+        manaStormGroup = new THREE.Group();
+        manaStormGroup.position.copy(player.pos);
+
+        for (let i = 0; i < 14; i++) {
+          const ang = (i / 14) * Math.PI * 2;
+          const rad = 2.0 + (i % 3) * 0.65;
+          const orb = makeGlowSprite(i % 2 === 0 ? 0x38bdf8 : 0x34d399, 1.35, 0.95);
+          orb.position.set(Math.cos(ang) * rad, -0.6 + (i % 4) * 0.45, Math.sin(ang) * rad);
+          manaStormGroup.add(orb);
+        }
+        scene.add(manaStormGroup);
+        manaStormTimer = 6.0;
+        showToast('🌪️ Tempestade de Mana!');
+      }
+    }
+
+    // --------------------------------------------------------------------------
+    // 9. ATUALIZAÇÃO DO PERSONAGEM EM 1ª PESSOA (MOVIMENTO IMEDIATO E ENGRENADO)
+    // --------------------------------------------------------------------------
+    function togglePaceMode() {
+      virtualState.trotMode = !virtualState.trotMode;
+      const btn = document.getElementById('btn-pace-toggle');
+      const icon = document.getElementById('pace-icon');
+      const label = document.getElementById('pace-label');
+
+      if (virtualState.trotMode) {
+        btn.classList.remove('active');
+        btn.classList.add('cyan-active');
+        icon.textContent = '🏃';
+        label.textContent = 'Passo: Trote (7.0)';
+        showToast('🏃 Passo alterado para Trote (7.0 u/s)');
+      } else {
+        btn.classList.remove('cyan-active');
+        btn.classList.add('active');
+        icon.textContent = '🚶';
+        label.textContent = 'Passo: Caminhada (4.6)';
+        showToast('🚶 Passo alterado para Caminhada (4.6 u/s)');
+      }
+    }
+
+    function triggerJump() {
+      if (cameraMode !== 'fp') return;
+      if (player.grounded) {
+        player.velY = JUMP_FORCE;
+        player.grounded = false;
+        player.jumpsUsed = 1;
+        playArcaneSound(3);
+      } else if (player.jumpsUsed < 2) {
+        player.velY = DOUBLE_JUMP_FORCE;
+        player.jumpsUsed = 2;
+        spawnBurst(new THREE.Vector3(player.pos.x, player.pos.y - EYE_HEIGHT + 0.1, player.pos.z), 0x38bdf8, 16);
+        playArcaneSound(4);
+        showToast('✨ Duplo Salto Arcano!');
+      }
+    }
+
+    function resetCameraPitch() {
+      player.pitch = 0.02;
+    }
+
+    function updateFirstPersonPlayer(dt) {
+      if (cameraMode !== 'fp') return;
+
+      // 1. Rotação de Câmera via Teclado (Q/E) ou D-Pad na Tela
+      const yawSpeed = 1.95;
+      const pitchSpeed = 1.45;
+      if (keyInput.turnLeft || virtualState.camLeft) player.yaw += yawSpeed * dt;
+      if (keyInput.turnRight || virtualState.camRight) player.yaw -= yawSpeed * dt;
+      if (virtualState.camUp) player.pitch = THREE.MathUtils.clamp(player.pitch + pitchSpeed * dt, -1.35, 1.35);
+      if (virtualState.camDown) player.pitch = THREE.MathUtils.clamp(player.pitch - pitchSpeed * dt, -1.35, 1.35);
+
+      // 2. Direções horizontais no plano XZ
+      const forward = new THREE.Vector3(-Math.sin(player.yaw), 0, -Math.cos(player.yaw));
+      const right = new THREE.Vector3(Math.cos(player.yaw), 0, -Math.sin(player.yaw));
+
+      // Combina Teclado + Joystick Analógico Virtual 360° (com deadzone mínima 0.08)
+      const joyMagRaw = Math.hypot(virtualState.joyX, virtualState.joyY);
+      let jx = 0;
+      let jy = 0;
+      if (joyMagRaw > JOYSTICK_DEADZONE) {
+        const rescaled = Math.min(1, (joyMagRaw - JOYSTICK_DEADZONE) / (1 - JOYSTICK_DEADZONE));
+        jx = (virtualState.joyX / joyMagRaw) * rescaled;
+        jy = (virtualState.joyY / joyMagRaw) * rescaled;
+      }
+
+      const moveForward = (keyInput.forward ? 1 : 0) - (keyInput.backward ? 1 : 0) - jy;
+      const moveRight = (keyInput.right ? 1 : 0) - (keyInput.left ? 1 : 0) + jx;
+
+      const wishDir = new THREE.Vector3()
+        .addScaledVector(forward, moveForward)
+        .addScaledVector(right, moveRight);
+
+      const wishMag = Math.min(1, wishDir.length());
+      const hasInput = wishMag > 0.01;
+      if (hasInput) wishDir.normalize();
+
+      // Velocidade alvo imediata: Caminhada (4.6) ou Trote (7.0), sem auto-sprint na borda do joystick
+      const isTrotting = keyInput.sprint || virtualState.trotMode;
+      const activeSpeed = isTrotting ? TROT_SPEED : WALK_SPEED;
+      const targetVx = hasInput ? wishDir.x * activeSpeed * wishMag : 0;
+      const targetVz = hasInput ? wishDir.z * activeSpeed * wishMag : 0;
+
+      // Engate ultrarrápido (0.045s para acelerar, 0.040s para parar limpo)
+      const rate = hasInput ? (activeSpeed / ACCEL_TIME) : (activeSpeed / DECEL_TIME);
+      const maxStep = rate * dt;
+
+      const dvx = targetVx - player.vx;
+      const dvz = targetVz - player.vz;
+      const dvLen = Math.hypot(dvx, dvz);
+
+      if (dvLen <= maxStep || dvLen < 0.0001) {
+        player.vx = targetVx;
+        player.vz = targetVz;
+      } else {
+        player.vx += (dvx / dvLen) * maxStep;
+        player.vz += (dvz / dvLen) * maxStep;
+      }
+
+      const horizSpeed = Math.hypot(player.vx, player.vz);
+      player.isMoving = horizSpeed > 0.15;
+
+      // Atualiza badge ao vivo de movimento no HUD
+      const statusBadge = document.getElementById('move-status-badge');
+      if (statusBadge) {
+        if (player.isMoving) {
+          statusBadge.textContent = isTrotting ? '🏃 Trotando' : '🚶 Caminhando';
+          statusBadge.className = 'text-[10px] px-2 py-0.5 rounded-full bg-[#38bdf8]/20 border border-[#38bdf8]/50 text-[#e0f7ff] font-semibold';
+        } else {
+          statusBadge.textContent = '✨ Parado';
+          statusBadge.className = 'text-[10px] px-2 py-0.5 rounded-full bg-white/10 border border-white/15 text-amber-200 font-medium';
+        }
+      }
+
+      // 3. Aplica deslocamento horizontal + colisão deslizante suave
+      const nextX = player.pos.x + player.vx * dt;
+      const nextZ = player.pos.z + player.vz * dt;
+      const resolved = resolveSlidingCollisions(nextX, nextZ);
+      player.pos.x = resolved.x;
+      player.pos.z = resolved.z;
+
+      // 4. Gravidade e aderência ao terreno analítico (Ilhas, Pontes e Rampa do Grande Salão)
+      const groundY = getGroundHeight(player.pos.x, player.pos.z);
+      if (groundY !== null) {
+        const targetEyeY = groundY + EYE_HEIGHT;
+        if (player.pos.y <= targetEyeY + 0.35 && player.velY <= 0) {
+          player.pos.y = targetEyeY;
+          player.velY = 0;
+          player.grounded = true;
+          player.jumpsUsed = 0;
+        } else {
+          player.grounded = false;
+          player.velY -= GRAVITY * dt;
+          player.pos.y += player.velY * dt;
+        }
+      } else {
+        player.grounded = false;
+        player.velY -= GRAVITY * dt;
+        player.pos.y += player.velY * dt;
+      }
+
+      // Feitiço Automático de Levitação ao cair da borda de uma ilha
+      if (player.pos.y < -12) {
+        player.pos.set(0, EYE_HEIGHT, 16);
+        player.vx = 0;
+        player.vz = 0;
+        player.velY = 0;
+        player.yaw = 0;
+        player.pitch = 0.02;
+        player.grounded = true;
+        spawnBurst(new THREE.Vector3(0, 0.4, 16), 0xd4af37, 30);
+        playArcaneSound(3);
+        showToast('✨ Levitação Arcana! Retornando ao Pátio das Runas.');
+      }
+
+      // 5. Balanço rítmico da câmera e da varinha sincronizado exatamente com a velocidade real
+      const speedNorm = Math.min(1.3, horizSpeed / WALK_SPEED);
+      let bobY = 0;
+      if (player.isMoving && player.grounded) {
+        player.bobTimer += dt * (horizSpeed * 2.1);
+        bobY = Math.sin(player.bobTimer) * (0.032 * Math.min(1, speedNorm));
+      } else {
+        player.bobTimer += dt * 1.8;
+      }
+
+      camera.position.set(player.pos.x, player.pos.y + bobY, player.pos.z);
+      camera.quaternion.setFromEuler(new THREE.Euler(player.pitch, player.yaw, 0, 'YXZ'));
+
+      if (wandGroup) {
+        wandRecoil = Math.max(0, wandRecoil - dt * 3.8);
+        const swayX = player.isMoving
+          ? Math.cos(player.bobTimer * 0.5) * 0.014 * Math.min(1, speedNorm)
+          : Math.sin(player.bobTimer) * 0.003;
+        const swayY = player.isMoving
+          ? Math.abs(Math.sin(player.bobTimer * 0.5)) * 0.012 * Math.min(1, speedNorm)
+          : Math.cos(player.bobTimer) * 0.003;
+
+        wandGroup.position.set(
+          0.35 + swayX,
+          -0.32 - swayY + wandRecoil * 0.035,
+          -0.55 + wandRecoil * 0.09
+        );
+        wandGroup.rotation.x = 0.24 + wandRecoil * 0.36;
+        wandTipLight.intensity = 1.1 + wandRecoil * 3.8;
+        wandTipSprite.scale.setScalar(0.28 + wandRecoil * 0.36);
+      }
+
+      updateCurrentLandmarkLabel(player.pos.x, player.pos.z);
+    }
+
+    function updateCurrentLandmarkLabel(x, z) {
+      let area = 'Pátio das Runas';
+      if (Math.abs(x) <= 11 && z <= -8 && z >= -27) area = 'Grande Salão';
+      else if (z < -31) area = z > -51.5 ? 'Ponte da Astronomia' : 'Torre de Astronomia';
+      else if (x > 31) x < 51.5 ? (area = 'Ponte da Arena') : (area = 'Arena de Duelos');
+      else if (z > 31) z < 51.5 ? (area = 'Ponte do Bosque') : (area = 'Bosque Luminescente');
+      else if (x < -31) x > -51.5 ? (area = 'Ponte da Biblioteca') : (area = 'Biblioteca Flutuante');
+
+      if (area !== player.currentArea) {
+        player.currentArea = area;
+        const el = document.getElementById('location-subtitle');
+        if (el) el.textContent = `📍 ${area}`;
+      }
+    }
+
+    // --------------------------------------------------------------------------
+    // 10. TELEPORTE RÁPIDO, MODOS DE CÂMERA & ATMOSFERA
+    // --------------------------------------------------------------------------
+    const TELEPORT_DESTINATIONS = {
+      courtyard: { pos: new THREE.Vector3(0, EYE_HEIGHT, 19), yaw: 0, label: 'Pátio das Runas' },
+      grandhall: { pos: new THREE.Vector3(0, EYE_HEIGHT + 0.2, -12), yaw: 0, label: 'Grande Salão' },
+      astronomy: { pos: new THREE.Vector3(0, EYE_HEIGHT + 0.4, -55), yaw: 0, label: 'Torre de Astronomia' },
+      arena: { pos: new THREE.Vector3(56, EYE_HEIGHT, 4), yaw: -Math.PI / 2, label: 'Arena de Duelos' },
+      grove: { pos: new THREE.Vector3(0, EYE_HEIGHT, 56), yaw: Math.PI, label: 'Bosque Luminescente' },
+      library: { pos: new THREE.Vector3(-56, EYE_HEIGHT + 0.2, 4), yaw: Math.PI / 2, label: 'Biblioteca Flutuante' }
+    };
+
+    function teleportPlayer(key) {
+      const dest = TELEPORT_DESTINATIONS[key];
+      if (!dest) return;
+
+      player.pos.copy(dest.pos);
+      player.vx = 0;
+      player.vz = 0;
+      player.velY = 0;
+      player.yaw = dest.yaw;
+      player.pitch = 0.02;
+      player.grounded = true;
+
+      if (cameraMode === 'orbit' && orbitControls) {
+        orbitControls.target.copy(player.pos);
+        camera.position.set(player.pos.x + 22, player.pos.y + 28, player.pos.z + 32);
+      }
+
+      document.querySelectorAll('.tp-btn').forEach(b => b.classList.remove('active'));
+      const activeBtn = document.getElementById(`tp-${key}`);
+      if (activeBtn) activeBtn.classList.add('active');
+
+      spawnBurst(new THREE.Vector3(dest.pos.x, dest.pos.y - EYE_HEIGHT + 0.5, dest.pos.z), 0x38bdf8, 22);
+      playArcaneSound(1);
+      showToast(`✨ Teleporte: ${dest.label}`);
+    }
+
+    function setCameraMode(mode) {
+      cameraMode = mode;
+      const btnFp = document.getElementById('btn-mode-fp');
+      const btnOrbit = document.getElementById('btn-mode-orbit');
+      const crosshair = document.getElementById('crosshair');
+
+      if (mode === 'fp') {
+        btnFp.classList.add('active');
+        btnOrbit.classList.remove('active');
+        orbitControls.enabled = false;
+        if (wandGroup) wandGroup.visible = true;
+        if (crosshair) crosshair.style.display = 'flex';
+        showToast('🚶 Modo Exploração em 1ª Pessoa');
+      } else {
+        btnOrbit.classList.add('active');
+        btnFp.classList.remove('active');
+        if (document.pointerLockElement) document.exitPointerLock();
+        if (wandGroup) wandGroup.visible = false;
+        if (crosshair) crosshair.style.display = 'none';
+        orbitControls.target.copy(player.pos);
+        camera.position.set(player.pos.x + 26, player.pos.y + 38, player.pos.z + 52);
+        orbitControls.enabled = true;
+        showToast('🎥 Câmera Órbita Livre');
+      }
+    }
+
+    function setAtmospherePreset(preset) {
+      ['twilight', 'starry', 'aurora'].forEach(p => {
+        const b = document.getElementById(`preset-${p}`);
+        if (b) b.classList.toggle('active', p === preset);
+      });
+
+      const skyCanvas = document.createElement('canvas');
+      skyCanvas.width = 64;
+      skyCanvas.height = 256;
+      const ctx = skyCanvas.getContext('2d');
+      const g = ctx.createLinearGradient(0, 0, 0, 256);
+
+      if (preset === 'twilight') {
+        g.addColorStop(0.0, '#070514');
+        g.addColorStop(0.5, '#1b123d');
+        g.addColorStop(0.85, '#3b1d5e');
+        g.addColorStop(1.0, '#120b29');
+        scene.fog.color.setHex(0x140e2e);
+        dirLight.color.setHex(0xffe4a3);
+        dirLight.intensity = 1.15;
+        hemiLight.color.setHex(0x93c5fd);
+        showToast('🌅 Atmosfera: Crepúsculo Arcano');
+      } else if (preset === 'starry') {
+        g.addColorStop(0.0, '#020208');
+        g.addColorStop(0.55, '#09071c');
+        g.addColorStop(1.0, '#110d2e');
+        scene.fog.color.setHex(0x070514);
+        dirLight.color.setHex(0xa5b4fc);
+        dirLight.intensity = 0.85;
+        hemiLight.color.setHex(0x6366f1);
+        showToast('🌌 Atmosfera: Noite Estrelada');
+      } else {
+        g.addColorStop(0.0, '#04121a');
+        g.addColorStop(0.45, '#0f3d3e');
+        g.addColorStop(0.75, '#4c1d95');
+        g.addColorStop(1.0, '#090714');
+        scene.fog.color.setHex(0x0b2530);
+        dirLight.color.setHex(0x6ee7b7);
+        dirLight.intensity = 1.1;
+        hemiLight.color.setHex(0x34d399);
+        showToast('✨ Atmosfera: Aurora Boreal Mágica');
+      }
+
+      ctx.fillStyle = g;
+      ctx.fillRect(0, 0, 64, 256);
+      skyMesh.material.map = new THREE.CanvasTexture(skyCanvas);
+      skyMesh.material.needsUpdate = true;
+    }
+
+    function toggleOnScreenControls() {
+      virtualState.controlsVisible = !virtualState.controlsVisible;
+      const layer = document.getElementById('virtual-controls-layer');
+      const btn = document.getElementById('btn-toggle-controls');
+      layer.style.display = virtualState.controlsVisible ? 'flex' : 'none';
+      btn.classList.toggle('active', virtualState.controlsVisible);
+    }
+
+    // --------------------------------------------------------------------------
+    // 11. INTERAÇÃO COM CRISTAIS DE LORE & MODAL
+    // --------------------------------------------------------------------------
+    function interactWithNearestLore() {
+      if (nearestLore) {
+        openLoreModal(nearestLore.entry);
+      } else {
+        showToast('🔮 Aproxime-se de um Cristal flutuante para ler');
+      }
+    }
+
+    function openLoreModal(entry) {
+      discoveredLoreIds.add(entry.id);
+      document.getElementById('lore-counter').textContent = `${discoveredLoreIds.size}/6`;
+      document.getElementById('lore-category').textContent = entry.category;
+      document.getElementById('lore-title').textContent = entry.title;
+      document.getElementById('lore-description').textContent = entry.description;
+      document.getElementById('lore-secret').textContent = entry.secret;
+
+      const modal = document.getElementById('lore-modal');
+      modal.classList.remove('hidden');
+      modal.classList.add('flex');
+
+      if (document.pointerLockElement) document.exitPointerLock();
+      playArcaneSound(3);
+    }
+
+    function closeLoreModal() {
+      const modal = document.getElementById('lore-modal');
+      modal.classList.add('hidden');
+      modal.classList.remove('flex');
+      window.focus();
+    }
+
+    // --------------------------------------------------------------------------
+    // 12. CONTROLES DE ENTRADA (JOYSTICK, ARRASTE DE CÂMERA, D-PAD & TECLADO)
+    // --------------------------------------------------------------------------
+    function setupControls() {
+      const canvas = renderer.domElement;
+      const joyBase = document.getElementById('joystick-base');
+      const joyKnob = document.getElementById('joystick-knob');
+
+      // Remove foco de botões após clique para que Espaço sempre acione o pulo
+      document.querySelectorAll('button').forEach(btn => {
+        btn.addEventListener('click', () => {
+          btn.blur();
+          window.focus();
+        });
+      });
+
+      // --- 12.1 Joystick Analógico Virtual 360° com setPointerCapture ---
+      function updateJoystickFromPointer(clientX, clientY) {
+        const rect = joyBase.getBoundingClientRect();
+        const cx = rect.left + rect.width * 0.5;
+        const cy = rect.top + rect.height * 0.5;
+        const maxRadius = rect.width * 0.36;
+
+        let dx = clientX - cx;
+        let dy = clientY - cy;
+        const dist = Math.hypot(dx, dy);
+
+        if (dist > maxRadius) {
+          dx = (dx / dist) * maxRadius;
+          dy = (dy / dist) * maxRadius;
+        }
+
+        joyKnob.style.transform = `translate(${dx}px, ${dy}px)`;
+        virtualState.joyX = dx / maxRadius;
+        virtualState.joyY = dy / maxRadius;
+      }
+
+      function resetJoystick() {
+        joystickPointerId = null;
+        joyKnob.style.transform = 'translate(0px, 0px)';
+        virtualState.joyX = 0;
+        virtualState.joyY = 0;
+      }
+
+      joyBase.addEventListener('pointerdown', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        window.focus();
+        joystickPointerId = e.pointerId;
+        try { joyBase.setPointerCapture(e.pointerId); } catch (_) {}
+        updateJoystickFromPointer(e.clientX, e.clientY);
+      });
+
+      joyBase.addEventListener('pointermove', (e) => {
+        if (e.pointerId !== joystickPointerId) return;
+        e.preventDefault();
+        updateJoystickFromPointer(e.clientX, e.clientY);
+      });
+
+      joyBase.addEventListener('pointerup', (e) => {
+        if (e.pointerId === joystickPointerId) resetJoystick();
+      });
+
+      joyBase.addEventListener('pointercancel', (e) => {
+        if (e.pointerId === joystickPointerId) resetJoystick();
+      });
+
+      // --- 12.2 Rotação Livre de Câmera no Canvas (Arraste Multi-Touch/Mouse + Pointer Lock) ---
+      let downX = 0;
+      let downY = 0;
+
+      canvas.addEventListener('pointerdown', (e) => {
+        window.focus();
+        if (cameraMode !== 'fp') return;
+        if (e.pointerId === joystickPointerId) return;
+        lookPointerId = e.pointerId;
+        lastLookX = e.clientX;
+        lastLookY = e.clientY;
+        downX = e.clientX;
+        downY = e.clientY;
+        try { canvas.setPointerCapture(e.pointerId); } catch (_) {}
+      });
+
+      canvas.addEventListener('pointermove', (e) => {
+        if (cameraMode !== 'fp') return;
+
+        // Suporte nativo caso Pointer Lock esteja ativo no desktop
+        if (document.pointerLockElement === canvas) {
+          player.yaw -= e.movementX * 0.0024;
+          player.pitch = THREE.MathUtils.clamp(player.pitch - e.movementY * 0.0024, -1.35, 1.35);
+          return;
+        }
+
+        // Arraste livre imediato (mouse ou dedo) sem necessidade de Pointer Lock
+        if (e.pointerId === lookPointerId) {
+          const dx = e.clientX - lastLookX;
+          const dy = e.clientY - lastLookY;
+          lastLookX = e.clientX;
+          lastLookY = e.clientY;
+
+          player.yaw -= dx * 0.0042;
+          player.pitch = THREE.MathUtils.clamp(player.pitch - dy * 0.0042, -1.35, 1.35);
+        }
+      });
+
+      canvas.addEventListener('pointerup', (e) => {
+        if (e.pointerId === lookPointerId) {
+          const movedDist = Math.hypot(e.clientX - downX, e.clientY - downY);
+          lookPointerId = null;
+          // Clique rápido (sem arrastar) verifica clique direto em cristal 3D
+          if (movedDist < 6) {
+            handleCanvasRayClick(e.clientX, e.clientY);
+          }
+        }
+      });
+
+      canvas.addEventListener('pointercancel', (e) => {
+        if (e.pointerId === lookPointerId) lookPointerId = null;
+      });
+
+      // --- 12.3 D-Pad de Câmera na Tela ---
+      document.querySelectorAll('.cam-pad-btn').forEach(btn => {
+        const dir = btn.getAttribute('data-cam');
+        const setDir = (val) => {
+          if (dir === 'up') virtualState.camUp = val;
+          if (dir === 'down') virtualState.camDown = val;
+          if (dir === 'left') virtualState.camLeft = val;
+          if (dir === 'right') virtualState.camRight = val;
+        };
+        btn.addEventListener('pointerdown', (e) => { e.preventDefault(); setDir(true); });
+        btn.addEventListener('pointerup', () => setDir(false));
+        btn.addEventListener('pointerleave', () => setDir(false));
+        btn.addEventListener('pointercancel', () => setDir(false));
+      });
+
+      // --- 12.4 Teclado (WASD, Setas, Espaço, Shift, Q/E, F, 1-4, ESC) ---
+      window.addEventListener('keydown', (e) => {
+        const modalOpen = !document.getElementById('lore-modal').classList.contains('hidden');
+        if (modalOpen) {
+          if (e.key === 'Escape' || e.key === 'f' || e.key === 'F') closeLoreModal();
+          return;
+        }
+
+        if (['Space', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.code)) {
+          e.preventDefault();
+        }
+
+        switch (e.code) {
+          case 'KeyW':
+          case 'ArrowUp':
+            keyInput.forward = true;
+            break;
+          case 'KeyS':
+          case 'ArrowDown':
+            keyInput.backward = true;
+            break;
+          case 'KeyA':
+          case 'ArrowLeft':
+            keyInput.left = true;
+            break;
+          case 'KeyD':
+          case 'ArrowRight':
+            keyInput.right = true;
+            break;
+          case 'ShiftLeft':
+          case 'ShiftRight':
+            keyInput.sprint = true;
+            break;
+          case 'KeyQ':
+            keyInput.turnLeft = true;
+            break;
+          case 'KeyE':
+            keyInput.turnRight = true;
+            break;
+          case 'Space':
+            triggerJump();
+            break;
+          case 'KeyF':
+            interactWithNearestLore();
+            break;
+          case 'Digit1':
+            castSpell(1);
+            break;
+          case 'Digit2':
+            castSpell(2);
+            break;
+          case 'Digit3':
+            castSpell(3);
+            break;
+          case 'Digit4':
+            castSpell(4);
+            break;
+        }
+      });
+
+      window.addEventListener('keyup', (e) => {
+        switch (e.code) {
+          case 'KeyW':
+          case 'ArrowUp':
+            keyInput.forward = false;
+            break;
+          case 'KeyS':
+          case 'ArrowDown':
+            keyInput.backward = false;
+            break;
+          case 'KeyA':
+          case 'ArrowLeft':
+            keyInput.left = false;
+            break;
+          case 'KeyD':
+          case 'ArrowRight':
+            keyInput.right = false;
+            break;
+          case 'ShiftLeft':
+          case 'ShiftRight':
+            keyInput.sprint = false;
+            break;
+          case 'KeyQ':
+            keyInput.turnLeft = false;
+            break;
+          case 'KeyE':
+            keyInput.turnRight = false;
+            break;
+        }
+      });
+
+      window.addEventListener('blur', () => {
+        Object.keys(keyInput).forEach(k => (keyInput[k] = false));
+        resetJoystick();
+      });
+    }
+
+    function requestDesktopPointerLock() {
+      if (cameraMode !== 'fp') setCameraMode('fp');
+      const canvas = renderer.domElement;
+      if (canvas.requestPointerLock) {
+        canvas.requestPointerLock();
+        showToast('🎯 Mira travada! Pressione ESC para liberar');
+      }
+    }
+
+    function handleCanvasRayClick(clientX, clientY) {
+      const ndc = new THREE.Vector2(
+        (clientX / window.innerWidth) * 2 - 1,
+        -(clientY / window.innerHeight) * 2 + 1
+      );
+      const raycaster = new THREE.Raycaster();
+      raycaster.setFromCamera(ndc, camera);
+      const meshes = loreInteractables.map(l => l.crystal);
+      const hits = raycaster.intersectObjects(meshes, false);
+      if (hits.length > 0) {
+        const hitObj = hits[0].object;
+        const found = loreInteractables.find(l => l.crystal === hitObj);
+        if (found) openLoreModal(found.entry);
+      }
+    }
+
+    // --------------------------------------------------------------------------
+    // 13. MINIMAPA / BÚSSOLA CIRCULAR EM TEMPO REAL & ÁUDIO ARCANO
+    // --------------------------------------------------------------------------
+    function drawMinimap() {
+      const canvas = document.getElementById('minimap-canvas');
+      if (!canvas) return;
+      const ctx = canvas.getContext('2d');
+      const w = canvas.width;
+      const h = canvas.height;
+      const cx = w * 0.5;
+      const cy = h * 0.5;
+      const scale = 0.65; // Escala de mundo para radar
+
+      ctx.clearRect(0, 0, w, h);
+
+      // Anéis de radar
+      ctx.strokeStyle = 'rgba(212, 175, 55, 0.18)';
+      ctx.lineWidth = 1;
+      [22, 42, 56].forEach(r => {
+        ctx.beginPath();
+        ctx.arc(cx, cy, r, 0, Math.PI * 2);
+        ctx.stroke();
+      });
+
+      const toMapX = (wx) => cx + wx * scale;
+      const toMapY = (wz) => cy + wz * scale;
+
+      // Pontes de Energia
+      ctx.strokeStyle = 'rgba(56, 189, 248, 0.55)';
+      ctx.lineWidth = 3;
+      // Norte, Leste, Sul, Oeste
+      ctx.beginPath();
+      ctx.moveTo(toMapX(0), toMapY(-30));
+      ctx.lineTo(toMapX(0), toMapY(-52));
+      ctx.moveTo(toMapX(30), toMapY(4));
+      ctx.lineTo(toMapX(52), toMapY(4));
+      ctx.moveTo(toMapX(0), toMapY(30));
+      ctx.lineTo(toMapX(0), toMapY(52));
+      ctx.moveTo(toMapX(-30), toMapY(4));
+      ctx.lineTo(toMapX(-52), toMapY(4));
+      ctx.stroke();
+
+      // Ilhas
+      const islands = [
+        { x: 0, z: 0, r: 31 },
+        { x: 0, z: -64, r: 14.5 },
+        { x: 65, z: 4, r: 15 },
+        { x: 0, z: 65, r: 15 },
+        { x: -65, z: 4, r: 14.5 }
+      ];
+      islands.forEach(isl => {
+        ctx.fillStyle = 'rgba(42, 34, 78, 0.85)';
+        ctx.strokeStyle = 'rgba(212, 175, 55, 0.55)';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.arc(toMapX(isl.x), toMapY(isl.z), isl.r * scale, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+      });
+
+      // Cristais de Lore no Minimapa
+      loreInteractables.forEach(item => {
+        const read = discoveredLoreIds.has(item.entry.id);
+        ctx.fillStyle = read ? '#d4af37' : '#38bdf8';
+        ctx.beginPath();
+        ctx.arc(toMapX(item.entry.pos.x), toMapY(item.entry.pos.z), 2.3, 0, Math.PI * 2);
+        ctx.fill();
+      });
+
+      // Posição e Cone de Visão do Jogador
+      const px = toMapX(player.pos.x);
+      const py = toMapY(player.pos.z);
+      const viewAngle = -player.yaw - Math.PI / 2;
+
+      ctx.fillStyle = 'rgba(56, 189, 248, 0.28)';
+      ctx.beginPath();
+      ctx.moveTo(px, py);
+      ctx.arc(px, py, 14, viewAngle - 0.45, viewAngle + 0.45);
+      ctx.closePath();
+      ctx.fill();
+
+      ctx.fillStyle = '#ffeaa3';
+      ctx.beginPath();
+      ctx.arc(px, py, 3.2, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    let soundEnabled = false;
+    let arcaneSynth = null;
+
+    function toggleSound() {
+      soundEnabled = !soundEnabled;
+      const label = soundEnabled ? '🔊' : '🔇';
+      const b1 = document.getElementById('btn-sound');
+      const b2 = document.getElementById('btn-sound-mobile');
+      if (b1) b1.textContent = label;
+      if (b2) b2.textContent = label;
+
+      if (soundEnabled && window.Tone) {
+        try {
+          Tone.start();
+          if (!arcaneSynth) {
+            arcaneSynth = new Tone.PolySynth(Tone.Synth, {
+              oscillator: { type: 'sine' },
+              envelope: { attack: 0.03, decay: 0.25, sustain: 0.1, release: 0.6 }
+            }).toDestination();
+            arcaneSynth.volume.value = -10;
+          }
+          playArcaneSound(3);
+          showToast('🔊 Áudio Arcano Ativado');
+        } catch (_) {}
+      } else {
+        showToast('🔇 Áudio Silenciado');
+      }
+    }
+
+    function playArcaneSound(id) {
+      if (!soundEnabled || !arcaneSynth) return;
+      try {
+        const chords = {
+          1: ['E5', 'B5'],
+          2: ['C3', 'G3', 'D4'],
+          3: ['A4', 'E5', 'A5'],
+          4: ['D4', 'F#4', 'A4', 'E5']
+        };
+        arcaneSynth.triggerAttackRelease(chords[id] || ['C5'], '8n');
+      } catch (_) {}
+    }
+
+    let toastTimeout = null;
+    function showToast(msg) {
+      const el = document.getElementById('spell-toast');
+      if (!el) return;
+      el.textContent = msg;
+      el.style.opacity = '1';
+      clearTimeout(toastTimeout);
+      toastTimeout = setTimeout(() => {
+        el.style.opacity = '0';
+      }, 1900);
+    }
+
+    // --------------------------------------------------------------------------
+    // 14. LOOP PRINCIPAL DE ANIMAÇÃO
+    // --------------------------------------------------------------------------
+    function animate() {
+      requestAnimationFrame(animate);
+      const dt = Math.min(clock.getDelta(), 0.05);
+      const elapsed = clock.elapsedTime;
+
+      // Atualiza personagem em 1ª pessoa ou câmera órbita
+      if (cameraMode === 'fp') {
+        updateFirstPersonPlayer(dt);
+      } else if (orbitControls) {
+        orbitControls.update();
+      }
+
+      // Animações ambientais do mundo
+      if (starField) starField.rotation.y += dt * 0.008;
+
+      courtyardRuneRings.forEach(r => {
+        r.mesh.rotation.z += r.speed * dt;
+      });
+
+      animatedObjects.forEach(obj => {
+        obj.mesh.rotation.y += obj.rotY * dt;
+        obj.mesh.position.y = obj.baseY + Math.sin(elapsed * 2.2) * obj.bobAmp;
+      });
+
+      if (fountainParticles) {
+        const pos = fountainParticles.geometry.attributes.position.array;
+        for (let i = 0; i < pos.length; i += 3) {
+          pos[i + 1] += dt * 1.15;
+          if (pos[i + 1] > 5.6) pos[i + 1] = 1.0;
+        }
+        fountainParticles.geometry.attributes.position.needsUpdate = true;
+      }
+
+      floatingCandles.forEach(c => {
+        c.mesh.position.y = c.baseY + Math.sin(elapsed * 2.0 + c.phase) * 0.18;
+      });
+
+      armillaryRings.forEach(r => {
+        r.mesh.rotation.x += r.rx * dt;
+        r.mesh.rotation.y += r.ry * dt;
+      });
+
+      floatingBooks.forEach(b => {
+        b.angle += b.speed * dt;
+        b.mesh.position.set(
+          Math.cos(b.angle) * b.radius,
+          b.baseY + Math.sin(elapsed * 2.6 + b.angle) * 0.25,
+          Math.sin(b.angle) * b.radius
+        );
+        b.mesh.rotation.y = -b.angle;
+        const flap = Math.sin(elapsed * 7 + b.angle) * 0.35;
+        b.leftPage.rotation.z = flap;
+        b.rightPage.rotation.z = -flap;
+      });
+
+      fireflies.forEach(f => {
+        f.mesh.position.x = f.baseX + Math.sin(elapsed * 1.4 + f.phase) * 0.8;
+        f.mesh.position.y = f.baseY + Math.cos(elapsed * 1.8 + f.phase) * 0.45;
+        f.mesh.position.z = f.baseZ + Math.sin(elapsed * 1.2 + f.phase * 1.3) * 0.8;
+      });
+
+      floatingLanterns.forEach(l => {
+        l.mesh.position.y = l.baseY + Math.sin(elapsed * 1.9 + l.phase) * 0.22;
+      });
+
+      floatingShields.forEach(s => {
+        s.angle += dt * 0.4;
+        s.mesh.position.set(
+          Math.cos(s.angle) * s.radius,
+          s.baseY + Math.sin(elapsed * 2.1 + s.angle) * 0.25,
+          Math.sin(s.angle) * s.radius
+        );
+        s.mesh.lookAt(65, s.baseY, 4);
+      });
+
+      trainingTargets.forEach(t => {
+        t.group.position.y = t.baseY + Math.sin(elapsed * 2.0 + t.phase) * 0.2;
+        if (t.hitSpin > 0) {
+          t.core.rotation.y += dt * 16 * t.hitSpin;
+          t.hitSpin = Math.max(0, t.hitSpin - dt * 1.5);
+        } else {
+          t.core.rotation.y += dt * 1.2;
+        }
+      });
+
+      distantRocks.forEach(r => {
+        r.mesh.position.y = r.baseY + Math.sin(elapsed * 0.8 + r.phase) * 1.2;
+        r.mesh.rotation.y += dt * 0.08;
+      });
+
+      // Cristais de Lore & Detecção de Proximidade
+      let closest = null;
+      let closestDist = 4.6;
+      loreInteractables.forEach(item => {
+        item.crystal.rotation.y += dt * 1.4;
+        item.ring.rotation.z -= dt * 1.1;
+        item.group.position.y = item.baseY + Math.sin(elapsed * 2.4 + item.phase) * 0.16;
+
+        const d = player.pos.distanceTo(item.group.position);
+        if (d < closestDist) {
+          closestDist = d;
+          closest = item;
+        }
+      });
+
+      nearestLore = closest;
+      const banner = document.getElementById('proximity-banner');
+      const readBtn = document.getElementById('btn-read-crystal');
+      if (nearestLore) {
+        banner.classList.remove('hidden');
+        document.getElementById('proximity-label').textContent = `🔮 ${nearestLore.entry.title} — Ler Cristal [F]`;
+        readBtn.classList.add('crystal-ready');
+      } else {
+        banner.classList.add('hidden');
+        readBtn.classList.remove('crystal-ready');
+      }
+
+      // Atualização de Feitiços Ativos
+      // [1] Raios de Mana
+      for (let i = activeBolts.length - 1; i >= 0; i--) {
+        const b = activeBolts[i];
+        b.life -= dt;
+        b.group.position.addScaledVector(b.vel, dt);
+
+        b.trailTimer += dt;
+        if (b.trailTimer > 0.03) {
+          b.trailTimer = 0;
+          const trail = makeGlowSprite(0x38bdf8, 0.5, 0.75);
+          trail.position.copy(b.group.position);
+          scene.add(trail);
+          activeParticles.push({ sprite: trail, vel: new THREE.Vector3(0, 0.3, 0), life: 0.25, maxLife: 0.25 });
+        }
+
+        // Verifica impacto em Alvos de Treino da Arena
+        let hitTarget = false;
+        for (const t of trainingTargets) {
+          if (b.group.position.distanceTo(t.worldPos) < 1.5) {
+            spawnBurst(t.worldPos, 0xd4af37, 32);
+            t.hitSpin = 1.0;
+            playArcaneSound(4);
+            showToast('🎯 Alvo Arcano Atingido!');
+            hitTarget = true;
+            break;
+          }
+        }
+
+        const gY = getGroundHeight(b.group.position.x, b.group.position.z);
+        const hitFloor = gY !== null && b.group.position.y <= gY + 0.25;
+
+        if (hitTarget || hitFloor || b.life <= 0) {
+          if (!hitTarget) spawnBurst(b.group.position, 0x38bdf8, 22);
+          scene.remove(b.group);
+          activeBolts.splice(i, 1);
+        }
+      }
+
+      // [2] Chuva de Meteoros
+      for (let i = activeMeteors.length - 1; i >= 0; i--) {
+        const m = activeMeteors[i];
+        m.group.position.addScaledVector(m.vel, dt);
+        m.group.rotation.x += dt * 4;
+        m.group.rotation.z += dt * 3;
+
+        const gY = getGroundHeight(m.group.position.x, m.group.position.z) ?? 0;
+        if (m.group.position.y <= gY + 0.3) {
+          const impactPos = new THREE.Vector3(m.group.position.x, gY + 0.08, m.group.position.z);
+          spawnBurst(impactPos, 0xa855f7, 28);
+
+          const wave = new THREE.Mesh(
+            new THREE.RingGeometry(0.3, 0.7, 24),
+            new THREE.MeshBasicMaterial({ color: 0xd4af37, transparent: true, opacity: 0.9, side: THREE.DoubleSide })
+          );
+          wave.rotation.x = -Math.PI / 2;
+          wave.position.copy(impactPos);
+          scene.add(wave);
+          activeShockwaves.push({ mesh: wave, age: 0, maxAge: 0.65 });
+
+          scene.remove(m.group);
+          activeMeteors.splice(i, 1);
+        }
+      }
+
+      // Ondas de choque dos meteoros
+      for (let i = activeShockwaves.length - 1; i >= 0; i--) {
+        const sw = activeShockwaves[i];
+        sw.age += dt;
+        const p = sw.age / sw.maxAge;
+        sw.mesh.scale.setScalar(1 + p * 7.5);
+        sw.mesh.material.opacity = 1 - p;
+        if (sw.age >= sw.maxAge) {
+          scene.remove(sw.mesh);
+          activeShockwaves.splice(i, 1);
+        }
+      }
+
+      // [3] Círculo Rúnico
+      if (runeCircleGroup) {
+        runeCircleTimer -= dt;
+        runeCircleGroup.children[0].rotation.z += dt * 1.1;
+        runeCircleGroup.children[1].rotation.z -= dt * 1.7;
+        if (runeCircleTimer <= 0) {
+          scene.remove(runeCircleGroup);
+          runeCircleGroup = null;
+        }
+      }
+
+      // [4] Tempestade de Mana
+      if (manaStormGroup) {
+        manaStormTimer -= dt;
+        manaStormGroup.position.copy(player.pos);
+        manaStormGroup.rotation.y += dt * 3.4;
+        if (manaStormTimer <= 0) {
+          scene.remove(manaStormGroup);
+          manaStormGroup = null;
+        }
+      }
+
+      // Partículas gerais
+      for (let i = activeParticles.length - 1; i >= 0; i--) {
+        const pt = activeParticles[i];
+        pt.life -= dt;
+        pt.sprite.position.addScaledVector(pt.vel, dt);
+        pt.vel.y -= 9.8 * dt * 0.4;
+        pt.sprite.material.opacity = Math.max(0, pt.life / pt.maxLife);
+        if (pt.life <= 0) {
+          scene.remove(pt.sprite);
+          activeParticles.splice(i, 1);
+        }
+      }
+
+      drawMinimap();
+      renderer.render(scene, camera);
+    }
+
+    // --------------------------------------------------------------------------
+    // 15. INICIALIZAÇÃO DO MUNDO 3D
+    // --------------------------------------------------------------------------
+    function initWorld() {
+      try {
+        const container = document.getElementById('canvas-container');
+        scene = new THREE.Scene();
+
+        camera = new THREE.PerspectiveCamera(68, window.innerWidth / window.innerHeight, 0.1, 500);
+        scene.add(camera);
+
+        renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+        renderer.domElement.id = 'world-canvas';
+        container.appendChild(renderer.domElement);
+
+        orbitControls = new THREE.OrbitControls(camera, renderer.domElement);
+        orbitControls.enableDamping = true;
+        orbitControls.dampingFactor = 0.06;
+        orbitControls.enabled = false;
+
+        initMaterials();
+        buildSkyAndLighting();
+
+        // Constrói o Arquipélago Completo e as 4 Pontes de Energia
+        buildCentralIslandAndGrandHall();
+        buildEnergyBridge(0, -30.5, 0.0, 0, -51.5, 0.4, 4.8);   // Norte -> Torre de Astronomia
+        buildEnergyBridge(30.5, 4, 0.0, 51.5, 4, 0.0, 4.8);     // Leste -> Arena de Duelos
+        buildEnergyBridge(0, 30.5, 0.0, 0, 51.5, 0.0, 4.8);     // Sul -> Bosque Luminescente
+        buildEnergyBridge(-30.5, 4, 0.0, -51.5, 4, 0.2, 4.8);   // Oeste -> Biblioteca Flutuante
+
+        buildAstronomyTower();
+        buildDuelArena();
+        buildLuminescentGrove();
+        buildFloatingLibrary();
+        buildDistantFloatingRocks();
+        buildLoreCrystals();
+        buildFirstPersonWandViewmodel();
+
+        setupControls();
+
+        window.addEventListener('resize', () => {
+          camera.aspect = window.innerWidth / window.innerHeight;
+          camera.updateProjectionMatrix();
+          renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+
+        window.focus();
+
+        // Remove tela de carregamento suavemente
+        setTimeout(() => {
+          const loader = document.getElementById('loading-screen');
+          if (loader) {
+            loader.style.opacity = '0';
+            setTimeout(() => (loader.style.display = 'none'), 500);
+          }
+        }, 350);
+
+        animate();
+      } catch (err) {
+        console.error('Erro ao inicializar Arcanum Academy:', err);
+      }
+    }
+
+    window.addEventListener('load', initWorld);
+  </script>
+</body>
+</html>
