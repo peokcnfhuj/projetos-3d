@@ -2664,7 +2664,10 @@
     // --------------------------------------------------------------------------
     function animate() {
       requestAnimationFrame(animate);
-      const dt = Math.min(clock.getDelta(), 0.05);
+      // Sem este limite maior, quando o celular renderiza devagar o passo
+      // fica em câmera lenta: o dt cortado em 0.05s faz o personagem andar
+      // na metade da velocidade. Com 0.1s o passo segue normal até 10 FPS.
+      const dt = Math.min(clock.getDelta(), 0.1);
       adaptQuality();
       const elapsed = clock.elapsedTime;
 
