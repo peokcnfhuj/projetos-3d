@@ -506,6 +506,32 @@
     const clock = new THREE.Clock();
     let cameraMode = 'fp'; // 'fp' (1ª Pessoa) | 'orbit' (Órbita)
 
+    // Qualidade adaptativa: o visual continua o mesmo — só a resolução de
+    // renderização ajusta sozinha para o jogo ficar liso no celular.
+    // Começa na qualidade máxima; se o FPS cair, desce um degrau por vez
+    // (2 → 1.5 → 1.25 → 1) e volta a subir quando o aparelho aguentar.
+    const qualitySteps = [2, 1.5, 1.25, 1];
+    let qualityLevel = 0, fpsFrames = 0, fpsLast = 0, fpsCooldownUntil = 0;
+    function adaptQuality() {
+      const now = performance.now();
+      if (now < fpsCooldownUntil) return;
+      if (!fpsLast) fpsLast = now;
+      fpsFrames++;
+      if (now - fpsLast >= 1500) {
+        const fps = fpsFrames / ((now - fpsLast) / 1000);
+        fpsFrames = 0; fpsLast = now;
+        if (fps < 45 && qualityLevel < qualitySteps.length - 1) {
+          qualityLevel++;
+          renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, qualitySteps[qualityLevel]));
+          fpsCooldownUntil = now + 2000;
+        } else if (fps > 58 && qualityLevel > 0) {
+          qualityLevel--;
+          renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, qualitySteps[qualityLevel]));
+          fpsCooldownUntil = now + 2000;
+        }
+      }
+    }
+
     const player = {
       pos: new THREE.Vector3(0, EYE_HEIGHT, 19), // Pátio das Runas, de frente para a Fonte e o Grande Salão
       velY: 0,
@@ -2639,6 +2665,7 @@
     function animate() {
       requestAnimationFrame(animate);
       const dt = Math.min(clock.getDelta(), 0.05);
+      adaptQuality();
       const elapsed = clock.elapsedTime;
 
       // Atualiza personagem em 1ª pessoa ou câmera órbita
