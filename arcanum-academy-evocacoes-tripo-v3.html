@@ -1,0 +1,3632 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>Arcanum Academy — Santuário Esotérico & Ars Goetia</title>
+
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <!-- Fontes Gótico-Arcanas -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700;800&family=Cormorant+Garamond:ital,wght@0,600;1,600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+  <!-- Three.js r128 -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+
+  <!-- GLTFLoader r128 (carrega os modelos GLB Tripo das Evocações) -->
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
+
+  <style>
+    :root {
+      --bg-midnight: #05030d;
+      --gold-primary: #e5c158;
+      --cyan-arcane: #38bdf8;
+      --crimson-goetia: #f43f5e;
+      --glass-bg: rgba(9, 6, 22, 0.85);
+      --glass-border: rgba(229, 193, 88, 0.48);
+    }
+
+    * {
+      box-sizing: border-box;
+      user-select: none;
+      -webkit-user-select: none;
+      -webkit-touch-callout: none;
+    }
+
+    html, body {
+      margin: 0;
+      padding: 0;
+      width: 100vw;
+      height: 100dvh;
+      max-width: 100vw;
+      max-height: 100dvh;
+      overflow: hidden;
+      background-color: var(--bg-midnight);
+      font-family: 'Inter', sans-serif;
+      color: #f4efe6;
+      touch-action: none;
+    }
+
+    #canvas-container {
+      position: fixed;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 1;
+    }
+
+    canvas#world-canvas {
+      display: block;
+      width: 100%;
+      height: 100%;
+      touch-action: none;
+      cursor: grab;
+    }
+
+    canvas#world-canvas:active {
+      cursor: grabbing;
+    }
+
+    #speed-lines {
+      position: fixed;
+      inset: 0;
+      z-index: 4;
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity 0.2s ease;
+      background: radial-gradient(circle at center, transparent 50%, rgba(229, 193, 88, 0.18) 82%, rgba(244, 63, 94, 0.28) 100%);
+    }
+
+    /* HUD 100% CONTIDO E ALINHADO (100vw x 100dvh, overflow: hidden) */
+    #hud {
+      position: fixed;
+      inset: 0;
+      width: 100vw;
+      height: 100dvh;
+      max-width: 100vw;
+      max-height: 100dvh;
+      overflow: hidden;
+      box-sizing: border-box;
+      padding: clamp(6px, 1.2vmin, 12px);
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      z-index: 20;
+      pointer-events: none;
+    }
+
+    .interactive-ui {
+      pointer-events: auto;
+      touch-action: none;
+    }
+
+    .scrollable-ui {
+      pointer-events: auto;
+      touch-action: pan-y;
+    }
+
+    .font-cinzel { font-family: 'Cinzel', serif; }
+    .font-lore { font-family: 'Cormorant Garamond', serif; }
+
+    .arcane-panel {
+      background: var(--glass-bg);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border: 1px solid var(--glass-border);
+      box-shadow: 0 6px 26px rgba(0, 0, 0, 0.72);
+    }
+
+    .arcane-btn {
+      background: rgba(18, 12, 40, 0.92);
+      border: 1px solid rgba(229, 193, 88, 0.42);
+      color: #f4efe6;
+      transition: transform 0.1s ease, background 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      white-space: nowrap;
+    }
+
+    .arcane-btn:hover {
+      background: rgba(44, 28, 88, 0.95);
+      border-color: #e5c158;
+      color: #fff8dc;
+    }
+
+    .arcane-btn:active {
+      transform: scale(0.93);
+    }
+
+    .arcane-btn.active {
+      background: linear-gradient(135deg, rgba(229, 193, 88, 0.38), rgba(168, 85, 247, 0.44));
+      border-color: #e5c158;
+      color: #ffebb0;
+      box-shadow: 0 0 14px rgba(229, 193, 88, 0.48);
+    }
+
+    .arcane-btn.goetia-active {
+      background: linear-gradient(135deg, rgba(244, 63, 94, 0.45), rgba(217, 119, 6, 0.48));
+      border-color: #fbbf24;
+      color: #fff3cd;
+      box-shadow: 0 0 16px rgba(244, 63, 94, 0.55);
+    }
+
+    .arcane-btn.cyan-active {
+      background: linear-gradient(135deg, rgba(56, 189, 248, 0.42), rgba(168, 85, 247, 0.42));
+      border-color: #38bdf8;
+      color: #e0f7ff;
+      box-shadow: 0 0 14px rgba(56, 189, 248, 0.58);
+    }
+
+    .top-bar-btn {
+      height: 29px;
+      font-size: 11px;
+      padding: 0 8px;
+      border-radius: 9999px;
+      font-weight: 600;
+      gap: 4px;
+    }
+
+    #joystick-base {
+      width: clamp(86px, 17vmin, 110px);
+      height: clamp(86px, 17vmin, 110px);
+      background: radial-gradient(circle, rgba(28, 18, 56, 0.88) 0%, rgba(7, 5, 18, 0.96) 100%);
+      border: 2px solid rgba(229, 193, 88, 0.6);
+      box-shadow: 0 0 20px rgba(0, 0, 0, 0.75), inset 0 0 16px rgba(229, 193, 88, 0.22);
+      position: relative;
+      border-radius: 9999px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+
+    #joystick-knob {
+      width: clamp(32px, 6.8vmin, 40px);
+      height: clamp(32px, 6.8vmin, 40px);
+      background: radial-gradient(circle at 35% 35%, #fff6cf, #e5c158 58%, #8a6812 100%);
+      border: 2px solid #ffffff;
+      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.75), 0 0 12px rgba(229, 193, 88, 0.8);
+      border-radius: 9999px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #080614;
+      font-weight: 800;
+      font-size: 11px;
+      pointer-events: none;
+    }
+
+    .spell-dock-btn {
+      width: clamp(44px, 10.5vw, 66px);
+      max-width: 66px;
+      height: 40px;
+      border-radius: 11px;
+      flex-direction: column;
+      gap: 1px;
+      padding: 2px 3px;
+    }
+
+    .daemon-quick-btn {
+      height: 28px;
+      padding: 0 8px;
+      border-radius: 9999px;
+      font-size: 10px;
+      font-family: 'Cinzel', serif;
+      font-weight: 700;
+      gap: 4px;
+    }
+
+    .cam-dpad-btn {
+      width: 25px;
+      height: 25px;
+      border-radius: 7px;
+      font-size: 10px;
+      font-weight: 700;
+    }
+
+    .action-grid-btn {
+      width: clamp(40px, 8.8vmin, 50px);
+      height: clamp(40px, 8.8vmin, 50px);
+      border-radius: 12px;
+      flex-direction: column;
+      gap: 1px;
+      padding: 2px;
+      font-family: 'Cinzel', serif;
+      font-weight: 700;
+      box-shadow: 0 5px 14px rgba(0, 0, 0, 0.6);
+    }
+
+    @keyframes pulseBanner {
+      0%, 100% { transform: scale(1); }
+      50% { transform: scale(1.04); }
+    }
+    .banner-pulse {
+      animation: pulseBanner 1.3s infinite ease-in-out;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Container 3D -->
+  <div id="canvas-container"></div>
+
+  <!-- Efeito Visual de Velocidade / Evocação -->
+  <div id="speed-lines"></div>
+
+  <!-- Mira Esotérica em 1ª Pessoa -->
+  <div id="crosshair" class="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-10 pointer-events-none flex items-center justify-center">
+    <div class="w-4 h-4 rotate-45 border border-[#e5c158]/90 shadow-[0_0_10px_rgba(229,193,88,0.85)] flex items-center justify-center">
+      <div class="w-1 h-1 bg-[#f43f5e] rounded-full"></div>
+    </div>
+  </div>
+
+  <!-- Toast Flutuante de Eventos -->
+  <div id="spell-toast" class="fixed top-20 left-1/2 -translate-x-1/2 z-30 pointer-events-none opacity-0 transition-opacity duration-200 px-3.5 py-1 rounded-full arcane-panel border-[#e5c158]/85 text-[11px] sm:text-xs font-cinzel tracking-wider text-[#ffebb0] shadow-xl whitespace-nowrap max-w-[92vw] truncate">
+    🔱 Bem-vindo ao Santuário Esotérico & Ars Goetia!
+  </div>
+
+  <!-- Dica da Órbita Livre (só aparece com daemon evocado) -->
+  <div id="orbit-hint" class="fixed left-1/2 -translate-x-1/2 z-30 pointer-events-none px-3.5 py-1 rounded-full arcane-panel border-[#e5c158]/85 text-[11px] sm:text-xs font-cinzel tracking-wider text-[#ffebb0] shadow-xl whitespace-nowrap max-w-[92vw] truncate" style="display: none; top: 7.4rem;">
+    🌀 Arraste para girar em volta do daemon • Pinça ou roda do mouse para zoom
+  </div>
+
+  <!-- ========================================================================
+       HUD 100% ALINHADO E RESPONSIVO (SEM OVERFLOW)
+       ======================================================================== -->
+  <div id="hud">
+
+    <!-- TOPO: Barra Compacta + Barra de Daemons + Radar 66x66px -->
+    <div class="flex flex-col gap-1 w-full z-20">
+      <div style="display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 5px; width: 100%;">
+        <!-- Esquerda: Badge Arcanum + Daemon Ativo + Contadores 💎 e ⭕ -->
+        <div class="arcane-panel interactive-ui rounded-full px-2.5 py-1 flex items-center gap-1.5 flex-wrap">
+          <span class="font-cinzel text-[11px] sm:text-xs font-bold text-[#f6e3a4] flex items-center gap-1">
+            <span>✡️</span> <span class="hidden sm:inline">Santuário Ars Goetia</span><span class="sm:hidden">Ars Goetia</span>
+          </span>
+          <span id="move-status-badge" class="text-[10px] px-2 py-0.5 rounded-full bg-white/10 border border-white/20 text-amber-200 font-semibold">
+            🚶 A Pé (9.5)
+          </span>
+          <span id="active-daemon-badge" onclick="toggleGoetiaModal()" class="cursor-pointer text-[10px] px-2 py-0.5 rounded-full bg-rose-500/25 border border-amber-400/60 text-amber-200 font-cinzel font-bold">
+            👑 Rei Paimon
+          </span>
+          <span class="text-[11px] font-cinzel text-[#f6e3a4]" title="Cristais & Tábuas Herméticas">
+            💎 <strong id="lore-counter" class="text-[#38bdf8]">0/12</strong>
+          </span>
+          <span class="text-[11px] font-cinzel text-[#f6e3a4]" title="Anéis Celestes de Voo">
+            ⭕ <strong id="hoops-counter" class="text-amber-300">0/10</strong>
+          </span>
+        </div>
+
+        <!-- Direita: Botões Compactos -->
+        <div class="flex items-center gap-1 flex-wrap justify-end">
+          <button onclick="toggleGoetiaModal()" class="arcane-btn goetia-active top-bar-btn interactive-ui" title="Abrir Grimório Ars Goetia e Evocar Daemons [G]">
+            <span>🔱</span> <span>Evocar Daemon (G)</span>
+          </button>
+          <button id="btn-top-broom" onclick="toggleBroomFlight()" class="arcane-btn top-bar-btn interactive-ui" title="Montar / Desmontar Vassoura Voadora [B]">
+            <span>🧹</span> <span>Vassoura (B)</span>
+          </button>
+          <button onclick="cycleWeapon()" class="arcane-btn top-bar-btn interactive-ui" title="Trocar Arma Mística [V]">
+            <span>⚔️</span> <span id="weapon-name-badge">Varinha (V)</span>
+          </button>
+          <button onclick="toggleAtlasModal()" class="arcane-btn cyan-active top-bar-btn interactive-ui" title="Abrir Mapa e Teleporte das 12 Ilhas [M]">
+            <span>🧭</span> <span>12 Ilhas (M)</span>
+          </button>
+          <button onclick="cycleAtmospherePreset()" class="arcane-btn top-bar-btn interactive-ui" title="Alternar Clima Astral">
+            <span>🌙</span> <span id="weather-label">Astral</span>
+          </button>
+          <button id="btn-sound-toggle" onclick="toggleSound()" class="arcane-btn active top-bar-btn interactive-ui" title="Ativar / Silenciar Som Ritual">
+            <span id="sound-icon">🔊</span>
+          </button>
+          <button id="btn-toggle-hud" onclick="toggleBottomHUD()" class="arcane-btn active top-bar-btn interactive-ui" title="Mostrar / Ocultar Controles Inferiores">
+            <span>🎮</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Sub-barra: Localização + Invocação Rápida dos 4 Daemons + Radar 66x66px -->
+      <div class="flex items-start justify-between gap-2 w-full pointer-events-none">
+        <div class="flex flex-col gap-1 items-start max-w-[calc(100vw-88px)]">
+          <div class="arcane-panel interactive-ui rounded-full px-2.5 py-0.5 text-[10px] sm:text-[11px] text-[#38bdf8] font-medium flex items-center gap-2 flex-wrap">
+            <span id="location-subtitle">📍 Ilha 1: Templo de Salomão & Pátio Hermético</span>
+            <button onclick="enterCathedralInterior()" class="text-[#ffebb0] hover:underline font-cinzel font-bold">
+              [🏛️ Interior do Templo]
+            </button>
+          </div>
+
+          <!-- Barra de Evocação Direta dos 4 Daemons -->
+          <div class="arcane-panel interactive-ui rounded-full p-1 flex items-center gap-1 flex-wrap">
+            <span class="text-[9px] font-cinzel uppercase tracking-wider text-amber-300 px-1.5 hidden sm:inline">Evocar:</span>
+            <button onclick="summonDaemonById('paimon', true)" id="qbtn-paimon" class="arcane-btn goetia-active daemon-quick-btn" title="Evocar 9º Espírito: Rei Paimon">
+              <span>👑</span> <span>Paimon</span>
+            </button>
+            <button onclick="summonDaemonById('stolas', true)" id="qbtn-stolas" class="arcane-btn daemon-quick-btn" title="Evocar 36º Espírito: Príncipe Stolas">
+              <span>🦅</span> <span>Stolas</span>
+            </button>
+            <button onclick="summonDaemonById('astaroth', true)" id="qbtn-astaroth" class="arcane-btn daemon-quick-btn" title="Evocar 29º Espírito: Duque Astaroth">
+              <span>🌟</span> <span>Astaroth</span>
+            </button>
+            <button onclick="summonDaemonById('asmodeus', true)" id="qbtn-asmodeus" class="arcane-btn daemon-quick-btn" title="Evocar 32º Espírito: Rei Asmodeus">
+              <span>🔥</span> <span>Asmodeus</span>
+            </button>
+            <button onclick="toggleDaemonFollow()" id="qbtn-follow" class="arcane-btn active daemon-quick-btn" title="Daemon acompanha você pelo mapa ou permanece no altar">
+              <span>👁️</span> <span id="lbl-follow-mode">Guardião: Sim</span>
+            </button>
+          </div>
+        </div>
+
+        <div onclick="toggleAtlasModal()" class="arcane-panel interactive-ui rounded-full p-0.5 cursor-pointer relative shrink-0" style="width: 66px; height: 66px;" title="Clique para abrir o Mapa das 12 Ilhas">
+          <canvas id="minimap-canvas" width="132" height="132" class="w-full h-full rounded-full bg-[#05030d]"></canvas>
+          <span class="absolute top-0.5 left-1/2 -translate-x-1/2 text-[7px] font-cinzel font-bold text-[#e5c158]">N</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- BASE: Barra de Controles (grid-template-columns: auto 1fr auto) -->
+    <div id="bottom-controls-bar" style="display: grid; grid-template-columns: auto 1fr auto; align-items: end; gap: 8px; width: 100%; z-index: 20;">
+
+      <!-- COLUNA ESQUERDA: Pílulas (⚡ Turbo + 🔱 Evocar) + Joystick Analógico 360° -->
+      <div class="flex flex-col items-start gap-1.5 shrink-0">
+        <div class="flex items-center gap-1">
+          <button id="btn-sprint-pill" onclick="toggleSprintMode()" class="arcane-btn interactive-ui px-2 py-0.5 rounded-full text-[10px] font-cinzel font-bold">
+            ⚡ Turbo
+          </button>
+          <button onclick="summonCurrentDaemonHere()" class="arcane-btn goetia-active interactive-ui px-2 py-0.5 rounded-full text-[10px] font-cinzel font-bold" title="Evocar Daemon diante de você agora">
+            🔱 Evocar Aqui
+          </button>
+        </div>
+
+        <div id="joystick-base" class="interactive-ui">
+          <div class="absolute inset-2 rounded-full border border-dashed border-[#e5c158]/35 pointer-events-none"></div>
+          <span class="absolute top-1 text-[8px] font-cinzel text-[#e5c158]/75 pointer-events-none">▲</span>
+          <span class="absolute bottom-1 text-[8px] font-cinzel text-[#e5c158]/75 pointer-events-none">▼</span>
+          <span class="absolute left-1 text-[8px] font-cinzel text-[#e5c158]/75 pointer-events-none">◀</span>
+          <span class="absolute right-1 text-[8px] font-cinzel text-[#e5c158]/75 pointer-events-none">▶</span>
+          <div id="joystick-knob">✡</div>
+        </div>
+      </div>
+
+      <!-- COLUNA CENTRAL: Banner Contextual Flutuante + Doca de 4 Feitiços + Evocação -->
+      <div class="flex flex-col items-center justify-end gap-1.5 min-w-0">
+        <button id="proximity-banner" onclick="interactWithNearest()" class="hidden interactive-ui arcane-panel goetia-active banner-pulse px-3 py-1 rounded-full text-[10px] sm:text-xs font-cinzel font-bold text-[#ffffff] shadow-xl items-center gap-1.5 max-w-full truncate">
+          <span id="proximity-icon">🔱</span>
+          <span id="proximity-label" class="truncate">[F / Toque] Comungar com o Daemon</span>
+        </button>
+
+        <div class="arcane-panel interactive-ui rounded-2xl p-1 flex items-center justify-center gap-1 max-w-full">
+          <button onclick="castSpell(1)" class="arcane-btn spell-dock-btn" title="[1] Raio Solar de Salomão">
+            <span class="text-sm leading-none">🪄</span>
+            <span class="text-[9px] font-bold text-[#38bdf8] leading-none">1:Raio</span>
+          </button>
+          <button onclick="castSpell(2)" class="arcane-btn spell-dock-btn" title="[2] Chuva de Meteoros Goéticos">
+            <span class="text-sm leading-none">☄️</span>
+            <span class="text-[9px] font-bold text-rose-300 leading-none">2:Meteoro</span>
+          </button>
+          <button onclick="castSpell(3)" class="arcane-btn spell-dock-btn" title="[3] Círculo de Salomão & Hexagrama">
+            <span class="text-sm leading-none">✡️</span>
+            <span class="text-[9px] font-bold text-[#e5c158] leading-none">3:Selo</span>
+          </button>
+          <button onclick="castSpell(4)" class="arcane-btn spell-dock-btn" title="[4] Vórtice da Merkabah">
+            <span class="text-sm leading-none">⚡</span>
+            <span class="text-[9px] font-bold text-emerald-300 leading-none">4:Vórtice</span>
+          </button>
+          <button onclick="toggleGoetiaModal()" class="arcane-btn goetia-active spell-dock-btn" title="[G] Abrir Lemegeton / Evocar Daemon">
+            <span class="text-sm leading-none">🔱</span>
+            <span class="text-[9px] font-bold text-amber-200 leading-none">G:Goetia</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- COLUNA DIREITA: D-Pad de Câmera (25x25px) + Grade 2x2 de Ações -->
+      <div class="flex flex-col items-end gap-1.5 shrink-0">
+        <div class="arcane-panel interactive-ui p-1 rounded-xl flex items-center gap-0.5">
+          <button data-cam="left" class="arcane-btn cam-dpad-btn" title="Olhar Esquerda">◀</button>
+          <div class="flex flex-col gap-0.5">
+            <button data-cam="up" class="arcane-btn cam-dpad-btn" title="Olhar Cima">▲</button>
+            <button data-cam="down" class="arcane-btn cam-dpad-btn" title="Olhar Baixo">▼</button>
+          </div>
+          <button data-cam="right" class="arcane-btn cam-dpad-btn" title="Olhar Direita">▶</button>
+        </div>
+
+        <div class="grid grid-cols-2 interactive-ui" style="gap: 5px;">
+          <button id="btn-action-up" class="arcane-btn action-grid-btn" title="Pular a pé / Subir na Vassoura [Espaço / E]">
+            <span class="text-xs leading-none">⬆️</span>
+            <span id="lbl-action-up" class="text-[8px] leading-none">Pular</span>
+          </button>
+          <button id="btn-action-down" class="arcane-btn action-grid-btn" title="Descer na Vassoura / Agachar [C / Q]">
+            <span class="text-xs leading-none">⬇️</span>
+            <span id="lbl-action-down" class="text-[8px] leading-none">Descer</span>
+          </button>
+          <button onclick="castSpell(1)" class="arcane-btn cyan-active action-grid-btn" title="Disparar Magia [1]">
+            <span class="text-xs leading-none">✨</span>
+            <span class="text-[8px] leading-none">Atacar</span>
+          </button>
+          <button id="btn-action-fly" onclick="toggleBroomFlight()" class="arcane-btn active action-grid-btn" title="Voar / Pousar da Vassoura [B]">
+            <span id="ico-action-fly" class="text-xs leading-none">🧹</span>
+            <span id="lbl-action-fly" class="text-[8px] leading-none">Voar</span>
+          </button>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ========================================================================
+       MODAL 1: 🔱 GRIMÓRIO LEMEGETON — ARS GOETIA & EVOCAÇÃO DE DAEMONS
+       ======================================================================== -->
+  <div id="goetia-modal" class="fixed inset-0 z-40 hidden items-center justify-center p-3 sm:p-6 bg-black/80 backdrop-blur-sm interactive-ui">
+    <div class="arcane-panel rounded-3xl max-w-4xl w-full max-h-[88dvh] flex flex-col p-4 sm:p-6 border-[#e5c158]/80 shadow-2xl">
+      <div class="flex items-center justify-between border-b border-[#e5c158]/30 pb-3 mb-3 shrink-0 flex-wrap gap-2">
+        <div>
+          <span class="text-[10px] uppercase tracking-[0.2em] text-rose-400 font-semibold block">
+            Lemegeton Clavicula Salomonis • Triângulo da Arte • 4 Soberanos Astrais
+          </span>
+          <h2 class="font-cinzel text-base sm:text-xl font-bold text-[#fff3cd]">
+            🔱 Grimório de Evocação — Ars Goetia
+          </h2>
+        </div>
+        <div class="flex items-center gap-2">
+          <button onclick="toggleDaemonFollow()" id="modal-follow-btn" class="arcane-btn active px-3 py-1.5 rounded-full text-xs font-cinzel font-bold">
+            👁️ Modo Guardião: Ativo
+          </button>
+          <button onclick="dismissDaemon()" class="arcane-btn px-3 py-1.5 rounded-full text-xs font-cinzel font-bold text-rose-300">
+            🕊️ Licença para Partir
+          </button>
+          <button onclick="closeGoetiaModal()" class="arcane-btn w-8 h-8 rounded-full text-sm">✕</button>
+        </div>
+      </div>
+
+      <div id="goetia-grid" class="scrollable-ui overflow-y-auto grid grid-cols-1 sm:grid-cols-2 gap-3 pr-1"></div>
+    </div>
+  </div>
+
+  <!-- ========================================================================
+       MODAL 2: 🧭 ATLAS ESOTÉRICO DAS 12 ILHAS
+       ======================================================================== -->
+  <div id="atlas-modal" class="fixed inset-0 z-40 hidden items-center justify-center p-3 sm:p-6 bg-black/80 backdrop-blur-sm interactive-ui">
+    <div class="arcane-panel rounded-3xl max-w-5xl w-full max-h-[88dvh] flex flex-col p-4 sm:p-6 border-[#e5c158]/75 shadow-2xl">
+      <div class="flex items-center justify-between border-b border-[#e5c158]/25 pb-3 mb-3 shrink-0 flex-wrap gap-2">
+        <div>
+          <span class="text-[10px] uppercase tracking-[0.18em] text-[#38bdf8] font-semibold block">
+            12 Ilhas Herméticas • 5 Altares de Salomão • 5 Estações de Vassoura • 10 Anéis Celestes
+          </span>
+          <h2 class="font-cinzel text-base sm:text-xl font-bold text-[#fff3cd]">
+            Cartografia Sagrada do Arquipélago
+          </h2>
+        </div>
+        <div class="flex items-center gap-2">
+          <button onclick="enterCathedralInterior()" class="arcane-btn active px-3 py-1.5 rounded-full text-xs font-cinzel font-bold">
+            🏛️ Interior do Templo de Salomão
+          </button>
+          <button onclick="closeAtlasModal()" class="arcane-btn w-8 h-8 rounded-full text-sm">✕</button>
+        </div>
+      </div>
+      <div id="atlas-grid" class="scrollable-ui overflow-y-auto grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5 pr-1"></div>
+    </div>
+  </div>
+
+  <!-- ========================================================================
+       MODAL 3: 💎 CRISTAL DE LORE / COMUNHÃO COM O DAEMON
+       ======================================================================== -->
+  <div id="lore-modal" class="fixed inset-0 z-40 hidden items-center justify-center p-4 bg-black/80 backdrop-blur-sm interactive-ui">
+    <div class="arcane-panel rounded-3xl max-w-lg w-full p-5 sm:p-6 border-[#e5c158]/75 shadow-2xl">
+      <div class="flex items-center justify-between border-b border-[#e5c158]/25 pb-3 mb-3">
+        <div>
+          <span id="lore-category" class="text-[10px] uppercase tracking-[0.18em] text-[#e5c158] font-semibold block">Tábua Hermética</span>
+          <h2 id="lore-title" class="font-cinzel text-lg sm:text-xl font-bold text-[#fff3cd]">Título</h2>
+        </div>
+        <button onclick="closeLoreModal()" class="arcane-btn w-8 h-8 rounded-full text-sm">✕</button>
+      </div>
+      <p id="lore-description" class="font-lore text-base sm:text-lg leading-relaxed text-indigo-100/95 mb-4"></p>
+      <div class="rounded-2xl bg-[#130e2b]/90 border border-[#e5c158]/40 p-3 mb-4">
+        <div class="text-xs font-cinzel uppercase tracking-wider text-[#e5c158] mb-1">✦ Gnosis & Segredo Salomônico</div>
+        <p id="lore-secret" class="text-xs sm:text-sm text-purple-100/90 leading-relaxed"></p>
+      </div>
+      <div class="flex justify-end gap-2">
+        <button onclick="toggleGoetiaModal(); closeLoreModal();" class="arcane-btn goetia-active px-4 py-2 rounded-full text-xs font-cinzel font-bold">
+          🔱 Abrir Ars Goetia
+        </button>
+        <button onclick="closeLoreModal()" class="arcane-btn active px-5 py-2 rounded-full text-xs font-cinzel font-bold">
+          Continuar
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    /**
+     * ============================================================================
+     * ARCANUM ACADEMY — SANTUÁRIO ESOTÉRICO & ARS GOETIA (THREE.JS r128)
+     * ============================================================================
+     */
+    const EYE_HEIGHT = 1.75;
+    const WALK_SPEED = 9.5;
+    const TURBO_WALK_SPEED = 17.0;
+    const BROOM_SPEED = 25.0;
+    const BROOM_TURBO_SPEED = 38.0;
+    const BROOM_VERT_SPEED = 16.0;
+    const GRAVITY = 25.0;
+    const JUMP_FORCE = 9.5;
+    const DOUBLE_JUMP_FORCE = 10.2;
+
+    let scene, camera, renderer;
+    const clock = new THREE.Clock();
+
+    const _vForward = new THREE.Vector3();
+    const _vRight = new THREE.Vector3();
+    const _vWish = new THREE.Vector3();
+    const _euler = new THREE.Euler(0, 0, 0, 'YXZ');
+
+    // Jogador inicia em (0, EYE_HEIGHT, 14) olhando para o Norte (direção -Z),
+    // diante do Círculo de Evocação de Salomão (0, 0, 3.5) e da Vassoura Voadora (5.5, 0, 9.5)
+    const player = {
+      pos: new THREE.Vector3(0, EYE_HEIGHT, 14),
+      vx: 0,
+      vz: 0,
+      velY: 0,
+      yaw: 0,
+      pitch: 0.03,
+      roll: 0,
+      grounded: true,
+      jumpsUsed: 0,
+      bobTimer: 0,
+      flyingBroom: false,
+      weaponIndex: 0,
+      weatherIndex: 0,
+      soundEnabled: true,
+      activeBoon: 'paimon',
+      currentArea: 'Ilha 1: Templo de Salomão & Pátio Hermético'
+    };
+
+    const keyInput = {
+      forward: false, backward: false, left: false, right: false,
+      sprint: false, ascend: false, descend: false,
+      turnLeft: false, turnRight: false
+    };
+
+    const virtualState = {
+      joyX: 0, joyY: 0,
+      turboToggle: false,
+      holdAscend: false, holdDescend: false,
+      camUp: false, camDown: false, camLeft: false, camRight: false,
+      hudVisible: true
+    };
+
+    let joystickPointerId = null;
+    let lookPointerId = null;
+    let lastLookX = 0;
+    let lastLookY = 0;
+
+    // --------------------------------------------------------------------------
+    // 0. ÁUDIO PROCEDURAL WEB AUDIO API (ACORDES RITUAIS GOÉTICOS & FEITIÇOS)
+    // --------------------------------------------------------------------------
+    let audioCtx = null;
+    function ensureAudio() {
+      if (!player.soundEnabled) return null;
+      if (!audioCtx) {
+        const AC = window.AudioContext || window.webkitAudioContext;
+        if (AC) audioCtx = new AC();
+      }
+      if (audioCtx && audioCtx.state === 'suspended') {
+        audioCtx.resume().catch(() => {});
+      }
+      return audioCtx;
+    }
+
+    function playRitualChord(freqs = [110, 164.8, 220, 277.2], duration = 2.2) {
+      const ctx = ensureAudio();
+      if (!ctx) return;
+      const now = ctx.currentTime;
+      freqs.forEach((f, idx) => {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = idx % 2 === 0 ? 'sawtooth' : 'triangle';
+        osc.frequency.setValueAtTime(f, now);
+        gain.gain.setValueAtTime(0.001, now);
+        gain.gain.exponentialRampToValueAtTime(0.045 / freqs.length, now + 0.25);
+        gain.gain.exponentialRampToValueAtTime(0.0008, now + duration);
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start(now);
+        osc.stop(now + duration);
+      });
+    }
+
+    function toggleSound() {
+      player.soundEnabled = !player.soundEnabled;
+      const ic = document.getElementById('sound-icon');
+      const btn = document.getElementById('btn-sound-toggle');
+      if (ic) ic.textContent = player.soundEnabled ? '🔊' : '🔇';
+      if (btn) btn.classList.toggle('active', player.soundEnabled);
+      showToast(player.soundEnabled ? '🔊 Som Ritual Ativado' : '🔇 Som Silenciado');
+    }
+
+    // --------------------------------------------------------------------------
+    // 1. OS 4 GRANDES DAEMONS DA ARS GOETIA (DADOS, BÊNÇÃOS E LORE)
+    // --------------------------------------------------------------------------
+    const DAEMONS_DATA = {
+      paimon: {
+        id: 'paimon',
+        rank: '9º Espírito • Rei do Oeste',
+        name: 'Rei Paimon',
+        icon: '👑',
+        title: 'Soberano das Artes, Ciências Secretas e Dignidades',
+        primaryColor: 0xfbbf24,
+        secondaryColor: 0xf43f5e,
+        chord: [110, 138.59, 164.81, 220, 329.63],
+        boonName: 'Coroa Solar de Paimon',
+        boonDesc: '+30% Velocidade, Aura de Trombetas Astrais e Disparo Duplo de Raios Solares.',
+        lore: 'Manifesta-se com uma gloriosa coroa cravejada de estrelas ao lado de seu Dromedário Astral Dourado, precedido por orbes e trombetas celestes. Ensina todas as ciências ocultas, segredos da Terra e concede dignidade real ao mago.'
+      },
+      stolas: {
+        id: 'stolas',
+        rank: '36º Espírito • Grande Príncipe',
+        name: 'Príncipe Stolas',
+        icon: '🦅',
+        title: 'Mestre da Astronomia, Astrologia, Ervas e Pedras Preciosas',
+        primaryColor: 0x38bdf8,
+        secondaryColor: 0xfbbf24,
+        chord: [146.83, 220, 293.66, 369.99, 440],
+        boonName: 'Sabedoria das Constelações',
+        boonDesc: 'Gravidade Lunar Suave, 4 Asas de Luz e Chuva Estelar Automática ao atacar.',
+        lore: 'Surge na forma de um majestoso Príncipe-Coruja coroado de safira e ouro, empunhando o Astrolábio das Sete Esferas. Revela o curso dos astros, a virtude das plantas arcanas e o segredo dos cristais.'
+      },
+      astaroth: {
+        id: 'astaroth',
+        rank: '29º Espírito • Grão-Duque Poderoso',
+        name: 'Duque Astaroth',
+        icon: '🌟',
+        title: 'Guardião dos Segredos do Passado, Presente e Futuro',
+        primaryColor: 0xc084fc,
+        secondaryColor: 0x34d399,
+        chord: [130.81, 196.0, 246.94, 329.63, 392.0],
+        boonName: 'Gnose da Serpente Esmeralda',
+        boonDesc: 'Escudo Merkabah Sagrado e Feixes Gêmeos de Esmeralda & Violeta.',
+        lore: 'Aparece como um Serafim Real de seis asas douradas e púrpuras sobre uma Serpente Astral, trazendo o Caduceu de Esmeralda e o Halo da Merkabah. Responde com verdade absoluta sobre a queda dos espíritos e os mistérios da criação.'
+      },
+      asmodeus: {
+        id: 'asmodeus',
+        rank: '32º Espírito • Rei Soberano do Fogo Astral',
+        name: 'Rei Asmodeus',
+        icon: '🔥',
+        title: 'Arquimestre da Geometria Sagrada, Aritmética e Fogo Solar',
+        primaryColor: 0xf43f5e,
+        secondaryColor: 0xfbbf24,
+        chord: [98.0, 146.83, 196.0, 233.08, 293.66],
+        boonName: 'Lança da Chave de Salomão',
+        boonDesc: 'Roda Ophanim de Fogo e Lanças Solares que fulminam alvos automaticamente.',
+        lore: 'Ergue-se em armadura de obsidiana e ouro com a Coroa Tripla de Fogo, quatro asas flamejantes e a Roda Ophanim cravejada de olhos astrais, empunhando a Lança da Geomancia.'
+      }
+    };
+
+    // --------------------------------------------------------------------------
+    // 2. DADOS DAS 12 ILHAS ESOTÉRICAS & 16 PONTES DE LINHAS LEY
+    // --------------------------------------------------------------------------
+    const ISLANDS = [
+      { id: 'center', num: 1, name: 'Templo de Salomão & Pátio Hermético', shortName: 'Templo de Salomão', icon: '✡️', x: 0, z: 0, y: 0.0, r: 29.0, spawnX: 0, spawnZ: 14, yaw: 0, theme: 'gold', desc: 'Colunas Boaz & Jachin, Santuário Central de Evocação no Pátio (0,0,3.5), Vassoura Nimbus (5.5,0,9.5) e o Grande Templo de Salomão.' },
+      { id: 'astronomy', num: 2, name: 'Torre da Astrologia Hermética', shortName: 'Torre Astrológica', icon: '🔭', x: 52, z: -52, y: 1.5, r: 16.5, spawnX: 45, spawnZ: -45, yaw: -0.78, theme: 'cyan', desc: 'Santuário do Príncipe Stolas com Esfera Armilar Dourada, Zodíaco e Estação de Vassoura.' },
+      { id: 'arena', num: 3, name: 'Círculo de Teurgia & Duelos', shortName: 'Círculo de Teurgia', icon: '⚔️', x: 68, z: 0, y: 0.0, r: 17.0, spawnX: 57, spawnZ: 0, yaw: -1.57, theme: 'violet', desc: 'Octógono Enoquiano com 8 obeliscos de relâmpagos e 4 Orbes de Teurgia reativos.' },
+      { id: 'grove', num: 4, name: 'Bosque da Árvore da Vida (Sephiroth)', shortName: 'Bosque Sephiroth', icon: '🌳', x: 0, z: 68, y: -0.5, r: 18.5, spawnX: 0, spawnZ: 56, yaw: 3.14, theme: 'emerald', desc: '10 Árvores Cristalinas das Sephiroth conectadas por caminhos luminosos sobre o Espelho d’Água.' },
+      { id: 'library', num: 5, name: 'Biblioteca de Alexandria & Lemegeton', shortName: 'Biblioteca Lemegeton', icon: '📜', x: -68, z: 0, y: 1.0, r: 17.0, spawnX: -57, spawnZ: 0, yaw: 1.57, theme: 'violet', desc: 'Rotunda hermética com as Tábuas de Esmeralda de Thoth e grimórios voadores.' },
+      { id: 'alchemy', num: 6, name: 'Laboratório da Opus Magnum', shortName: 'Lab. Opus Magnum', icon: '⚗️', x: -52, z: -52, y: 0.8, r: 16.5, spawnX: -45, spawnZ: -45, yaw: 0.78, theme: 'emerald', desc: 'Athanor Alquímico e a Pedra Filosofal Rubi levitando dentro de uma Merkabah dourada.' },
+      { id: 'forge', num: 7, name: 'Forja de Talismãs & Pantáculos', shortName: 'Forja de Pantáculos', icon: '⚒️', x: 52, z: 52, y: 0.5, r: 16.5, spawnX: 45, spawnZ: 45, yaw: -2.35, theme: 'gold', desc: 'Bigorna dos 7 Metais Planetários e Pantáculos de Salomão levitantes.' },
+      { id: 'dragons', num: 8, name: 'Santuário das Esfinges & Querubins', shortName: 'Santuário das Esfinges', icon: '🦁', x: -52, z: 52, y: 2.0, r: 17.0, spawnX: -45, spawnZ: 45, yaw: 2.35, theme: 'gold', desc: 'Esfinges douradas guardiãs dos 4 Elementos, Vassoura Voadora e a Arca Hermética.' },
+      { id: 'citadel', num: 9, name: 'Cidadela do Rei Paimon & Portal Astral', shortName: 'Cidadela de Paimon', icon: '👑', x: 0, z: -78, y: 3.8, r: 19.5, spawnX: 0, spawnZ: -65, yaw: 0, theme: 'gold', desc: 'Zigurate real com 12 obeliscos, Altar de Evocação e o Sigilo Colossal do Rei Paimon.' },
+      { id: 'harbor', num: 10, name: 'Porto da Barca Solar de Rá', shortName: 'Barca Solar de Rá', icon: '⛵', x: 92, z: -52, y: 2.8, r: 17.5, spawnX: 81, spawnZ: -52, yaw: -1.57, theme: 'cyan', desc: 'Píer celeste onde flutua a Barca Solar Egípcio-Hermética com disco solar e velas de ouro.' },
+      { id: 'greenhouse', num: 11, name: 'Jardim Hermético da Rosa-Cruz', shortName: 'Jardim Rosa-Cruz', icon: '🪷', x: -92, z: 52, y: 1.2, r: 17.5, spawnX: -81, spawnZ: 52, yaw: 1.57, theme: 'emerald', desc: 'Cúpula geodésica sagrada abrigando a Lótus de Rubi e a Cruz Rosacruz Dourada.' },
+      { id: 'pantheon', num: 12, name: 'Panteão dos 72 Espíritos da Goécia', shortName: 'Panteão da Goécia', icon: '🔱', x: 0, z: 112, y: 3.2, r: 19.0, spawnX: 0, spawnZ: 98, yaw: 3.14, theme: 'gold', desc: 'Templo colunado com os Pilares dos Reis Goéticos, Altar de Asmodeus e a Coroa de Salomão.' }
+    ];
+
+    const ISLAND_MAP = {};
+    ISLANDS.forEach(i => { ISLAND_MAP[i.id] = i; });
+
+    const BRIDGE_PAIRS = [
+      ['center', 'astronomy'], ['center', 'arena'], ['center', 'grove'],
+      ['center', 'library'], ['center', 'alchemy'], ['arena', 'forge'],
+      ['grove', 'forge'], ['library', 'dragons'], ['grove', 'dragons'],
+      ['astronomy', 'citadel'], ['alchemy', 'citadel'], ['astronomy', 'harbor'],
+      ['arena', 'harbor'], ['library', 'greenhouse'], ['dragons', 'greenhouse'],
+      ['grove', 'pantheon']
+    ];
+
+    const BRIDGES = BRIDGE_PAIRS.map(([idA, idB]) => {
+      const a = ISLAND_MAP[idA];
+      const b = ISLAND_MAP[idB];
+      const dx = b.x - a.x;
+      const dz = b.z - a.z;
+      const dist = Math.hypot(dx, dz);
+      const ux = dx / dist;
+      const uz = dz / dist;
+      const nx = -uz;
+      const nz = ux;
+      const sStart = a.r - 1.5;
+      const sEnd = dist - (b.r - 1.5);
+      return {
+        ax: a.x, az: a.z, ay: a.y,
+        bx: b.x, bz: b.z, by: b.y,
+        ux, uz, nx, nz,
+        sStart, sEnd, span: sEnd - sStart,
+        halfWidth: 2.65
+      };
+    });
+
+    // 5 Altares Físicos de Evocação de Salomão (Altar 1 logo à frente do spawn em (0, 0, 3.5))
+    const EVOCATION_ALTARS_DATA = [
+      { id: 'altar-1', name: 'Triângulo da Arte (Pátio de Salomão)', daemonId: 'paimon', x: 0, y: 0.0, z: 3.5 },
+      { id: 'altar-2', name: 'Altar Interior do Vaso de Latão (Templo)', daemonId: 'astaroth', x: 0, y: 0.4, z: -21.5 },
+      { id: 'altar-3', name: 'Círculo Astral de Stolas (Astronomia)', daemonId: 'stolas', x: 46, y: 1.5, z: -52 },
+      { id: 'altar-4', name: 'Santuário Real de Paimon (Cidadela)', daemonId: 'paimon', x: 0, y: 3.8, z: -71 },
+      { id: 'altar-5', name: 'Trono de Fogo de Asmodeus (Panteão Goético)', daemonId: 'asmodeus', x: 0, y: 3.2, z: 112 }
+    ];
+
+    // 5 Estações Físicas de Vassoura Voadora
+    const BROOM_STATIONS_DATA = [
+      { id: 'broom-1', name: 'Vassoura Nimbus (Pátio de Salomão)', x: 5.5, y: 0.0, z: 9.5, yaw: -0.4 },
+      { id: 'broom-2', name: 'Vassoura Astral (Torre Astrológica)', x: 48.0, y: 1.5, z: -48.0, yaw: 0.7 },
+      { id: 'broom-3', name: 'Vassoura Querúbica (Santuário Esfinges)', x: -48.0, y: 2.0, z: 48.0, yaw: -2.2 },
+      { id: 'broom-4', name: 'Vassoura Real de Paimon (Cidadela)', x: 5.5, y: 3.8, z: -72.0, yaw: 0.0 },
+      { id: 'broom-5', name: 'Vassoura Solar de Rá (Porto Astral)', x: 88.0, y: 2.8, z: -48.0, yaw: -1.5 }
+    ];
+
+    // 10 Anéis Celestes Dourados
+    const SKY_RINGS_DATA = [
+      { id: 'ring-1', x: 0, y: 13.0, z: 36, rotY: 0 },
+      { id: 'ring-2', x: 26, y: 14.5, z: -26, rotY: -0.78 },
+      { id: 'ring-3', x: 72, y: 16.0, z: -52, rotY: 1.57 },
+      { id: 'ring-4', x: 36, y: 13.5, z: 0, rotY: 1.57 },
+      { id: 'ring-5', x: 58, y: 15.0, z: 26, rotY: 0.2 },
+      { id: 'ring-6', x: -26, y: 14.5, z: -26, rotY: 0.78 },
+      { id: 'ring-7', x: 0, y: 19.0, z: -56, rotY: 0 },
+      { id: 'ring-8', x: -36, y: 14.0, z: 0, rotY: 1.57 },
+      { id: 'ring-9', x: -72, y: 15.5, z: 52, rotY: 1.57 },
+      { id: 'ring-10', x: 0, y: 17.0, z: 90, rotY: 0 }
+    ];
+
+    // 12 Tábuas & Cristais Herméticos de Lore
+    const LORE_DATA = [
+      { id: 'lore-1', islandId: 'center', title: 'As Colunas Boaz & Jachin e o Triângulo da Arte', pos: [-5.5, 1.8, 9.5], color: 0xfbbf24, desc: 'À frente do Templo de Salomão repousa o Círculo Goético com o Triângulo da Arte, onde os 4 Grandes Daemons se manifestam visivelmente.', secret: 'Aperte [G] ou use os botões "👑 Paimon | 🦅 Stolas | 🌟 Astaroth | 🔥 Asmodeus" no topo para evocar cada Daemon em 3D!' },
+      { id: 'lore-2', islandId: 'astronomy', title: 'O Astrolábio do Príncipe Stolas', pos: [52, 3.2, -44], color: 0x38bdf8, desc: 'Sob a Roda do Zodíaco celeste, o Príncipe Stolas ensina o movimento das estrelas e as virtudes ocultas dos cristais.', secret: 'Evoque Stolas na Torre Astrológica para receber a Bênção das Constelações!' },
+      { id: 'lore-3', islandId: 'arena', title: 'Os Obeliscos Enoquianos de Teurgia', pos: [61, 1.8, 6], color: 0xa855f7, desc: 'Oito obeliscos canalizam fogo celeste ao redor do octógono ritual de teurgia.', secret: 'Dispare o Raio Solar [1] nos 4 Orbes Rubi Flutuantes da Arena!' },
+      { id: 'lore-4', islandId: 'grove', title: 'As Dez Sephiroth da Árvore da Vida', pos: [-5, 1.3, 60], color: 0x34d399, desc: 'Dez árvores cristalinas interligadas por veredas douradas emanam a sabedoria cabalística de Kether a Malkuth.', secret: 'Ao sul do Bosque Sephiroth abre-se a ponte rumo ao Panteão dos 72 Espíritos.' },
+      { id: 'lore-5', islandId: 'library', title: 'O Lemegeton & A Tábua de Esmeralda', pos: [-61, 2.8, 6], color: 0xa855f7, desc: 'A Chave Menor de Salomão preserva os 72 selos metálicos e as conjurações sagradas dos espíritos.', secret: 'Ative o "👁️ Guardião: Sim" para que o Daemon evocado acompanhe você voando por todas as ilhas!' },
+      { id: 'lore-6', islandId: 'alchemy', title: 'A Opus Magnum & A Pedra Filosofal', pos: [-45, 2.5, -45], color: 0x34d399, desc: 'No centro do Athanor Alquímico, a Pedra Filosofal Rubi flutua dentro de uma Merkabah dourada.', secret: 'Dispare um feitiço [1] no Athanor Alquímico para transmutar o éter em ouro solar!' },
+      { id: 'lore-7', islandId: 'forge', title: 'Os Pantáculos Planetários de Salomão', pos: [45, 2.2, 45], color: 0xfbbf24, desc: 'Talismãs de ouro, prata, mercúrio e cobre são consagrados sob a influência dos sete planetas clássicos.', secret: 'Pressione [V] para alternar entre a Varinha Salomônica, o Cajado Solar e o Cetro de Thoth.' },
+      { id: 'lore-8', islandId: 'dragons', title: 'O Enigma das Esfinges Tetramórficas', pos: [-45, 3.8, 45], color: 0xfbbf24, desc: 'Saber, Querer, Ousar e Calar: as Esfinges Douradas guardam a Arca Hermética dos Mistérios.', secret: 'Monte na Vassoura Querúbica desta ilha para cruzar os Anéis Celestes!' },
+      { id: 'lore-9', islandId: 'citadel', title: 'A Coroa Ocidental do Rei Paimon', pos: [-5, 5.5, -70], color: 0xfbbf24, desc: 'Na Cidadela Norte brilha o Sigilo Real de Paimon, soberano das dignidades e artes liberais.', secret: 'Aproxime-se do Daemon evocado e aperte [F] para abrir a Comunhão e receber sua Bênção!' },
+      { id: 'lore-10', islandId: 'harbor', title: 'A Barca Solar de Rá & Thoth', pos: [84, 4.5, -46], color: 0x38bdf8, desc: 'A Barca Solar navega pelo oceano cósmico com velas douradas e o Disco de Aton.', secret: 'Sobrevoe o convés da Barca Solar com sua Vassoura Voadora!' },
+      { id: 'lore-11', islandId: 'greenhouse', title: 'O Mistério da Rosa-Cruz Alquímica', pos: [-84, 3.0, 46], color: 0x34d399, desc: 'Sob a cúpula de cristal floresce a Lótus Rubi no centro da Cruz Dourada dos Rosacruzes.', secret: 'Use o feitiço [3:Selo] para projetar o Círculo de Salomão sob seus pés!' },
+      { id: 'lore-12', islandId: 'pantheon', title: 'O Trono de Fogo do Rei Asmodeus', pos: [0, 5.5, 103], color: 0xf43f5e, desc: 'No Panteão Sul, oito colunas imperiais sustentam a Coroa de Salomão sobre o Altar de Asmodeus.', secret: 'Evoque o Rei Asmodeus aqui para contemplar sua Roda Ophanim de Fogo!' }
+    ];
+
+    // Coleções e referências globais
+    let MATS = {};
+    let glowTex = null;
+    let solomonCircleTex = null;
+    let zodiacWheelTex = null;
+    const daemonSigilTextures = {};
+
+    let skyMesh, starField, zodiacSkyWheel, centralTempleMerkabah, dirLight, hemiLight;
+    const floaters = [];
+    const spinRings = [];
+    let grandOrrery = null;
+    const orreryPlanets = [];
+    const floatingBooks = [];
+    const broomStations = [];
+    const evocationAltars = [];
+    const skyRings = [];
+    const loreCrystals = [];
+    const reactiveTargets = [];
+    let solarBarqueGroup = null;
+
+    let nearestBroomStation = null;
+    let nearestAltar = null;
+    let nearestCrystal = null;
+    let isNearActiveDaemon = false;
+    const discoveredLore = new Set();
+    const passedRings = new Set();
+
+    // Estado da Evocação do Daemon em 3D
+    const activeDaemonState = {
+      id: 'paimon',
+      group: null,
+      parts: {},
+      pos: new THREE.Vector3(0, 0, 3.5),
+      targetPos: new THREE.Vector3(0, 0, 3.5),
+      followPlayer: true,
+      summonProgress: 0,
+      summonBeam: null,
+      floorCircle: null,
+      summonToken: 0,
+      usingTripo: false
+    };
+
+    // Viewmodels em 1ª pessoa
+    let weaponRoot = null;
+    const weaponMeshes = [];
+    let weaponTipLight = null;
+    let weaponTipGlow = null;
+    let wandRecoil = 0;
+    let broomViewmodel = null;
+    const broomSparks = [];
+
+    // Feitiços ativos
+    const activeBolts = [];
+    const activeMeteors = [];
+    const activeParticles = [];
+    let runeCircleMesh = null;
+    let runeCircleTimer = 0;
+    let vortexGroup = null;
+    let vortexTimer = 0;
+
+    // --------------------------------------------------------------------------
+    // 3. TEXTURAS PROCEDURAIS ESOTÉRICAS (SELO DE SALOMÃO, ZODÍACO & SIGILOS GOÉTICOS)
+    // --------------------------------------------------------------------------
+    function createGlowTexture() {
+      const c = document.createElement('canvas');
+      c.width = 128; c.height = 128;
+      const ctx = c.getContext('2d');
+      const g = ctx.createRadialGradient(64, 64, 0, 64, 64, 64);
+      g.addColorStop(0.0, 'rgba(255,255,255,1)');
+      g.addColorStop(0.3, 'rgba(255,245,200,0.8)');
+      g.addColorStop(0.7, 'rgba(229,193,88,0.22)');
+      g.addColorStop(1.0, 'rgba(0,0,0,0)');
+      ctx.fillStyle = g;
+      ctx.fillRect(0, 0, 128, 128);
+      return new THREE.CanvasTexture(c);
+    }
+
+    // Selo de Salomão (Hexagrama Duplo + Pentagrama + Triângulo da Arte + Glifos)
+    function createSolomonCircleTexture(c1 = '#fbbf24', c2 = '#f43f5e') {
+      const c = document.createElement('canvas');
+      c.width = 512; c.height = 512;
+      const ctx = c.getContext('2d');
+      const cx = 256, cy = 256;
+
+      ctx.strokeStyle = c1;
+      ctx.lineWidth = 6;
+      ctx.beginPath(); ctx.arc(cx, cy, 240, 0, Math.PI * 2); ctx.stroke();
+      ctx.lineWidth = 4;
+      ctx.beginPath(); ctx.arc(cx, cy, 206, 0, Math.PI * 2); ctx.stroke();
+
+      // Glifos herméticos no anel externo
+      ctx.fillStyle = c1;
+      ctx.font = 'bold 20px Cinzel, serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      const glyphs = ['☉', '☽', '☿', '♀', '♂', '♃', '♄', '✡', '⚕', '☥', '🔱', '✦'];
+      for (let i = 0; i < 12; i++) {
+        const a = (i / 12) * Math.PI * 2;
+        ctx.save();
+        ctx.translate(cx + Math.cos(a) * 223, cy + Math.sin(a) * 223);
+        ctx.rotate(a + Math.PI / 2);
+        ctx.fillText(glyphs[i], 0, 0);
+        ctx.restore();
+      }
+
+      // Hexagrama de Salomão (2 triângulos entrelaçados)
+      ctx.strokeStyle = c2;
+      ctx.lineWidth = 5;
+      for (let t = 0; t < 2; t++) {
+        ctx.beginPath();
+        for (let i = 0; i < 3; i++) {
+          const a = (i / 3) * Math.PI * 2 + (t * Math.PI / 3) - Math.PI / 2;
+          const x = cx + Math.cos(a) * 198;
+          const y = cy + Math.sin(a) * 198;
+          if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+        }
+        ctx.closePath();
+        ctx.stroke();
+      }
+
+      // Círculo interno + Cruz Alquímica
+      ctx.strokeStyle = c1;
+      ctx.lineWidth = 3;
+      ctx.beginPath(); ctx.arc(cx, cy, 110, 0, Math.PI * 2); ctx.stroke();
+      return new THREE.CanvasTexture(c);
+    }
+
+    // Sigilos Autênticos Estilizados dos 4 Daemons (Rei Paimon, Stolas, Astaroth, Asmodeus)
+    function createDaemonSigilTexture(daemonId, colorHex = '#fbbf24') {
+      const c = document.createElement('canvas');
+      c.width = 512; c.height = 512;
+      const ctx = c.getContext('2d');
+      const cx = 256, cy = 256;
+
+      ctx.strokeStyle = colorHex;
+      ctx.fillStyle = colorHex;
+      ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
+
+      // Anel duplo de Salomão com nome do Espírito
+      ctx.lineWidth = 7;
+      ctx.beginPath(); ctx.arc(cx, cy, 236, 0, Math.PI * 2); ctx.stroke();
+      ctx.lineWidth = 3;
+      ctx.beginPath(); ctx.arc(cx, cy, 198, 0, Math.PI * 2); ctx.stroke();
+
+      const labelMap = {
+        paimon: '✦ PAIMON • REX OCCIDENTIS • IX ✦',
+        stolas: '✦ STOLAS • PRINCEPS ASTRORUM • XXXVI ✦',
+        astaroth: '✦ ASTAROTH • DUX MAGNUS • XXIX ✦',
+        asmodeus: '✦ ASMODEUS • REX IGNIS • XXXII ✦'
+      };
+      const text = labelMap[daemonId] || labelMap.paimon;
+      ctx.font = 'bold 18px Cinzel, serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      for (let i = 0; i < text.length; i++) {
+        const a = (i / text.length) * Math.PI * 2 - Math.PI / 2;
+        ctx.save();
+        ctx.translate(cx + Math.cos(a) * 217, cy + Math.sin(a) * 217);
+        ctx.rotate(a + Math.PI / 2);
+        ctx.fillText(text[i], 0, 0);
+        ctx.restore();
+      }
+
+      // Traçado Geométrico Esotérico do Sigilo no Centro
+      ctx.lineWidth = 7;
+      ctx.beginPath();
+      if (daemonId === 'paimon') {
+        // Linha base coroada + 4 hastes com círculos terminais (Sigilo de Paimon)
+        ctx.moveTo(130, 300); ctx.lineTo(382, 300);
+        ctx.moveTo(160, 300); ctx.lineTo(160, 175);
+        ctx.moveTo(224, 300); ctx.lineTo(224, 150);
+        ctx.moveTo(288, 300); ctx.lineTo(288, 150);
+        ctx.moveTo(352, 300); ctx.lineTo(352, 175);
+        ctx.moveTo(256, 300); ctx.lineTo(256, 385);
+        ctx.moveTo(215, 350); ctx.lineTo(297, 350);
+        ctx.stroke();
+        [[160, 162], [224, 136], [288, 136], [352, 162], [256, 398]].forEach(([px, py]) => {
+          ctx.beginPath(); ctx.arc(px, py, 12, 0, Math.PI * 2); ctx.stroke();
+        });
+      } else if (daemonId === 'stolas') {
+        // Eixo vertical astronômico com arcos lunares e cruz estelar (Sigilo de Stolas)
+        ctx.moveTo(256, 120); ctx.lineTo(256, 392);
+        ctx.moveTo(170, 210); ctx.lineTo(342, 210);
+        ctx.moveTo(190, 310); ctx.lineTo(322, 310);
+        ctx.stroke();
+        ctx.beginPath(); ctx.arc(256, 165, 34, 0, Math.PI * 2); ctx.stroke();
+        ctx.beginPath(); ctx.arc(160, 210, 12, 0, Math.PI * 2); ctx.stroke();
+        ctx.beginPath(); ctx.arc(352, 210, 12, 0, Math.PI * 2); ctx.stroke();
+        ctx.beginPath(); ctx.arc(256, 355, 28, 0, Math.PI); ctx.stroke();
+      } else if (daemonId === 'astaroth') {
+        // Estrela octogonal e Vênus/Pentagrama Hermético (Sigilo de Astaroth)
+        for (let i = 0; i < 5; i++) {
+          const a1 = (i / 5) * Math.PI * 2 - Math.PI / 2;
+          const a2 = (((i + 2) % 5) / 5) * Math.PI * 2 - Math.PI / 2;
+          ctx.moveTo(cx + Math.cos(a1) * 150, cy + Math.sin(a1) * 150);
+          ctx.lineTo(cx + Math.cos(a2) * 150, cy + Math.sin(a2) * 150);
+        }
+        ctx.moveTo(140, 256); ctx.lineTo(372, 256);
+        ctx.moveTo(256, 135); ctx.lineTo(256, 377);
+        ctx.stroke();
+        ctx.beginPath(); ctx.arc(cx, cy, 42, 0, Math.PI * 2); ctx.stroke();
+      } else {
+        // Sigilo Solar e Cruz Geomântica de Fogo (Sigilo de Asmodeus)
+        ctx.moveTo(135, 256); ctx.lineTo(377, 256);
+        ctx.moveTo(256, 135); ctx.lineTo(256, 377);
+        ctx.moveTo(170, 170); ctx.lineTo(342, 342);
+        ctx.moveTo(342, 170); ctx.lineTo(170, 342);
+        ctx.stroke();
+        ctx.beginPath(); ctx.arc(cx, cy, 78, 0, Math.PI * 2); ctx.stroke();
+        ctx.beginPath(); ctx.arc(cx, cy, 26, 0, Math.PI * 2); ctx.fill();
+      }
+
+      return new THREE.CanvasTexture(c);
+    }
+
+    // Pavimento Mosaico Hermético (Xadrez Obsidiana & Marfim com Friso de Ouro)
+    function createMosaicFloorTexture() {
+      const c = document.createElement('canvas');
+      c.width = 256; c.height = 256;
+      const ctx = c.getContext('2d');
+      const sq = 64;
+      for (let y = 0; y < 4; y++) {
+        for (let x = 0; x < 4; x++) {
+          ctx.fillStyle = (x + y) % 2 === 0 ? '#0d0a1a' : '#e8e0cf';
+          ctx.fillRect(x * sq, y * sq, sq, sq);
+          ctx.strokeStyle = 'rgba(212,175,55,0.45)';
+          ctx.lineWidth = 2;
+          ctx.strokeRect(x * sq, y * sq, sq, sq);
+        }
+      }
+      const t = new THREE.CanvasTexture(c);
+      t.wrapS = THREE.RepeatWrapping;
+      t.wrapT = THREE.RepeatWrapping;
+      t.repeat.set(6, 6);
+      return t;
+    }
+
+    function createCarpetTexture() {
+      const c = document.createElement('canvas');
+      c.width = 128; c.height = 256;
+      const ctx = c.getContext('2d');
+      ctx.fillStyle = '#4c0b1d';
+      ctx.fillRect(0, 0, 128, 256);
+      ctx.fillStyle = '#e5c158';
+      ctx.fillRect(6, 0, 8, 256);
+      ctx.fillRect(114, 0, 8, 256);
+      ctx.strokeStyle = 'rgba(229,193,88,0.55)';
+      ctx.lineWidth = 3;
+      ctx.strokeRect(20, 12, 88, 232);
+      const t = new THREE.CanvasTexture(c);
+      t.wrapS = THREE.RepeatWrapping;
+      t.wrapT = THREE.RepeatWrapping;
+      t.repeat.set(1, 6);
+      return t;
+    }
+
+    function createLabelSprite(text, borderColor = '#e5c158') {
+      const c = document.createElement('canvas');
+      c.width = 512; c.height = 112;
+      const ctx = c.getContext('2d');
+      ctx.fillStyle = 'rgba(9, 6, 24, 0.90)';
+      ctx.fillRect(10, 14, 492, 84);
+      ctx.strokeStyle = borderColor;
+      ctx.lineWidth = 5;
+      ctx.strokeRect(10, 14, 492, 84);
+      ctx.fillStyle = '#fff5d6';
+      ctx.font = 'bold 26px Cinzel, serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(text, 256, 56);
+      const sp = new THREE.Sprite(new THREE.SpriteMaterial({
+        map: new THREE.CanvasTexture(c),
+        transparent: true,
+        depthWrite: false
+      }));
+      sp.scale.set(4.1, 0.9, 1);
+      return sp;
+    }
+
+    function makeGlowSprite(hexColor, scale = 3.5, opacity = 0.85) {
+      const sp = new THREE.Sprite(new THREE.SpriteMaterial({
+        map: glowTex,
+        color: hexColor,
+        transparent: true,
+        opacity,
+        blending: THREE.AdditiveBlending,
+        depthWrite: false
+      }));
+      sp.scale.set(scale, scale, 1);
+      return sp;
+    }
+
+    function initMaterials() {
+      glowTex = createGlowTexture();
+      solomonCircleTex = createSolomonCircleTexture('#fbbf24', '#f43f5e');
+      zodiacWheelTex = createSolomonCircleTexture('#e5c158', '#38bdf8');
+
+      daemonSigilTextures.paimon = createDaemonSigilTexture('paimon', '#fbbf24');
+      daemonSigilTextures.stolas = createDaemonSigilTexture('stolas', '#38bdf8');
+      daemonSigilTextures.astaroth = createDaemonSigilTexture('astaroth', '#c084fc');
+      daemonSigilTextures.asmodeus = createDaemonSigilTexture('asmodeus', '#f43f5e');
+
+      MATS = {
+        stone: new THREE.MeshStandardMaterial({ color: 0x1c1630, roughness: 0.68, metalness: 0.22 }),
+        obsidian: new THREE.MeshStandardMaterial({ color: 0x0b0816, roughness: 0.18, metalness: 0.72 }),
+        whiteMarble: new THREE.MeshStandardMaterial({ color: 0xeee7dc, roughness: 0.25, metalness: 0.18 }),
+        mosaicFloor: new THREE.MeshStandardMaterial({ map: createMosaicFloorTexture(), roughness: 0.24, metalness: 0.35 }),
+        darkWall: new THREE.MeshStandardMaterial({ color: 0x140f26, roughness: 0.58, metalness: 0.28 }),
+        rock: new THREE.MeshStandardMaterial({ color: 0x0e0a1c, roughness: 0.9, flatShading: true }),
+        gold: new THREE.MeshStandardMaterial({ color: 0xe5c158, emissive: 0x422d05, emissiveIntensity: 0.5, roughness: 0.2, metalness: 0.9 }),
+        brass: new THREE.MeshStandardMaterial({ color: 0xd97706, emissive: 0x451a03, emissiveIntensity: 0.45, roughness: 0.24, metalness: 0.88 }),
+        silver: new THREE.MeshStandardMaterial({ color: 0xe2e8f0, emissive: 0x1e293b, emissiveIntensity: 0.3, roughness: 0.2, metalness: 0.88 }),
+        wood: new THREE.MeshStandardMaterial({ color: 0x432818, roughness: 0.65, metalness: 0.15 }),
+        ebony: new THREE.MeshStandardMaterial({ color: 0x120d20, roughness: 0.3, metalness: 0.55 }),
+        carpet: new THREE.MeshStandardMaterial({ map: createCarpetTexture(), roughness: 0.65 }),
+        cyanCrystal: new THREE.MeshStandardMaterial({ color: 0x38bdf8, emissive: 0x0284c7, emissiveIntensity: 1.5, roughness: 0.12, metalness: 0.35 }),
+        violetCrystal: new THREE.MeshStandardMaterial({ color: 0xc084fc, emissive: 0x7e22ce, emissiveIntensity: 1.45, roughness: 0.12, metalness: 0.35 }),
+        emeraldCrystal: new THREE.MeshStandardMaterial({ color: 0x34d399, emissive: 0x059669, emissiveIntensity: 1.45, roughness: 0.12, metalness: 0.35 }),
+        goldCrystal: new THREE.MeshStandardMaterial({ color: 0xfbbf24, emissive: 0xd97706, emissiveIntensity: 1.6, roughness: 0.12, metalness: 0.45 }),
+        rubyCrystal: new THREE.MeshStandardMaterial({ color: 0xf43f5e, emissive: 0xe11d48, emissiveIntensity: 1.6, roughness: 0.12, metalness: 0.4 }),
+        energyBridge: new THREE.MeshStandardMaterial({ color: 0xfbbf24, emissive: 0xb45309, emissiveIntensity: 0.88, transparent: true, opacity: 0.8, roughness: 0.15 }),
+        glassDome: new THREE.MeshStandardMaterial({ color: 0x7dd3fc, emissive: 0x0284c7, emissiveIntensity: 0.38, transparent: true, opacity: 0.32, side: THREE.DoubleSide }),
+        stainedCyan: new THREE.MeshBasicMaterial({ color: 0x38bdf8, transparent: true, opacity: 0.86, side: THREE.DoubleSide }),
+        stainedGold: new THREE.MeshBasicMaterial({ color: 0xfbbf24, transparent: true, opacity: 0.88, side: THREE.DoubleSide }),
+        stainedViolet: new THREE.MeshBasicMaterial({ color: 0xf43f5e, transparent: true, opacity: 0.86, side: THREE.DoubleSide }),
+        godRayGold: new THREE.MeshBasicMaterial({ color: 0xfde68a, transparent: true, opacity: 0.15, side: THREE.DoubleSide, blending: THREE.AdditiveBlending, depthWrite: false }),
+        godRayCyan: new THREE.MeshBasicMaterial({ color: 0x38bdf8, transparent: true, opacity: 0.14, side: THREE.DoubleSide, blending: THREE.AdditiveBlending, depthWrite: false }),
+        godRayCrimson: new THREE.MeshBasicMaterial({ color: 0xf43f5e, transparent: true, opacity: 0.16, side: THREE.DoubleSide, blending: THREE.AdditiveBlending, depthWrite: false })
+      };
+    }
+
+    // --------------------------------------------------------------------------
+    // 4. ABÓBADA CELESTE ESOTÉRICA (RODA DO ZODÍACO GIGANTE, LUAS & MERKABAH)
+    // --------------------------------------------------------------------------
+    function applySkyGradient(c0, c1, c2, c3) {
+      const c = document.createElement('canvas');
+      c.width = 64; c.height = 256;
+      const ctx = c.getContext('2d');
+      const g = ctx.createLinearGradient(0, 0, 0, 256);
+      g.addColorStop(0.0, c0);
+      g.addColorStop(0.45, c1);
+      g.addColorStop(0.8, c2);
+      g.addColorStop(1.0, c3);
+      ctx.fillStyle = g;
+      ctx.fillRect(0, 0, 64, 256);
+      skyMesh.material.map = new THREE.CanvasTexture(c);
+      skyMesh.material.needsUpdate = true;
+    }
+
+    function createMerkabahMesh(radius = 3.5, mat1 = MATS.gold, mat2 = MATS.cyanCrystal) {
+      const grp = new THREE.Group();
+      const t1 = new THREE.Mesh(new THREE.TetrahedronGeometry(radius, 0), mat1);
+      const t2 = new THREE.Mesh(new THREE.TetrahedronGeometry(radius, 0), mat2);
+      t2.rotation.x = Math.PI;
+      t2.rotation.y = Math.PI / 4;
+      const ring = new THREE.Mesh(new THREE.TorusGeometry(radius * 1.15, radius * 0.04, 8, 36), MATS.gold);
+      grp.add(t1, t2, ring);
+      return grp;
+    }
+
+    function buildSkyAndLights() {
+      skyMesh = new THREE.Mesh(
+        new THREE.SphereGeometry(440, 28, 20),
+        new THREE.MeshBasicMaterial({ side: THREE.BackSide, depthWrite: false })
+      );
+      scene.add(skyMesh);
+      applySkyGradient('#03010a', '#0d0726', '#261147', '#080415');
+
+      // Campo de Estrelas Douradas e Ciano
+      const starCount = 2200;
+      const starPos = new Float32Array(starCount * 3);
+      for (let i = 0; i < starCount; i++) {
+        const theta = Math.random() * Math.PI * 2;
+        const phi = Math.acos(2 * Math.random() - 1);
+        const r = 260 + Math.random() * 120;
+        starPos[i * 3] = r * Math.sin(phi) * Math.cos(theta);
+        starPos[i * 3 + 1] = Math.abs(r * Math.cos(phi)) - 20;
+        starPos[i * 3 + 2] = r * Math.sin(phi) * Math.sin(theta);
+      }
+      const starGeo = new THREE.BufferGeometry();
+      starGeo.setAttribute('position', new THREE.BufferAttribute(starPos, 3));
+      starField = new THREE.Points(
+        starGeo,
+        new THREE.PointsMaterial({ color: 0xfff0c2, size: 1.5, map: glowTex, transparent: true, depthWrite: false })
+      );
+      scene.add(starField);
+
+      // Roda Astrológica & Sephirótica Colossal no Zênite Celeste
+      zodiacSkyWheel = new THREE.Mesh(
+        new THREE.PlaneGeometry(240, 240),
+        new THREE.MeshBasicMaterial({
+          map: zodiacWheelTex,
+          transparent: true,
+          opacity: 0.26,
+          side: THREE.DoubleSide,
+          blending: THREE.AdditiveBlending,
+          depthWrite: false
+        })
+      );
+      zodiacSkyWheel.rotation.x = Math.PI / 2;
+      zodiacSkyWheel.position.set(0, 135, -10);
+      scene.add(zodiacSkyWheel);
+
+      // Sol Negro Eclipsado em Ouro + Lua Hermética de Prata
+      const solarEclipse = new THREE.Group();
+      solarEclipse.position.set(-140, 125, -190);
+      const blackSun = new THREE.Mesh(new THREE.SphereGeometry(14, 24, 24), MATS.obsidian);
+      const corona = new THREE.Mesh(new THREE.TorusGeometry(15.2, 0.9, 12, 48), MATS.goldCrystal);
+      corona.lookAt(0, 0, 0);
+      solarEclipse.add(blackSun, corona, makeGlowSprite(0xfbbf24, 68, 0.85));
+      scene.add(solarEclipse);
+
+      const silverMoon = new THREE.Mesh(new THREE.SphereGeometry(9.5, 20, 20), MATS.silver);
+      silverMoon.position.set(150, 110, -160);
+      silverMoon.add(makeGlowSprite(0x38bdf8, 42, 0.75));
+      scene.add(silverMoon);
+
+      // Merkabah Sagrada Colossal pairando sobre o Templo Central
+      centralTempleMerkabah = createMerkabahMesh(5.2, MATS.goldCrystal, MATS.rubyCrystal);
+      centralTempleMerkabah.position.set(0, 31, -18);
+      centralTempleMerkabah.add(makeGlowSprite(0xfbbf24, 16, 0.85));
+      scene.add(centralTempleMerkabah);
+
+      scene.fog = new THREE.FogExp2(0x09051b, 0.0024);
+      scene.add(new THREE.AmbientLight(0x907ad6, 0.88));
+      hemiLight = new THREE.HemisphereLight(0xfde68a, 0x3b0764, 0.95);
+      scene.add(hemiLight);
+      dirLight = new THREE.DirectionalLight(0xffe6a3, 1.3);
+      dirLight.position.set(65, 130, 55);
+      scene.add(dirLight);
+    }
+
+    function cycleAtmospherePreset() {
+      const presets = [
+        { name: 'Astral', fog: 0x09051b, sky: ['#03010a', '#0d0726', '#261147', '#080415'], dir: 0xffe6a3 },
+        { name: 'Eclipse Goético', fog: 0x1f081e, sky: ['#09020a', '#2e0927', '#7f1d1d', '#1c0512'], dir: 0xfca5a5 },
+        { name: 'Aurora Hermética', fog: 0x072227, sky: ['#021017', '#064e3b', '#4c1d95', '#070514'], dir: 0x6ee7b7 }
+      ];
+      player.weatherIndex = (player.weatherIndex + 1) % presets.length;
+      const p = presets[player.weatherIndex];
+      applySkyGradient(p.sky[0], p.sky[1], p.sky[2], p.sky[3]);
+      scene.fog.color.setHex(p.fog);
+      dirLight.color.setHex(p.dir);
+      const lbl = document.getElementById('weather-label');
+      if (lbl) lbl.textContent = p.name;
+      showToast(`🌙 Atmosfera Esotérica: ${p.name}`);
+    }
+
+    // --------------------------------------------------------------------------
+    // 5. ALTURA ANALÍTICA CONTÍNUA getGroundHeight(x, z) & COLISÕES
+    // --------------------------------------------------------------------------
+    function getGroundHeight(x, z) {
+      let bestY = null;
+
+      for (let i = 0; i < ISLANDS.length; i++) {
+        const isl = ISLANDS[i];
+        const dist = Math.hypot(x - isl.x, z - isl.z);
+        if (dist <= isl.r) {
+          let y = isl.y;
+          if (isl.id === 'center') {
+            if (Math.abs(x) <= 12.0 && z <= -6.0 && z >= -30.0) {
+              y = 0.4;
+              if (Math.abs(x) <= 7.5 && z <= -24.5) y = 1.15;
+            } else if (Math.abs(x) <= 4.5 && z > -6.0 && z < -4.0) {
+              y = ((z - (-4.0)) / (-2.0)) * 0.4;
+            }
+          }
+          if (bestY === null || y > bestY) bestY = y;
+        }
+      }
+
+      for (let i = 0; i < BRIDGES.length; i++) {
+        const br = BRIDGES[i];
+        const px = x - br.ax;
+        const pz = z - br.az;
+        const s = px * br.ux + pz * br.uz;
+        if (s >= br.sStart && s <= br.sEnd) {
+          const w = Math.abs(px * br.nx + pz * br.nz);
+          if (w <= br.halfWidth) {
+            const t = THREE.MathUtils.clamp((s - br.sStart) / br.span, 0, 1);
+            const by = br.ay + (br.by - br.ay) * t;
+            if (bestY === null || by > bestY) bestY = by;
+          }
+        }
+      }
+
+      return bestY;
+    }
+
+    const CATHEDRAL_WALL_BOXES = [
+      { minX: -12.3, maxX: -3.2, minZ: -6.4, maxZ: -5.6 },
+      { minX: 3.2, maxX: 12.3, minZ: -6.4, maxZ: -5.6 },
+      { minX: -12.3, maxX: 12.3, minZ: -30.4, maxZ: -29.6 },
+      { minX: -12.3, maxX: -11.5, minZ: -30.4, maxZ: -5.6 },
+      { minX: 11.5, maxX: 12.3, minZ: -30.4, maxZ: -5.6 }
+    ];
+
+    function resolveCollisions(x, z) {
+      let rx = x, rz = z;
+      const pr = 0.48;
+      for (let i = 0; i < CATHEDRAL_WALL_BOXES.length; i++) {
+        const b = CATHEDRAL_WALL_BOXES[i];
+        const cx = THREE.MathUtils.clamp(rx, b.minX, b.maxX);
+        const cz = THREE.MathUtils.clamp(rz, b.minZ, b.maxZ);
+        const dx = rx - cx, dz = rz - cz;
+        const dSq = dx * dx + dz * dz;
+        if (dSq < pr * pr && dSq > 0.00001) {
+          const d = Math.sqrt(dSq);
+          rx += (dx / d) * (pr - d);
+          rz += (dz / d) * (pr - d);
+        }
+      }
+      return { x: rx, z: rz };
+    }
+
+    // --------------------------------------------------------------------------
+    // 6. ESCULTURAS 3D DETALHADAS DOS 4 DAEMONS DA ARS GOETIA
+    // --------------------------------------------------------------------------
+    function createArticulatedWing(span = 2.6, matMain = MATS.gold, matFeathers = MATS.rubyCrystal, side = 1) {
+      const wing = new THREE.Group();
+      const arm = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.09, span, 8), MATS.gold);
+      arm.rotation.z = side * (Math.PI / 2.4);
+      arm.position.set(side * span * 0.42, span * 0.22, 0);
+      wing.add(arm);
+
+      for (let i = 0; i < 6; i++) {
+        const fLen = span * (0.95 - i * 0.11);
+        const feather = new THREE.Mesh(new THREE.ConeGeometry(0.18, fLen, 5), i % 2 === 0 ? matMain : matFeathers);
+        feather.rotation.z = Math.PI + side * (0.28 + i * 0.12);
+        feather.position.set(side * (0.45 + i * 0.34), 0.25 - i * 0.12, -0.05);
+        wing.add(feather);
+      }
+      return wing;
+    }
+
+    // --------------------------------------------------------------------------
+    // 6A. MODELOS 3D TRIPO DAS EVOCAÇÕES (GLB, CARREGAMENTO SOB DEMANDA)
+    // --------------------------------------------------------------------------
+    // Figuras e sigilos gerados no Tripo AI. Os GLBs ficam na MESMA PASTA do HTML
+    // no site (caminhos relativos), e cada daemon + seu sigilo só é buscado na
+    // primeira evocação daquele daemon; depois fica em cache na RAM.
+    // Escalas medidas das bounding boxes reais dos arquivos:
+    //  - Figuras: ~0,97 m de altura de origem (Astaroth 0,62 m, forma serpentina)
+    //    -> escala 5,0 = ~4,9 u no mundo (daemon procedural: ~5,2 u; jogador: 1,75 u).
+    //  - Sigilos: ~0,98 m de altura -> escala 4,7 = ~4,6 u (igual ao halo procedural).
+    const DAEMON_GLB_FILES = {
+      paimon:   { model: 'paimon.glb',   sigil: 'paimon-sigilo.glb' },
+      stolas:   { model: 'stolas.glb',   sigil: 'stolas-sigilo.glb' },
+      astaroth: { model: 'astaroth.glb', sigil: 'astaroth-sigilo.glb' },
+      asmodeus: { model: 'asmodeus.glb', sigil: 'asmodeus-sigilo.glb' }
+    };
+    const DAEMON_GLB_MODEL_SCALE = 5.0;
+    const DAEMON_GLB_SIGIL_SCALE = 4.7;
+    const DAEMON_GLB_SIGIL_HEIGHT = 4.1;   // altura do centro do sigilo (igual ao halo procedural)
+    const DAEMON_GLB_SIGIL_ORIGIN_H = 0.979; // altura de origem do GLB do sigilo (base em y=0)
+    // Cache: id -> { status: 'loading'|'ready'|'failed', model, sigil, waiters[] }
+    const daemonGLBCache = {};
+    const daemonGLBFailedNotified = new Set();
+    let tripoLoader = null;
+
+    function getTripoLoader() {
+      if (tripoLoader) return tripoLoader;
+      if (typeof THREE.GLTFLoader === 'undefined') return null; // script do loader indisponível (offline)
+      tripoLoader = new THREE.GLTFLoader();
+      return tripoLoader;
+    }
+
+    // Carrega figura + sigilo do daemon (em paralelo). onDone(entry|null).
+    // 'ready' reutiliza o cache sem novo fetch; 'failed' nunca retenta.
+    function loadDaemonGLB(daemonId, onDone) {
+      const files = DAEMON_GLB_FILES[daemonId];
+      const cached = daemonGLBCache[daemonId];
+      if (cached && cached.status === 'ready') { onDone(cached); return; }
+      if (cached && cached.status === 'failed') { onDone(null); return; }
+      if (cached && cached.status === 'loading') { cached.waiters.push(onDone); return; }
+      const loader = getTripoLoader();
+      if (!loader || !files) {
+        daemonGLBCache[daemonId] = { status: 'failed', model: null, sigil: null, waiters: [] };
+        onDone(null);
+        return;
+      }
+      const entry = { status: 'loading', model: null, sigil: null, waiters: [onDone] };
+      daemonGLBCache[daemonId] = entry;
+      let pending = 2;
+      let failed = false;
+      function oneDone(key, gltf) {
+        if (gltf && gltf.scene) entry[key] = gltf.scene; else failed = true;
+        if (--pending === 0) {
+          entry.status = failed ? 'failed' : 'ready';
+          if (failed) { entry.model = null; entry.sigil = null; }
+          const waiters = entry.waiters.splice(0);
+          waiters.forEach(cb => { try { cb(failed ? null : entry); } catch (e) { console.error(e); } });
+        }
+      }
+      loader.load(files.model, g => oneDone('model', g), undefined, () => oneDone('model', null));
+      loader.load(files.sigil, g => oneDone('sigil', g), undefined, () => oneDone('sigil', null));
+    }
+
+    function build3DDaemonModel(daemonId) {
+      const info = DAEMONS_DATA[daemonId] || DAEMONS_DATA.paimon;
+      const root = new THREE.Group();
+      const parts = { wings: [], rings: [], orbs: [], head: null, body: null };
+
+      // 1. Pedestal Astral Flutuante + Círculo de Sigilo no Chão
+      const floorSigil = new THREE.Mesh(
+        new THREE.PlaneGeometry(6.8, 6.8),
+        new THREE.MeshBasicMaterial({
+          map: daemonSigilTextures[daemonId],
+          transparent: true,
+          opacity: 0.95,
+          side: THREE.DoubleSide,
+          blending: THREE.AdditiveBlending,
+          depthWrite: false
+        })
+      );
+      floorSigil.rotation.x = -Math.PI / 2;
+      floorSigil.position.y = 0.08;
+      root.add(floorSigil);
+      parts.rings.push({ mesh: floorSigil, axis: 'z', speed: 0.65 });
+
+      // 2. Halo Gigante do Sigilo Dourado atrás das costas do Daemon
+      const backSigil = new THREE.Mesh(
+        new THREE.PlaneGeometry(4.6, 4.6),
+        new THREE.MeshBasicMaterial({
+          map: daemonSigilTextures[daemonId],
+          transparent: true,
+          opacity: 0.9,
+          side: THREE.DoubleSide,
+          blending: THREE.AdditiveBlending,
+          depthWrite: false
+        })
+      );
+      backSigil.position.set(0, 4.1, -0.95);
+      root.add(backSigil);
+      parts.rings.push({ mesh: backSigil, axis: 'z', speed: -0.8 });
+
+      const bodyGroup = new THREE.Group();
+      root.add(bodyGroup);
+      parts.body = bodyGroup;
+
+      if (daemonId === 'paimon') {
+        // 👑 REI PAIMON: Manto Real Obsidiana & Ouro + Coroa Real de 7 Pontas + Dromedário Astral Dourado + 4 Trombetas/Orbes
+        const robeLower = new THREE.Mesh(new THREE.ConeGeometry(1.25, 3.2, 12), MATS.obsidian);
+        robeLower.position.y = 1.6;
+        const robeTrim = new THREE.Mesh(new THREE.CylinderGeometry(0.65, 1.28, 3.1, 12, 1, true), MATS.gold);
+        robeTrim.scale.set(1.01, 1, 0.35);
+        robeTrim.position.y = 1.6;
+        const torso = new THREE.Mesh(new THREE.CylinderGeometry(0.68, 0.52, 1.6, 12), MATS.gold);
+        torso.position.y = 3.4;
+        const collar = new THREE.Mesh(new THREE.TorusGeometry(0.68, 0.12, 10, 24), MATS.rubyCrystal);
+        collar.rotation.x = Math.PI / 2;
+        collar.position.y = 4.15;
+
+        // Rosto Nobre + Olhos Luminosos + Grande Coroa Real
+        const head = new THREE.Group();
+        head.position.y = 4.65;
+        const face = new THREE.Mesh(new THREE.SphereGeometry(0.42, 16, 16), MATS.gold);
+        const eyeL = new THREE.Mesh(new THREE.SphereGeometry(0.065, 8, 8), MATS.cyanCrystal);
+        eyeL.position.set(-0.14, 0.06, 0.37);
+        const eyeR = eyeL.clone();
+        eyeR.position.x = 0.14;
+        const crownRim = new THREE.Mesh(new THREE.CylinderGeometry(0.48, 0.42, 0.38, 12), MATS.goldCrystal);
+        crownRim.position.y = 0.38;
+        head.add(face, eyeL, eyeR, crownRim);
+        for (let i = 0; i < 8; i++) {
+          const a = (i / 8) * Math.PI * 2;
+          const spike = new THREE.Mesh(new THREE.ConeGeometry(0.08, 0.55, 6), i % 2 === 0 ? MATS.goldCrystal : MATS.rubyCrystal);
+          spike.position.set(Math.cos(a) * 0.44, 0.72, Math.sin(a) * 0.44);
+          head.add(spike);
+        }
+        parts.head = head;
+
+        // Cetro Real e Orbe do Mundo nas Mãos
+        const scepter = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 3.6, 8), MATS.gold);
+        scepter.position.set(0.95, 3.1, 0.45);
+        scepter.rotation.x = 0.2;
+        const scepterTop = new THREE.Mesh(new THREE.OctahedronGeometry(0.32, 0), MATS.rubyCrystal);
+        scepterTop.position.set(0.95, 4.9, 0.8);
+
+        // Dromedário Astral Dourado Esculpido ao lado de Paimon
+        const camel = new THREE.Group();
+        camel.position.set(-1.55, 0, -0.35);
+        camel.rotation.y = 0.25;
+        const cBody = new THREE.Mesh(new THREE.SphereGeometry(0.75, 12, 12), MATS.gold);
+        cBody.scale.set(0.85, 0.85, 1.45);
+        cBody.position.y = 1.65;
+        const hump = new THREE.Mesh(new THREE.SphereGeometry(0.48, 10, 10), MATS.rubyCrystal);
+        hump.position.set(0, 2.25, -0.1);
+        const neck = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.32, 1.35, 10), MATS.gold);
+        neck.position.set(0, 2.35, 0.9);
+        neck.rotation.x = 0.38;
+        const cHead = new THREE.Mesh(new THREE.BoxGeometry(0.36, 0.34, 0.65), MATS.gold);
+        cHead.position.set(0, 2.95, 1.25);
+        [[-0.38, 0.65], [0.38, 0.65], [-0.38, -0.65], [0.38, -0.65]].forEach(([lx, lz]) => {
+          const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.11, 0.08, 1.5, 8), MATS.gold);
+          leg.position.set(lx, 0.75, lz);
+          camel.add(leg);
+        });
+        camel.add(cBody, hump, neck, cHead);
+
+        // Duas Asas Solares Reais
+        const wL = createArticulatedWing(2.7, MATS.gold, MATS.rubyCrystal, -1);
+        const wR = createArticulatedWing(2.7, MATS.gold, MATS.rubyCrystal, 1);
+        wL.position.set(-0.4, 3.6, -0.3);
+        wR.position.set(0.4, 3.6, -0.3);
+        parts.wings.push({ mesh: wL, side: -1, baseRotZ: 0 }, { mesh: wR, side: 1, baseRotZ: 0 });
+
+        bodyGroup.add(robeLower, robeTrim, torso, collar, head, scepter, scepterTop, camel, wL, wR);
+
+      } else if (daemonId === 'stolas') {
+        // 🦅 PRÍNCIPE STOLAS: Nobre Príncipe-Coruja Celestial em Safira & Ouro com 4 Asas Astrais e Astrolábio
+        const cloak = new THREE.Mesh(new THREE.ConeGeometry(1.1, 3.4, 14), MATS.obsidian);
+        cloak.position.y = 1.7;
+        const chest = new THREE.Mesh(new THREE.CylinderGeometry(0.62, 0.45, 1.6, 12), MATS.cyanCrystal);
+        chest.position.y = 3.45;
+        const mantle = new THREE.Mesh(new THREE.TorusGeometry(0.66, 0.14, 10, 24), MATS.gold);
+        mantle.rotation.x = Math.PI / 2;
+        mantle.position.y = 4.15;
+
+        // Cabeça Esculpida de Coruja Real com Grandes Olhos Ciano, Bico Dourado e Penachos
+        const head = new THREE.Group();
+        head.position.y = 4.75;
+        const owlSkull = new THREE.Mesh(new THREE.SphereGeometry(0.48, 16, 16), MATS.obsidian);
+        owlSkull.scale.set(1.08, 1.0, 0.95);
+        const eyeRingL = new THREE.Mesh(new THREE.TorusGeometry(0.16, 0.035, 8, 20), MATS.gold);
+        eyeRingL.position.set(-0.18, 0.05, 0.42);
+        const eyeRingR = eyeRingL.clone();
+        eyeRingR.position.x = 0.18;
+        const eyeOrbL = new THREE.Mesh(new THREE.SphereGeometry(0.12, 10, 10), MATS.cyanCrystal);
+        eyeOrbL.position.set(-0.18, 0.05, 0.42);
+        const eyeOrbR = eyeOrbL.clone();
+        eyeOrbR.position.x = 0.18;
+        const beak = new THREE.Mesh(new THREE.ConeGeometry(0.11, 0.34, 6), MATS.gold);
+        beak.rotation.x = Math.PI * 0.65;
+        beak.position.set(0, -0.06, 0.5);
+        // Penachos Reais e Coroa Flutuante
+        [-1, 1].forEach(s => {
+          const crest = new THREE.Mesh(new THREE.ConeGeometry(0.1, 0.55, 6), MATS.gold);
+          crest.position.set(s * 0.32, 0.42, 0.1);
+          crest.rotation.z = -s * 0.45;
+          head.add(crest);
+        });
+        const crown = new THREE.Mesh(new THREE.CylinderGeometry(0.42, 0.34, 0.36, 10), MATS.goldCrystal);
+        crown.position.y = 0.65;
+        head.add(owlSkull, eyeRingL, eyeRingR, eyeOrbL, eyeOrbR, beak, crown);
+        parts.head = head;
+
+        // 4 Asas Celestes (Safira & Ouro)
+        [-1, 1].forEach(s => {
+          const wUpper = createArticulatedWing(2.9, MATS.cyanCrystal, MATS.gold, s);
+          wUpper.position.set(s * 0.38, 3.8, -0.35);
+          const wLower = createArticulatedWing(2.2, MATS.gold, MATS.cyanCrystal, s);
+          wLower.position.set(s * 0.35, 2.7, -0.4);
+          bodyGroup.add(wUpper, wLower);
+          parts.wings.push({ mesh: wUpper, side: s, baseRotZ: 0.1 * s }, { mesh: wLower, side: s, baseRotZ: -0.15 * s });
+        });
+
+        // Astrolábio Flutuante na Mão Direita
+        const astrolabe = new THREE.Mesh(new THREE.IcosahedronGeometry(0.48, 1), MATS.goldCrystal);
+        astrolabe.position.set(1.05, 3.4, 0.65);
+        bodyGroup.add(cloak, chest, mantle, head, astrolabe);
+        parts.rings.push({ mesh: astrolabe, axis: 'y', speed: 1.5 });
+
+      } else if (daemonId === 'astaroth') {
+        // 🌟 DUQUE ASTAROTH: Serafim de 6 Asas (Ouro, Esmeralda e Violeta) + Serpente Astral + Caduceu + Halo Merkabah
+        // Espiral da Serpente/Dragão Astral na Base
+        for (let i = 0; i < 14; i++) {
+          const a = (i / 14) * Math.PI * 3.2;
+          const r = 1.25 - i * 0.04;
+          const seg = new THREE.Mesh(new THREE.SphereGeometry(0.34 - i * 0.012, 10, 10), i % 2 === 0 ? MATS.emeraldCrystal : MATS.gold);
+          seg.position.set(Math.cos(a) * r, 0.35 + i * 0.14, Math.sin(a) * r);
+          bodyGroup.add(seg);
+        }
+
+        const torso = new THREE.Mesh(new THREE.CylinderGeometry(0.65, 0.45, 2.4, 12), MATS.obsidian);
+        torso.position.y = 3.0;
+        const breastplate = new THREE.Mesh(new THREE.OctahedronGeometry(0.45, 0), MATS.emeraldCrystal);
+        breastplate.position.set(0, 3.45, 0.45);
+
+        const head = new THREE.Group();
+        head.position.y = 4.65;
+        const face = new THREE.Mesh(new THREE.SphereGeometry(0.42, 16, 16), MATS.whiteMarble);
+        const crown = new THREE.Mesh(new THREE.TorusGeometry(0.45, 0.09, 10, 24), MATS.goldCrystal);
+        crown.rotation.x = Math.PI / 2;
+        crown.position.y = 0.32;
+        const star = new THREE.Mesh(new THREE.OctahedronGeometry(0.24, 0), MATS.emeraldCrystal);
+        star.position.set(0, 0.65, 0.25);
+        head.add(face, crown, star);
+        parts.head = head;
+
+        // 6 Asas Seráficas (3 pares: Superior, Médio e Inferior)
+        [-1, 1].forEach(s => {
+          [0, 1, 2].forEach(lvl => {
+            const w = createArticulatedWing(2.8 - lvl * 0.35, lvl === 1 ? MATS.violetCrystal : MATS.gold, MATS.emeraldCrystal, s);
+            w.position.set(s * 0.38, 4.1 - lvl * 0.75, -0.35 - lvl * 0.08);
+            bodyGroup.add(w);
+            parts.wings.push({ mesh: w, side: s, baseRotZ: (0.22 - lvl * 0.2) * s });
+          });
+        });
+
+        // Halo Merkabah Giratório sobre a Cabeça
+        const merkabahHalo = createMerkabahMesh(0.85, MATS.goldCrystal, MATS.violetCrystal);
+        merkabahHalo.position.set(0, 5.85, 0);
+        bodyGroup.add(torso, breastplate, head, merkabahHalo);
+        parts.rings.push({ mesh: merkabahHalo, axis: 'y', speed: 1.2 });
+
+      } else {
+        // 🔥 REI ASMODEUS: Armadura Salomônica de Obsidiana & Ouro, Coroa Tripla de Fogo, Roda Ophanim e Lança Solar
+        const armorSkirt = new THREE.Mesh(new THREE.ConeGeometry(1.22, 2.8, 10), MATS.obsidian);
+        armorSkirt.position.y = 1.4;
+        const chest = new THREE.Mesh(new THREE.CylinderGeometry(0.76, 0.55, 1.8, 10), MATS.gold);
+        chest.position.y = 3.35;
+        const coreSun = new THREE.Mesh(new THREE.OctahedronGeometry(0.38, 1), MATS.rubyCrystal);
+        coreSun.position.set(0, 3.45, 0.58);
+
+        const head = new THREE.Group();
+        head.position.y = 4.7;
+        const helm = new THREE.Mesh(new THREE.SphereGeometry(0.44, 14, 14), MATS.obsidian);
+        const visor = new THREE.Mesh(new THREE.BoxGeometry(0.55, 0.14, 0.3), MATS.rubyCrystal);
+        visor.position.set(0, 0.05, 0.34);
+        // Coroa Tripla de Fogo e Chifres Solares Dourados
+        [-1, 1].forEach(s => {
+          const horn = new THREE.Mesh(new THREE.ConeGeometry(0.12, 0.85, 8), MATS.goldCrystal);
+          horn.position.set(s * 0.42, 0.48, 0);
+          horn.rotation.z = -s * 0.42;
+          head.add(horn);
+        });
+        const flameCrown = new THREE.Mesh(new THREE.OctahedronGeometry(0.32, 0), MATS.rubyCrystal);
+        flameCrown.position.y = 0.65;
+        head.add(helm, visor, flameCrown);
+        parts.head = head;
+
+        // Lança Dourada da Geomancia
+        const spearShaft = new THREE.Mesh(new THREE.CylinderGeometry(0.055, 0.055, 4.8, 8), MATS.gold);
+        spearShaft.position.set(1.08, 2.9, 0.4);
+        const spearTip = new THREE.Mesh(new THREE.ConeGeometry(0.24, 0.9, 6), MATS.rubyCrystal);
+        spearTip.position.set(1.08, 5.5, 0.4);
+
+        // Roda Ophanim de Fogo Girando atrás de Asmodeus
+        const ophanim = new THREE.Group();
+        ophanim.position.set(0, 3.8, -0.65);
+        const oRing1 = new THREE.Mesh(new THREE.TorusGeometry(2.35, 0.12, 10, 36), MATS.rubyCrystal);
+        const oRing2 = new THREE.Mesh(new THREE.TorusGeometry(1.85, 0.09, 10, 32), MATS.goldCrystal);
+        ophanim.add(oRing1, oRing2);
+        for (let i = 0; i < 8; i++) {
+          const a = (i / 8) * Math.PI * 2;
+          const ray = new THREE.Mesh(new THREE.ConeGeometry(0.16, 0.75, 6), MATS.goldCrystal);
+          ray.position.set(Math.cos(a) * 2.65, Math.sin(a) * 2.65, 0);
+          ray.rotation.z = a - Math.PI / 2;
+          ophanim.add(ray);
+        }
+        parts.rings.push({ mesh: ophanim, axis: 'z', speed: 1.1 });
+
+        [-1, 1].forEach(s => {
+          const w = createArticulatedWing(2.8, MATS.rubyCrystal, MATS.goldCrystal, s);
+          w.position.set(s * 0.42, 3.7, -0.35);
+          bodyGroup.add(w);
+          parts.wings.push({ mesh: w, side: s, baseRotZ: 0.08 * s });
+        });
+
+        bodyGroup.add(armorSkirt, chest, coreSun, head, spearShaft, spearTip, ophanim);
+      }
+
+      // 4 Orbes/Espíritos Familiares Orbitando o Daemon
+      for (let i = 0; i < 4; i++) {
+        const orb = new THREE.Mesh(
+          new THREE.OctahedronGeometry(0.24, 0),
+          i % 2 === 0 ? MATS.goldCrystal : MATS.rubyCrystal
+        );
+        orb.add(makeGlowSprite(info.primaryColor, 2.2, 0.9));
+        root.add(orb);
+        parts.orbs.push({ mesh: orb, angle: (i / 4) * Math.PI * 2, r: 2.35, y: 2.2 + (i % 2) * 1.4 });
+      }
+
+      // Placa Flutuante com Nome e Patente do Daemon
+      const banner = createLabelSprite(`${info.icon} ${info.name.toUpperCase()} [F: Pacto]`, '#fbbf24');
+      banner.position.set(0, 6.45, 0);
+      root.add(banner);
+
+      // Luz Pontual Intensa do Daemon
+      const dLight = new THREE.PointLight(info.primaryColor, 2.2, 24);
+      dLight.position.set(0, 4.2, 1.0);
+      root.add(dLight);
+
+      return { root, parts };
+    }
+
+    // Monta o daemon com os modelos 3D Tripo (figura + sigilo), mantendo o mesmo
+    // formato de "parts" do modelo procedural para o updateActiveDaemon não mudar:
+    // body (levitação), rings (sigilos girando), orbs (orbitando), head (nulo: o GLB
+    // não tem cabeça separada — updateActiveDaemon não usa parts.head).
+    function buildTripoDaemonModel(daemonId, entry) {
+      const info = DAEMONS_DATA[daemonId] || DAEMONS_DATA.paimon;
+      const root = new THREE.Group();
+      const parts = { wings: [], rings: [], orbs: [], head: null, body: null };
+
+      // 1. Círculo de Sigilo no chão (textura procedural, igual ao modelo por código)
+      const floorSigil = new THREE.Mesh(
+        new THREE.PlaneGeometry(6.8, 6.8),
+        new THREE.MeshBasicMaterial({
+          map: daemonSigilTextures[daemonId],
+          transparent: true,
+          opacity: 0.95,
+          side: THREE.DoubleSide,
+          blending: THREE.AdditiveBlending,
+          depthWrite: false
+        })
+      );
+      floorSigil.rotation.x = -Math.PI / 2;
+      floorSigil.position.y = 0.08;
+      root.add(floorSigil);
+      parts.rings.push({ mesh: floorSigil, axis: 'z', speed: 0.65 });
+
+      // 2. Sigilo 3D Tripo girando atrás do daemon (pivô centralizado no sigilo)
+      const sigilPivot = new THREE.Group();
+      sigilPivot.position.set(0, DAEMON_GLB_SIGIL_HEIGHT, -0.95);
+      const sigilMesh = entry.sigil;
+      sigilMesh.scale.setScalar(DAEMON_GLB_SIGIL_SCALE);
+      sigilMesh.position.y = -(DAEMON_GLB_SIGIL_SCALE * DAEMON_GLB_SIGIL_ORIGIN_H) / 2;
+      sigilPivot.add(sigilMesh);
+      root.add(sigilPivot);
+      parts.rings.push({ mesh: sigilPivot, axis: 'z', speed: -0.8 });
+
+      // 3. Figura 3D Tripo (corpo que levita com a respiração)
+      const bodyGroup = new THREE.Group();
+      const model = entry.model;
+      model.scale.setScalar(DAEMON_GLB_MODEL_SCALE);
+      bodyGroup.add(model);
+      root.add(bodyGroup);
+      parts.body = bodyGroup;
+
+      // 4. Orbes/Espíritos Familiares orbitando (igual ao modelo por código)
+      for (let i = 0; i < 4; i++) {
+        const orb = new THREE.Mesh(
+          new THREE.OctahedronGeometry(0.24, 0),
+          i % 2 === 0 ? MATS.goldCrystal : MATS.rubyCrystal
+        );
+        orb.add(makeGlowSprite(info.primaryColor, 2.2, 0.9));
+        root.add(orb);
+        parts.orbs.push({ mesh: orb, angle: (i / 4) * Math.PI * 2, r: 2.35, y: 2.2 + (i % 2) * 1.4 });
+      }
+
+      // 5. Placa flutuante com nome + luz pontual (igual ao modelo por código)
+      const banner = createLabelSprite(`${info.icon} ${info.name.toUpperCase()} [F: Pacto]`, '#fbbf24');
+      banner.position.set(0, 6.45, 0);
+      root.add(banner);
+      const dLight = new THREE.PointLight(info.primaryColor, 2.2, 24);
+      dLight.position.set(0, 4.2, 1.0);
+      root.add(dLight);
+
+      return { root, parts };
+    }
+
+    // --------------------------------------------------------------------------
+    // 7. SISTEMA INTERATIVO DE EVOCAÇÃO GOÉTICA (RITUAL, BÊNÇÃOS & GUARDIÃO)
+    // --------------------------------------------------------------------------
+    function summonDaemonById(daemonId, nearPlayer = false, customPos = null) {
+      const info = DAEMONS_DATA[daemonId] || DAEMONS_DATA.paimon;
+      activeDaemonState.id = daemonId;
+      player.activeBoon = daemonId;
+
+      if (activeDaemonState.group) {
+        scene.remove(activeDaemonState.group);
+      }
+      if (activeDaemonState.summonBeam) {
+        scene.remove(activeDaemonState.summonBeam);
+        activeDaemonState.summonBeam = null;
+      }
+
+      // Define onde o Daemon se manifesta
+      if (customPos) {
+        activeDaemonState.pos.copy(customPos);
+      } else if (nearPlayer) {
+        const fwd = new THREE.Vector3(-Math.sin(player.yaw), 0, -Math.cos(player.yaw));
+        const tx = player.pos.x + fwd.x * 6.8;
+        const tz = player.pos.z + fwd.z * 6.8;
+        const gy = getGroundHeight(tx, tz) ?? (player.pos.y - EYE_HEIGHT);
+        activeDaemonState.pos.set(tx, gy, tz);
+      }
+
+      activeDaemonState.targetPos.copy(activeDaemonState.pos);
+
+      const myToken = ++activeDaemonState.summonToken;
+      // Evoca na hora com a figura arcana procedural (reserva instantânea) e troca
+      // para o modelo 3D Tripo assim que ele carregar (sob demanda + cache).
+      const built = build3DDaemonModel(daemonId);
+      activeDaemonState.group = built.root;
+      activeDaemonState.parts = built.parts;
+      activeDaemonState.usingTripo = false;
+      activeDaemonState.group.position.copy(activeDaemonState.pos);
+      activeDaemonState.group.scale.set(0.05, 0.05, 0.05);
+      activeDaemonState.summonProgress = 0.01;
+      scene.add(activeDaemonState.group);
+
+      // Pilar de Luz Astral do Ritual de Evocação
+      const beamMat = daemonId === 'stolas' ? MATS.godRayCyan : daemonId === 'asmodeus' ? MATS.godRayCrimson : MATS.godRayGold;
+      const beam = new THREE.Mesh(new THREE.CylinderGeometry(2.4, 2.4, 26, 20, 1, true), beamMat);
+      beam.position.set(activeDaemonState.pos.x, activeDaemonState.pos.y + 13, activeDaemonState.pos.z);
+      scene.add(beam);
+      activeDaemonState.summonBeam = beam;
+
+      spawnBurst(new THREE.Vector3(activeDaemonState.pos.x, activeDaemonState.pos.y + 2.0, activeDaemonState.pos.z), info.primaryColor, 38);
+      playRitualChord(info.chord, 2.5);
+      syncDaemonHUD();
+      resetOrbitCamera(); // órbita começa atrás do jogador, olhando para o daemon
+      updateOrbitHint();
+      showToast(`🔱 Evocado: ${info.icon} ${info.name} — Bênção: ${info.boonName}!`);
+
+      // Troca para o modelo 3D Tripo quando o GLB carregar (ou avisa 1x se falhar).
+      loadDaemonGLB(daemonId, (entry) => {
+        if (!entry) {
+          if (myToken === activeDaemonState.summonToken && !daemonGLBFailedNotified.has(daemonId)) {
+            daemonGLBFailedNotified.add(daemonId);
+            showToast('⚠️ Modelo 3D do daemon indisponível — figura arcana em uso.');
+          }
+          return;
+        }
+        if (myToken !== activeDaemonState.summonToken) return; // outra evocação já aconteceu
+        if (activeDaemonState.id !== daemonId) return;
+        if (!activeDaemonState.group) return; // daemon já foi dispensado
+        const oldGroup = activeDaemonState.group;
+        const tripo = buildTripoDaemonModel(daemonId, entry);
+        tripo.root.position.copy(activeDaemonState.pos);
+        const s = Math.max(THREE.MathUtils.smoothstep(activeDaemonState.summonProgress, 0, 1), 0.05);
+        tripo.root.scale.set(s, s, s);
+        scene.remove(oldGroup);
+        activeDaemonState.group = tripo.root;
+        activeDaemonState.parts = tripo.parts;
+        activeDaemonState.usingTripo = true;
+        scene.add(tripo.root);
+        spawnBurst(new THREE.Vector3(activeDaemonState.pos.x, activeDaemonState.pos.y + 2.5, activeDaemonState.pos.z), info.primaryColor, 24);
+      });
+    }
+
+    function summonCurrentDaemonHere() {
+      summonDaemonById(activeDaemonState.id || 'paimon', true);
+    }
+
+    function dismissDaemon() {
+      if (activeDaemonState.group) {
+        spawnBurst(activeDaemonState.pos.clone().add(new THREE.Vector3(0, 2.5, 0)), 0xfbbf24, 30);
+        scene.remove(activeDaemonState.group);
+        activeDaemonState.group = null;
+      }
+      if (activeDaemonState.summonBeam) {
+        scene.remove(activeDaemonState.summonBeam);
+        activeDaemonState.summonBeam = null;
+      }
+      closeGoetiaModal();
+      updateOrbitHint(); // sem daemon, a dica some e a câmera volta à 1ª pessoa
+      showToast('🕊️ Licença para Partir concedida em paz.');
+    }
+
+    function toggleDaemonFollow() {
+      activeDaemonState.followPlayer = !activeDaemonState.followPlayer;
+      syncDaemonHUD();
+      showToast(activeDaemonState.followPlayer
+        ? '👁️ Modo Guardião: O Daemon acompanha você pelo Arquipélago!'
+        : '🏛️ Modo Santuário: O Daemon permanece no Círculo de Salomão.');
+    }
+
+    function syncDaemonHUD() {
+      const info = DAEMONS_DATA[activeDaemonState.id] || DAEMONS_DATA.paimon;
+      const badge = document.getElementById('active-daemon-badge');
+      if (badge) badge.textContent = `${info.icon} ${info.name}`;
+
+      ['paimon', 'stolas', 'astaroth', 'asmodeus'].forEach(id => {
+        const b = document.getElementById(`qbtn-${id}`);
+        if (b) b.classList.toggle('goetia-active', id === activeDaemonState.id);
+      });
+
+      const lblF = document.getElementById('lbl-follow-mode');
+      if (lblF) lblF.textContent = activeDaemonState.followPlayer ? 'Guardião: Sim' : 'Guardião: Não';
+      const modF = document.getElementById('modal-follow-btn');
+      if (modF) {
+        modF.textContent = activeDaemonState.followPlayer ? '👁️ Modo Guardião: Ativo' : '🏛️ Modo Guardião: Fixo no Altar';
+        modF.classList.toggle('active', activeDaemonState.followPlayer);
+      }
+    }
+
+    function updateActiveDaemon(dt, elapsed) {
+      if (!activeDaemonState.group) return;
+      const grp = activeDaemonState.group;
+      const parts = activeDaemonState.parts;
+
+      // Animação de Ascensão Ritual ao ser Evocado
+      if (activeDaemonState.summonProgress < 1.0) {
+        activeDaemonState.summonProgress = Math.min(1.0, activeDaemonState.summonProgress + dt * 1.45);
+        const s = THREE.MathUtils.smoothstep(activeDaemonState.summonProgress, 0, 1);
+        grp.scale.set(s, s, s);
+        if (activeDaemonState.summonBeam) {
+          activeDaemonState.summonBeam.rotation.y += dt * 2.5;
+          if (activeDaemonState.summonProgress >= 1.0) {
+            scene.remove(activeDaemonState.summonBeam);
+            activeDaemonState.summonBeam = null;
+          }
+        }
+      }
+
+      // Se o Modo Guardião estiver ativo e o jogador se afastar mais de 9.5 unidades, o Daemon acompanha suavemente
+      if (activeDaemonState.followPlayer) {
+        const distToPlayer = Math.hypot(player.pos.x - activeDaemonState.pos.x, player.pos.z - activeDaemonState.pos.z);
+        if (distToPlayer > 9.5) {
+          const angleToDaemon = Math.atan2(activeDaemonState.pos.x - player.pos.x, activeDaemonState.pos.z - player.pos.z);
+          const tx = player.pos.x + Math.sin(angleToDaemon) * 6.5;
+          const tz = player.pos.z + Math.cos(angleToDaemon) * 6.5;
+          const gy = getGroundHeight(tx, tz) ?? (player.pos.y - EYE_HEIGHT);
+          activeDaemonState.targetPos.set(tx, gy, tz);
+        }
+        activeDaemonState.pos.lerp(activeDaemonState.targetPos, Math.min(1, dt * 3.2));
+        grp.position.copy(activeDaemonState.pos);
+      }
+
+      // O Daemon olha majestosamente para o jogador
+      const lookAngle = Math.atan2(player.pos.x - grp.position.x, player.pos.z - grp.position.z);
+      grp.rotation.y = lookAngle;
+
+      // Levitação respiratória do corpo
+      if (parts.body) {
+        parts.body.position.y = Math.sin(elapsed * 2.2) * 0.22;
+      }
+
+      // Batimento gracioso das asas articuladas
+      if (parts.wings) {
+        for (let i = 0; i < parts.wings.length; i++) {
+          const w = parts.wings[i];
+          w.mesh.rotation.y = Math.sin(elapsed * 3.1 + i * 0.4) * 0.34 * w.side;
+          w.mesh.rotation.z = w.baseRotZ + Math.cos(elapsed * 3.1) * 0.08 * w.side;
+        }
+      }
+
+      // Rotação de halos, sigilos e astrolábios
+      if (parts.rings) {
+        for (let i = 0; i < parts.rings.length; i++) {
+          const r = parts.rings[i];
+          r.mesh.rotation[r.axis] += r.speed * dt;
+        }
+      }
+
+      // Orbes familiares orbitando o Daemon
+      if (parts.orbs) {
+        for (let i = 0; i < parts.orbs.length; i++) {
+          const o = parts.orbs[i];
+          o.angle += dt * 1.35;
+          o.mesh.position.set(
+            Math.cos(o.angle) * o.r,
+            o.y + Math.sin(elapsed * 3.0 + i) * 0.25,
+            Math.sin(o.angle) * o.r
+          );
+        }
+      }
+
+      isNearActiveDaemon = player.pos.distanceTo(grp.position) < 5.5;
+    }
+
+    // --------------------------------------------------------------------------
+    // 6B. ÓRBITA LIVRE 360° DA CÂMERA AO REDOR DO DAEMON EVOCADO
+    // (lógica adaptada do Canvas do Gemini — seção 7 "ÓRBITA LIVRE 360°")
+    // Ativa sempre que há um daemon evocado (o Rei Paimon já nasce evocado no
+    // Triângulo da Arte). Sem daemon evocado, a câmera continua em 1ª pessoa.
+    // --------------------------------------------------------------------------
+    let camYaw = 0.35;          // Ângulo horizontal livre (360° sem trava)
+    let camPitch = 0.32;        // Inclinação vertical
+    let camDistance = 8.5;      // Distância de zoom ao redor do daemon evocado
+    const minZoomDist = 2.5;
+    const maxZoomDist = 22.0;
+    let pinchStartDist = 0;
+    let pinchZoomActive = false;
+    const cameraFocusPoint = new THREE.Vector3(0, 2.5, 3.5);
+    const _vOrbitFocus = new THREE.Vector3();
+
+    // Órbita ativa = há um daemon evocado no mundo.
+    function isOrbitActive() {
+      return !!activeDaemonState.group;
+    }
+
+    // (Re)posiciona a órbita atrás do jogador, olhando para o daemon.
+    function resetOrbitCamera() {
+      camYaw = player.yaw;
+      camPitch = 0.32;
+      camDistance = 8.5;
+      if (activeDaemonState.group) {
+        cameraFocusPoint.set(activeDaemonState.pos.x, activeDaemonState.pos.y + 2.5, activeDaemonState.pos.z);
+      }
+    }
+
+    // Aplica a câmera orbital (chamado no fim do updatePlayer, depois da câmera
+    // em 1ª pessoa). O foco persegue suavemente o daemon — no Modo Guardião a
+    // câmera acompanha o daemon enquanto ele acompanha o jogador.
+    function updateOrbitCamera(dt) {
+      if (!activeDaemonState.group) return;
+      _vOrbitFocus.set(activeDaemonState.pos.x, activeDaemonState.pos.y + 2.5, activeDaemonState.pos.z);
+      cameraFocusPoint.lerp(_vOrbitFocus, Math.min(1, dt * 8.0));
+      const horizDist = camDistance * Math.cos(camPitch);
+      camera.position.set(
+        cameraFocusPoint.x + horizDist * Math.sin(camYaw),
+        cameraFocusPoint.y + camDistance * Math.sin(camPitch),
+        cameraFocusPoint.z + horizDist * Math.cos(camYaw)
+      );
+      camera.lookAt(cameraFocusPoint);
+      // Mantém o jogador coerente com a câmera: andar (WASD/joystick), feitiços
+      // (que miram pela câmera) e minimapa seguem a direção da órbita; ao
+      // dispensar o daemon, a 1ª pessoa volta exatamente de onde a câmera estava.
+      player.yaw = camYaw;
+      player.pitch = THREE.MathUtils.clamp(-camPitch, -1.35, 1.35);
+    }
+
+    // Mostra/esconde a dica da órbita no HUD.
+    function updateOrbitHint() {
+      const el = document.getElementById('orbit-hint');
+      if (el) el.style.display = isOrbitActive() ? 'block' : 'none';
+    }
+
+    // --------------------------------------------------------------------------
+    // 8. CONSTRUÇÃO DAS 12 ILHAS ESOTÉRICAS & TEMPLO DE SALOMÃO
+    // --------------------------------------------------------------------------
+    function createIslandBase(isl) {
+      const grp = new THREE.Group();
+      grp.position.set(isl.x, isl.y, isl.z);
+
+      const floorMat = (isl.id === 'center' || isl.id === 'citadel' || isl.id === 'pantheon') ? MATS.mosaicFloor : MATS.stone;
+      const deck = new THREE.Mesh(new THREE.CylinderGeometry(isl.r, isl.r * 0.95, 1.3, 36), floorMat);
+      deck.position.y = -0.65;
+      const rim = new THREE.Mesh(new THREE.TorusGeometry(isl.r, 0.20, 8, 44), MATS.gold);
+      rim.rotation.x = Math.PI / 2;
+      rim.position.y = 0.02;
+      const coneH = isl.r * 1.1;
+      const underRock = new THREE.Mesh(new THREE.ConeGeometry(isl.r * 0.92, coneH, 12), MATS.rock);
+      underRock.rotation.x = Math.PI;
+      underRock.position.y = -1.3 - coneH * 0.5;
+      grp.add(deck, rim, underRock);
+
+      const cMat = isl.theme === 'cyan' ? MATS.cyanCrystal : isl.theme === 'emerald' ? MATS.emeraldCrystal : isl.theme === 'gold' ? MATS.goldCrystal : MATS.violetCrystal;
+      for (let i = 0; i < 6; i++) {
+        const a = (i / 6) * Math.PI * 2;
+        const vein = new THREE.Mesh(new THREE.OctahedronGeometry(0.75, 0), cMat);
+        vein.scale.set(1.2, 3.9, 1.2);
+        vein.position.set(Math.cos(a) * (isl.r * 0.56), -1.3 - coneH * 0.35, Math.sin(a) * (isl.r * 0.56));
+        grp.add(vein);
+      }
+
+      scene.add(grp);
+      return grp;
+    }
+
+    function buildBridges() {
+      BRIDGES.forEach(br => {
+        const x1 = br.ax + br.ux * br.sStart, z1 = br.az + br.uz * br.sStart, y1 = br.ay;
+        const x2 = br.ax + br.ux * br.sEnd, z2 = br.az + br.uz * br.sEnd, y2 = br.by;
+        const dx = x2 - x1, dz = z2 - z1;
+        const horizLen = Math.hypot(dx, dz);
+        const fullLen = Math.hypot(horizLen, y2 - y1);
+
+        const grp = new THREE.Group();
+        grp.position.set((x1 + x2) * 0.5, (y1 + y2) * 0.5, (z1 + z2) * 0.5);
+        grp.rotation.order = 'YXZ';
+        grp.rotation.y = Math.atan2(dx, dz);
+        grp.rotation.x = -Math.atan2(y2 - y1, horizLen);
+
+        const deck = new THREE.Mesh(new THREE.BoxGeometry(5.3, 0.16, fullLen), MATS.energyBridge);
+        deck.position.y = -0.08;
+        grp.add(deck);
+
+        [-2.55, 2.55].forEach(rx => {
+          const rail = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.24, fullLen), MATS.gold);
+          rail.position.set(rx, 0.06, 0);
+          grp.add(rail);
+        });
+        scene.add(grp);
+      });
+    }
+
+    function buildIsland1AndSolomonTemple() {
+      const isl = ISLAND_MAP.center;
+      const grp = createIslandBase(isl);
+
+      // 1. AS DUAS COLUNAS HERMÉTICAS MONUMENTAIS: BOAZ (Esquerda/Obsidiana) & JACHIN (Direita/Ouro & Marfim)
+      [[-5.2, 'BOAZ (Força • Severidade)', MATS.obsidian, MATS.cyanCrystal],
+       [5.2, 'JACHIN (Beleza • Misericórdia)', MATS.whiteMarble, MATS.goldCrystal]].forEach(([px, name, colMat, orbMat]) => {
+        const pGrp = new THREE.Group();
+        pGrp.position.set(px, 0, -4.6);
+        const base = new THREE.Mesh(new THREE.BoxGeometry(1.8, 1.1, 1.8), MATS.gold);
+        base.position.y = 0.55;
+        const shaft = new THREE.Mesh(new THREE.CylinderGeometry(0.68, 0.78, 10.5, 16), colMat);
+        shaft.position.y = 6.35;
+        const capital = new THREE.Mesh(new THREE.CylinderGeometry(1.05, 0.72, 1.2, 16), MATS.gold);
+        capital.position.y = 12.1;
+        const globe = new THREE.Mesh(new THREE.SphereGeometry(0.85, 16, 16), orbMat);
+        globe.position.y = 13.55;
+        globe.add(makeGlowSprite(px < 0 ? 0x38bdf8 : 0xfbbf24, 4.8, 0.9));
+        const lbl = createLabelSprite(name);
+        lbl.scale.set(3.2, 0.7, 1);
+        lbl.position.set(0, 3.2, 1.1);
+        pGrp.add(base, shaft, capital, globe, lbl);
+        grp.add(pGrp);
+      });
+
+      // 2. GRANDE TEMPLO DE SALOMÃO & ARS GOETIA (24x24x15 em x=0, z=-18)
+      const cath = new THREE.Group();
+      const cz = -18.0;
+      const wallH = 14.6;
+
+      const floor = new THREE.Mesh(new THREE.BoxGeometry(24, 0.4, 24), MATS.mosaicFloor);
+      floor.position.set(0, 0.2, cz);
+      const ramp = new THREE.Mesh(new THREE.BoxGeometry(7.2, 0.25, 2.2), MATS.gold);
+      ramp.position.set(0, 0.16, -5.0);
+      ramp.rotation.x = 0.18;
+      const carpet = new THREE.Mesh(new THREE.PlaneGeometry(4.8, 19.5), MATS.carpet);
+      carpet.rotation.x = -Math.PI / 2;
+      carpet.position.set(0, 0.42, -16.2);
+      cath.add(floor, ramp, carpet);
+
+      // Paredes com Portal Salomônico Aberto
+      const sWallL = new THREE.Mesh(new THREE.BoxGeometry(8.8, wallH, 0.8), MATS.darkWall);
+      sWallL.position.set(-7.6, wallH * 0.5 + 0.4, -6.0);
+      const sWallR = new THREE.Mesh(new THREE.BoxGeometry(8.8, wallH, 0.8), MATS.darkWall);
+      sWallR.position.set(7.6, wallH * 0.5 + 0.4, -6.0);
+      const sTop = new THREE.Mesh(new THREE.BoxGeometry(6.4, 6.6, 0.8), MATS.darkWall);
+      sTop.position.set(0, wallH - 2.9, -6.0);
+      const nWall = new THREE.Mesh(new THREE.BoxGeometry(24.4, wallH, 0.8), MATS.darkWall);
+      nWall.position.set(0, wallH * 0.5 + 0.4, -30.0);
+      const wWall = new THREE.Mesh(new THREE.BoxGeometry(0.8, wallH, 24.0), MATS.darkWall);
+      wWall.position.set(-12.0, wallH * 0.5 + 0.4, cz);
+      const eWall = new THREE.Mesh(new THREE.BoxGeometry(0.8, wallH, 24.0), MATS.darkWall);
+      eWall.position.set(12.0, wallH * 0.5 + 0.4, cz);
+      cath.add(sWallL, sWallR, sTop, nWall, wWall, eWall);
+
+      // 4 Torres Salomônicas com Pirâmides Douradas nos Cantos
+      [[-12, -6], [12, -6], [-12, -30], [12, -30]].forEach(([tx, tz]) => {
+        const t = new THREE.Mesh(new THREE.CylinderGeometry(1.4, 1.65, 18, 12), MATS.obsidian);
+        t.position.set(tx, 9, tz);
+        const roof = new THREE.Mesh(new THREE.ConeGeometry(2.0, 5.5, 4), MATS.gold);
+        roof.position.set(tx, 20.7, tz);
+        cath.add(t, roof);
+      });
+
+      const vault = new THREE.Mesh(
+        new THREE.CylinderGeometry(12, 12, 24, 18, 1, true, 0, Math.PI),
+        new THREE.MeshStandardMaterial({ color: 0x0b071b, roughness: 0.35, side: THREE.DoubleSide })
+      );
+      vault.rotation.z = Math.PI / 2;
+      vault.rotation.y = Math.PI / 2;
+      vault.position.set(0, wallH + 0.4, cz);
+      cath.add(vault);
+
+      // 10 Colunas de Obsidiana & Ouro + Galerias
+      const colGeo = new THREE.CylinderGeometry(0.45, 0.54, 11.6, 12);
+      [-26, -22, -18, -14, -10].forEach(zPos => {
+        [-7.8, 7.8].forEach(xPos => {
+          const col = new THREE.Mesh(colGeo, MATS.obsidian);
+          col.position.set(xPos, 6.2, zPos);
+          const ring = new THREE.Mesh(new THREE.TorusGeometry(0.56, 0.08, 8, 20), MATS.gold);
+          ring.rotation.x = Math.PI / 2;
+          ring.position.set(xPos, 11.5, zPos);
+          cath.add(col, ring);
+        });
+      });
+
+      // Altar Supremo de Salomão (z = -27): Trono de Salomão, Vaso de Latão dos 72 Espíritos & Menorah dos 7 Planetas
+      const dais = new THREE.Mesh(new THREE.BoxGeometry(14.8, 0.8, 4.8), MATS.obsidian);
+      dais.position.set(0, 0.8, -27.2);
+      const throneSeat = new THREE.Mesh(new THREE.BoxGeometry(2.0, 0.85, 1.5), MATS.gold);
+      throneSeat.position.set(0, 1.6, -28.4);
+      const throneBack = new THREE.Mesh(new THREE.BoxGeometry(2.0, 3.8, 0.3), MATS.gold);
+      throneBack.position.set(0, 3.2, -29.0);
+
+      // Vaso de Latão de Salomão (Brass Vessel of the 72 Spirits)
+      const brassVessel = new THREE.Mesh(new THREE.CylinderGeometry(0.55, 0.35, 1.35, 16), MATS.brass);
+      brassVessel.position.set(0, 1.85, -25.4);
+      const vesselSeal = new THREE.Mesh(new THREE.TorusGeometry(0.62, 0.08, 10, 24), MATS.goldCrystal);
+      vesselSeal.rotation.x = Math.PI / 2;
+      vesselSeal.position.set(0, 2.55, -25.4);
+      const spiritFlame = new THREE.Mesh(new THREE.OctahedronGeometry(0.58, 1), MATS.rubyCrystal);
+      spiritFlame.position.set(0, 3.55, -25.4);
+      spiritFlame.add(makeGlowSprite(0xf43f5e, 4.5, 0.95));
+      cath.add(dais, throneSeat, throneBack, brassVessel, vesselSeal, spiritFlame);
+      floaters.push({ mesh: spiritFlame, baseY: 3.55, amp: 0.22, phase: 1.0 });
+
+      // Menorah Hermética dos 7 Planetas (à esquerda do Altar) + Espelho Negro de Scrying (à direita)
+      const menorah = new THREE.Group();
+      menorah.position.set(-3.6, 1.2, -26.2);
+      const mStand = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.45, 2.2, 10), MATS.gold);
+      mStand.position.y = 1.1;
+      menorah.add(mStand);
+      for (let i = -3; i <= 3; i++) {
+        const candle = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 0.65, 8), MATS.whiteMarble);
+        candle.position.set(i * 0.26, 2.35 + Math.abs(i) * 0.06, 0);
+        const flame = makeGlowSprite(0xfbbf24, 0.65, 0.95);
+        flame.position.set(i * 0.26, 2.8 + Math.abs(i) * 0.06, 0);
+        menorah.add(candle, flame);
+      }
+      cath.add(menorah);
+
+      const scryingMirror = new THREE.Group();
+      scryingMirror.position.set(3.6, 2.4, -26.2);
+      const mFrame = new THREE.Mesh(new THREE.TorusGeometry(0.95, 0.11, 10, 28), MATS.gold);
+      const mGlass = new THREE.Mesh(new THREE.CircleGeometry(0.92, 24), MATS.obsidian);
+      scryingMirror.add(mFrame, mGlass, makeGlowSprite(0xc084fc, 2.6, 0.65));
+      cath.add(scryingMirror);
+
+      // Grande Selo Dourado de Salomão & Rei Paimon na Parede Norte (z = -29.45)
+      const sealRim = new THREE.Mesh(new THREE.TorusGeometry(3.4, 0.24, 10, 40), MATS.gold);
+      sealRim.position.set(0, 8.2, -29.48);
+      const sealDisc = new THREE.Mesh(
+        new THREE.CircleGeometry(3.3, 36),
+        new THREE.MeshBasicMaterial({ map: solomonCircleTex, transparent: true, opacity: 0.95, blending: THREE.AdditiveBlending })
+      );
+      sealDisc.position.set(0, 8.2, -29.45);
+      cath.add(sealRim, sealDisc);
+      spinRings.push({ mesh: sealDisc, speed: -0.65 });
+
+      // Planetário Hermético Suspenso (Grand Orrery) + Vitrais com God Rays
+      grandOrrery = new THREE.Group();
+      grandOrrery.position.set(0, 11.5, cz);
+      const sun = new THREE.Mesh(new THREE.SphereGeometry(0.95, 14, 14), MATS.goldCrystal);
+      sun.add(makeGlowSprite(0xfbbf24, 5.8, 0.95));
+      grandOrrery.add(sun);
+      [2.1, 3.3, 4.5].forEach((r, i) => {
+        const ring = new THREE.Mesh(new THREE.TorusGeometry(r, 0.07, 8, 36), MATS.gold);
+        ring.rotation.x = Math.PI / 2 + (i - 1) * 0.22;
+        const pl = new THREE.Mesh(new THREE.SphereGeometry(0.28, 10, 10), i === 0 ? MATS.cyanCrystal : i === 1 ? MATS.rubyCrystal : MATS.emeraldCrystal);
+        grandOrrery.add(ring, pl);
+        orreryPlanets.push({ mesh: pl, r, angle: i * 2.0, speed: 0.85 - i * 0.2 });
+      });
+      cath.add(grandOrrery);
+
+      [-24.5, -20.0, -15.5, -11.0].forEach((wz, idx) => {
+        const wMat = idx % 3 === 0 ? MATS.stainedGold : idx % 3 === 1 ? MATS.stainedViolet : MATS.stainedCyan;
+        const rayMat = idx % 2 === 0 ? MATS.godRayGold : MATS.godRayCrimson;
+        [-11.55, 11.55].forEach(wx => {
+          const win = new THREE.Mesh(new THREE.PlaneGeometry(2.4, 5.8), wMat);
+          win.position.set(wx, 8.0, wz);
+          win.rotation.y = wx < 0 ? Math.PI / 2 : -Math.PI / 2;
+          const ray = new THREE.Mesh(new THREE.ConeGeometry(2.1, 10.5, 10, 1, true), rayMat);
+          ray.position.set(wx < 0 ? -7.5 : 7.5, 5.0, wz);
+          ray.rotation.z = wx < 0 ? Math.PI / 4 : -Math.PI / 4;
+          cath.add(win, ray);
+        });
+      });
+
+      const cathLight = new THREE.PointLight(0xffd685, 1.8, 32);
+      cathLight.position.set(0, 9.5, cz);
+      cath.add(cathLight);
+
+      scene.add(cath);
+    }
+
+    function buildRemaining11Islands() {
+      // Ilha 2: Torre da Astrologia Hermética (52, -52, y=1.5)
+      const g2 = createIslandBase(ISLAND_MAP.astronomy);
+      const armillary = new THREE.Group();
+      armillary.position.set(0, 5.2, 0);
+      const core2 = new THREE.Mesh(new THREE.OctahedronGeometry(1.15, 1), MATS.cyanCrystal);
+      core2.add(makeGlowSprite(0x38bdf8, 5.8, 0.95));
+      armillary.add(core2);
+      [2.3, 3.3, 4.3].forEach((r, idx) => {
+        const ring = new THREE.Mesh(new THREE.TorusGeometry(r, 0.12, 10, 40), idx === 1 ? MATS.cyanCrystal : MATS.gold);
+        ring.rotation.x = idx * 0.7;
+        armillary.add(ring);
+        spinRings.push({ mesh: ring, speed: (idx % 2 === 0 ? 1 : -1) * 0.75 });
+      });
+      g2.add(armillary);
+
+      // Ilha 3: Círculo de Teurgia & Duelos (68, 0, y=0)
+      const isl3 = ISLAND_MAP.arena;
+      const g3 = createIslandBase(isl3);
+      for (let i = 0; i < 8; i++) {
+        const a = (i / 8) * Math.PI * 2 + 0.3;
+        const ob = new THREE.Mesh(new THREE.CylinderGeometry(0.35, 0.6, 5.2, 4), MATS.obsidian);
+        ob.position.set(Math.cos(a) * 13.5, 2.6, Math.sin(a) * 13.5);
+        const cap = new THREE.Mesh(new THREE.OctahedronGeometry(0.48, 0), MATS.goldCrystal);
+        cap.position.set(Math.cos(a) * 13.5, 5.6, Math.sin(a) * 13.5);
+        g3.add(ob, cap);
+      }
+      for (let i = 0; i < 4; i++) {
+        const a = (i / 4) * Math.PI * 2 + 0.78;
+        const tMesh = new THREE.Mesh(new THREE.OctahedronGeometry(0.68, 0), MATS.rubyCrystal);
+        tMesh.position.set(isl3.x + Math.cos(a) * 7.5, isl3.y + 2.4, isl3.z + Math.sin(a) * 7.5);
+        tMesh.add(makeGlowSprite(0xf43f5e, 3.2, 0.9));
+        scene.add(tMesh);
+        floaters.push({ mesh: tMesh, baseY: isl3.y + 2.4, amp: 0.4, phase: i });
+        reactiveTargets.push({
+          pos: tMesh.position, r: 1.9,
+          onHit: () => {
+            tMesh.material = MATS.goldCrystal;
+            spawnBurst(tMesh.position, 0xfbbf24, 24);
+            playRitualChord([220, 329.6, 440], 0.8);
+            showToast(`⚔️ Orbe de Teurgia #${i + 1} Consagrado!`);
+          }
+        });
+      }
+
+      // Ilha 4: Bosque da Árvore da Vida / Sephiroth (0, 68, y=-0.5)
+      const g4 = createIslandBase(ISLAND_MAP.grove);
+      const pond = new THREE.Mesh(new THREE.CircleGeometry(5.2, 32), MATS.cyanCrystal);
+      pond.rotation.x = -Math.PI / 2;
+      pond.position.set(0, 0.03, 1.5);
+      g4.add(pond);
+      [[-8, -5], [8, -5], [-8.5, 6], [8.5, 6], [-4, 11], [4, 11], [0, -10]].forEach(([tx, tz], idx) => {
+        const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.32, 0.55, 4.6, 8), MATS.gold);
+        trunk.position.set(tx, 2.3, tz);
+        const crown = new THREE.Mesh(new THREE.OctahedronGeometry(2.1, 1), idx % 2 === 0 ? MATS.emeraldCrystal : MATS.goldCrystal);
+        crown.position.set(tx, 5.2, tz);
+        g4.add(trunk, crown);
+      });
+
+      // Ilha 5: Biblioteca de Alexandria & Lemegeton (-68, 0, y=1.0)
+      const g5 = createIslandBase(ISLAND_MAP.library);
+      const emeraldTablet = new THREE.Mesh(new THREE.BoxGeometry(2.4, 3.8, 0.35), MATS.emeraldCrystal);
+      emeraldTablet.position.y = 2.6;
+      emeraldTablet.add(makeGlowSprite(0x34d399, 5.0, 0.85));
+      g5.add(emeraldTablet);
+      for (let i = 0; i < 8; i++) {
+        const a = (i / 8) * Math.PI * 2;
+        if (Math.cos(a) > 0.7 || Math.sin(a) > 0.7) continue;
+        const shelf = new THREE.Mesh(new THREE.BoxGeometry(3.4, 6.8, 0.85), MATS.obsidian);
+        shelf.position.set(Math.cos(a) * 12.2, 3.4, Math.sin(a) * 12.2);
+        shelf.lookAt(0, 3.4, 0);
+        g5.add(shelf);
+      }
+      for (let i = 0; i < 10; i++) {
+        const bk = new THREE.Mesh(new THREE.BoxGeometry(0.75, 0.12, 0.55), MATS.gold);
+        g5.add(bk);
+        floatingBooks.push({ mesh: bk, angle: (i / 10) * Math.PI * 2, r: 4.5 + (i % 3) * 2.0, y: 2.8 + (i % 3) * 0.9, speed: 0.65 });
+      }
+
+      // Ilha 6: Laboratório Alquímico da Opus Magnum & Pedra Filosofal (-52, -52, y=0.8)
+      const isl6 = ISLAND_MAP.alchemy;
+      const g6 = createIslandBase(isl6);
+      const athanor = new THREE.Mesh(new THREE.CylinderGeometry(2.1, 2.4, 1.4, 16), MATS.obsidian);
+      athanor.position.y = 0.7;
+      const philoStone = createMerkabahMesh(1.45, MATS.rubyCrystal, MATS.goldCrystal);
+      philoStone.position.y = 3.2;
+      philoStone.add(makeGlowSprite(0xf43f5e, 5.5, 0.95));
+      g6.add(athanor, philoStone);
+      floaters.push({ mesh: philoStone, baseY: 3.2, amp: 0.28, phase: 0.7 });
+      reactiveTargets.push({
+        pos: new THREE.Vector3(isl6.x, isl6.y + 2.6, isl6.z), r: 2.8,
+        onHit: () => {
+          spawnBurst(new THREE.Vector3(isl6.x, isl6.y + 3.0, isl6.z), 0xfbbf24, 34);
+          playRitualChord([196, 293.6, 392], 1.2);
+          showToast('⚗️ Opus Magnum: A Pedra Filosofal transmutou o Éter em Ouro!');
+        }
+      });
+
+      // Ilha 7: Forja de Talismãs & Pantáculos (52, 52, y=0.5)
+      const g7 = createIslandBase(ISLAND_MAP.forge);
+      const anvil = new THREE.Mesh(new THREE.BoxGeometry(2.4, 1.3, 1.2), MATS.gold);
+      anvil.position.y = 0.65;
+      const pentacle = new THREE.Mesh(
+        new THREE.PlaneGeometry(3.8, 3.8),
+        new THREE.MeshBasicMaterial({ map: solomonCircleTex, transparent: true, side: THREE.DoubleSide, blending: THREE.AdditiveBlending })
+      );
+      pentacle.position.y = 3.6;
+      g7.add(anvil, pentacle);
+      spinRings.push({ mesh: pentacle, speed: 0.9 });
+
+      // Ilha 8: Santuário das Esfinges & Querubins (-52, 52, y=2.0)
+      const g8 = createIslandBase(ISLAND_MAP.dragons);
+      const ark = new THREE.Mesh(new THREE.BoxGeometry(2.6, 1.5, 1.6), MATS.goldCrystal);
+      ark.position.y = 1.6;
+      ark.add(makeGlowSprite(0xfbbf24, 5.2, 0.9));
+      g8.add(ark);
+      for (let i = 0; i < 4; i++) {
+        const a = (i / 4) * Math.PI * 2 + 0.78;
+        const sphinx = new THREE.Mesh(new THREE.ConeGeometry(1.1, 4.2, 4), MATS.gold);
+        sphinx.position.set(Math.cos(a) * 9.5, 2.1, Math.sin(a) * 9.5);
+        g8.add(sphinx);
+      }
+
+      // Ilha 9: Cidadela do Rei Paimon & Portal Astral (0, -78, y=3.8)
+      const g9 = createIslandBase(ISLAND_MAP.citadel);
+      const arch9 = new THREE.Mesh(new THREE.TorusGeometry(4.8, 0.38, 12, 40), MATS.gold);
+      arch9.position.set(0, 5.8, -3.5);
+      const portal9 = new THREE.Mesh(
+        new THREE.CircleGeometry(4.6, 36),
+        new THREE.MeshBasicMaterial({ map: daemonSigilTextures.paimon, transparent: true, opacity: 0.95, side: THREE.DoubleSide, blending: THREE.AdditiveBlending })
+      );
+      portal9.position.set(0, 5.8, -3.5);
+      g9.add(arch9, portal9);
+      spinRings.push({ mesh: portal9, speed: -0.9 });
+      for (let i = 0; i < 12; i++) {
+        const a = (i / 12) * Math.PI * 2;
+        if (Math.sin(a) > 0.65) continue;
+        const ob = new THREE.Mesh(new THREE.CylinderGeometry(0.38, 0.5, 5.8, 6), MATS.obsidian);
+        ob.position.set(Math.cos(a) * 14.5, 2.9, Math.sin(a) * 14.5);
+        g9.add(ob);
+      }
+
+      // Ilha 10: Porto da Barca Solar de Rá (92, -52, y=2.8)
+      const isl10 = ISLAND_MAP.harbor;
+      const g10 = createIslandBase(isl10);
+      const pier = new THREE.Mesh(new THREE.BoxGeometry(8.5, 0.5, 4.0), MATS.gold);
+      pier.position.set(9.0, 0.25, 0);
+      g10.add(pier);
+
+      solarBarqueGroup = new THREE.Group();
+      solarBarqueGroup.position.set(isl10.x + 16.5, isl10.y + 4.8, isl10.z);
+      const hull = new THREE.Mesh(new THREE.CylinderGeometry(2.5, 1.2, 16.5, 12), MATS.gold);
+      hull.rotation.x = Math.PI / 2;
+      const sunDisc = new THREE.Mesh(new THREE.SphereGeometry(1.4, 16, 16), MATS.goldCrystal);
+      sunDisc.position.set(0, 6.5, 0);
+      sunDisc.add(makeGlowSprite(0xfbbf24, 7.5, 0.95));
+      [-3.5, 3.5].forEach(mz => {
+        const mast = new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.22, 11.0, 8), MATS.gold);
+        mast.position.set(0, 5.8, mz);
+        const sail = new THREE.Mesh(new THREE.PlaneGeometry(6.5, 6.0), MATS.stainedGold);
+        sail.position.set(0, 6.4, mz + 0.25);
+        solarBarqueGroup.add(mast, sail);
+      });
+      solarBarqueGroup.add(hull, sunDisc);
+      scene.add(solarBarqueGroup);
+
+      // Ilha 11: Jardim Hermético da Rosa-Cruz (-92, 52, y=1.2)
+      const g11 = createIslandBase(ISLAND_MAP.greenhouse);
+      const dome = new THREE.Mesh(new THREE.SphereGeometry(12.5, 16, 12, 0, Math.PI * 2, 0, Math.PI * 0.5), MATS.glassDome);
+      const roseCrossV = new THREE.Mesh(new THREE.BoxGeometry(0.6, 5.2, 0.6), MATS.gold);
+      roseCrossV.position.y = 2.6;
+      const roseCrossH = new THREE.Mesh(new THREE.BoxGeometry(3.6, 0.6, 0.6), MATS.gold);
+      roseCrossH.position.y = 3.4;
+      const rubyRose = new THREE.Mesh(new THREE.OctahedronGeometry(0.85, 1), MATS.rubyCrystal);
+      rubyRose.position.y = 3.4;
+      rubyRose.add(makeGlowSprite(0xf43f5e, 5.0, 0.95));
+      g11.add(dome, roseCrossV, roseCrossH, rubyRose);
+
+      // Ilha 12: Panteão dos 72 Espíritos da Goécia (0, 112, y=3.2)
+      const g12 = createIslandBase(ISLAND_MAP.pantheon);
+      for (let i = 0; i < 12; i++) {
+        const a = (i / 12) * Math.PI * 2;
+        if (Math.sin(a) < -0.75) continue;
+        const col = new THREE.Mesh(new THREE.CylinderGeometry(0.48, 0.58, 9.2, 12), MATS.obsidian);
+        col.position.set(Math.cos(a) * 14.0, 4.6, Math.sin(a) * 14.0);
+        g12.add(col);
+      }
+      const pRoof = new THREE.Mesh(new THREE.ConeGeometry(15.2, 4.8, 12), MATS.gold);
+      pRoof.position.y = 11.6;
+      const crown = new THREE.Mesh(new THREE.TorusGeometry(1.1, 0.18, 10, 28), MATS.rubyCrystal);
+      crown.rotation.x = Math.PI / 2;
+      crown.position.y = 4.2;
+      crown.add(makeGlowSprite(0xf43f5e, 5.2, 0.95));
+      g12.add(pRoof, crown);
+      floaters.push({ mesh: crown, baseY: 4.2, amp: 0.25, phase: 0.8 });
+    }
+
+    // --------------------------------------------------------------------------
+    // 9. ALTARES DE EVOCAÇÃO, ESTAÇÕES DE VASSOURA, ANÉIS CELESTES & LORE
+    // --------------------------------------------------------------------------
+    function create3DBroomMesh() {
+      const broom = new THREE.Group();
+      const shaft = new THREE.Mesh(new THREE.CylinderGeometry(0.042, 0.055, 2.35, 10), MATS.wood);
+      shaft.rotation.x = Math.PI / 2;
+      [-0.85, -0.35, 0.25, 0.7].forEach((zOff, idx) => {
+        const ring = new THREE.Mesh(new THREE.TorusGeometry(0.062, 0.014, 8, 16), idx === 1 ? MATS.cyanCrystal : MATS.gold);
+        ring.position.z = zOff;
+        broom.add(ring);
+      });
+      const handleBar = new THREE.Mesh(new THREE.TorusGeometry(0.22, 0.018, 8, 16, Math.PI), MATS.gold);
+      handleBar.position.set(0, 0.06, -0.52);
+      handleBar.rotation.x = -0.35;
+      const nose = new THREE.Mesh(new THREE.ConeGeometry(0.06, 0.28, 10), MATS.cyanCrystal);
+      nose.rotation.x = -Math.PI / 2;
+      nose.position.z = -1.32;
+      const tailOuter = new THREE.Mesh(new THREE.ConeGeometry(0.32, 1.05, 12), MATS.gold);
+      tailOuter.rotation.x = Math.PI / 2;
+      tailOuter.position.z = 1.18;
+      const tailInner = new THREE.Mesh(new THREE.ConeGeometry(0.24, 1.15, 10), MATS.violetCrystal);
+      tailInner.rotation.x = Math.PI / 2;
+      tailInner.position.z = 1.25;
+      broom.add(shaft, handleBar, nose, tailOuter, tailInner, makeGlowSprite(0xfbbf24, 2.2, 0.85));
+      return broom;
+    }
+
+    function buildAltarsBroomsRingsAndLore() {
+      // 5 Altares Físicos de Evocação de Salomão (Altar 1 em (0, 0, 3.5) diante do jogador!)
+      EVOCATION_ALTARS_DATA.forEach((al) => {
+        const grp = new THREE.Group();
+        grp.position.set(al.x, al.y, al.z);
+
+        const circleMesh = new THREE.Mesh(
+          new THREE.PlaneGeometry(7.2, 7.2),
+          new THREE.MeshBasicMaterial({
+            map: solomonCircleTex,
+            transparent: true,
+            opacity: 0.92,
+            side: THREE.DoubleSide,
+            blending: THREE.AdditiveBlending,
+            depthWrite: false
+          })
+        );
+        circleMesh.rotation.x = -Math.PI / 2;
+        circleMesh.position.y = 0.04;
+        grp.add(circleMesh);
+        spinRings.push({ mesh: circleMesh, speed: 0.32 });
+
+        // 3 Braseiros de Fogo nos Vértices do Triângulo da Arte
+        for (let i = 0; i < 3; i++) {
+          const a = (i / 3) * Math.PI * 2;
+          const bx = Math.cos(a) * 3.4;
+          const bz = Math.sin(a) * 3.4;
+          const pillar = new THREE.Mesh(new THREE.CylinderGeometry(0.24, 0.34, 1.25, 8), MATS.obsidian);
+          pillar.position.set(bx, 0.62, bz);
+          const flame = new THREE.Mesh(new THREE.OctahedronGeometry(0.28, 0), MATS.rubyCrystal);
+          flame.position.set(bx, 1.48, bz);
+          flame.add(makeGlowSprite(0xf43f5e, 1.8, 0.9));
+          grp.add(pillar, flame);
+        }
+
+        scene.add(grp);
+        evocationAltars.push({
+          ...al,
+          pos: new THREE.Vector3(al.x, al.y, al.z)
+        });
+      });
+
+      // 5 Estações Físicas de Vassoura Voadora
+      BROOM_STATIONS_DATA.forEach((st, idx) => {
+        const grp = new THREE.Group();
+        grp.position.set(st.x, st.y, st.z);
+
+        const ped = new THREE.Mesh(new THREE.CylinderGeometry(1.3, 1.5, 0.26, 20), MATS.obsidian);
+        ped.position.y = 0.13;
+        const rune = new THREE.Mesh(
+          new THREE.PlaneGeometry(3.2, 3.2),
+          new THREE.MeshBasicMaterial({ map: zodiacWheelTex, transparent: true, opacity: 0.9, blending: THREE.AdditiveBlending, depthWrite: false })
+        );
+        rune.rotation.x = -Math.PI / 2;
+        rune.position.y = 0.28;
+        const beam = new THREE.Mesh(new THREE.CylinderGeometry(0.8, 0.8, 4.2, 16, 1, true), MATS.godRayCyan);
+        beam.position.y = 2.1;
+
+        const broomMesh = create3DBroomMesh();
+        broomMesh.position.y = 1.5;
+        broomMesh.rotation.y = st.yaw;
+
+        const label = createLabelSprite('🧹 VASSOURA NIMBUS [F / B]', '#38bdf8');
+        label.position.y = 2.65;
+
+        grp.add(ped, rune, beam, broomMesh, label);
+        scene.add(grp);
+        spinRings.push({ mesh: rune, speed: 0.9 });
+
+        broomStations.push({
+          ...st,
+          pos: new THREE.Vector3(st.x, st.y + 1.4, st.z),
+          broomMesh,
+          baseY: 1.5,
+          phase: idx
+        });
+      });
+
+      // 10 Anéis Celestes Dourados
+      SKY_RINGS_DATA.forEach((rk, idx) => {
+        const grp = new THREE.Group();
+        grp.position.set(rk.x, rk.y, rk.z);
+        grp.rotation.y = rk.rotY;
+        const outer = new THREE.Mesh(new THREE.TorusGeometry(4.2, 0.24, 10, 36), MATS.goldCrystal);
+        const inner = new THREE.Mesh(new THREE.TorusGeometry(3.7, 0.09, 8, 32), MATS.cyanCrystal);
+        grp.add(outer, inner, makeGlowSprite(0xfbbf24, 7.5, 0.45));
+        scene.add(grp);
+        skyRings.push({ ...rk, group: grp, outer, inner, phase: idx * 0.7 });
+      });
+
+      // 12 Cristais Herméticos de Lore
+      LORE_DATA.forEach((ld, idx) => {
+        const grp = new THREE.Group();
+        grp.position.set(ld.pos[0], ld.pos[1], ld.pos[2]);
+        const cMat = ld.color === 0x38bdf8 ? MATS.cyanCrystal : ld.color === 0x34d399 ? MATS.emeraldCrystal : ld.color === 0xfbbf24 ? MATS.goldCrystal : MATS.rubyCrystal;
+        const gem = new THREE.Mesh(new THREE.OctahedronGeometry(0.56, 0), cMat);
+        const ring = new THREE.Mesh(new THREE.TorusGeometry(0.9, 0.04, 8, 24), MATS.gold);
+        ring.rotation.x = Math.PI / 2;
+        grp.add(gem, ring, makeGlowSprite(ld.color, 3.8, 0.85));
+        scene.add(grp);
+        loreCrystals.push({
+          ...ld,
+          vecPos: new THREE.Vector3(ld.pos[0], ld.pos[1], ld.pos[2]),
+          group: grp,
+          gem,
+          ring,
+          baseY: ld.pos[1],
+          phase: idx * 0.8
+        });
+      });
+    }
+
+    // --------------------------------------------------------------------------
+    // 10. VIEWMODELS EM 1ª PESSOA (3 ARMAS SALOMÔNICAS + VASSOURA NIMBUS)
+    // --------------------------------------------------------------------------
+    const WEAPON_LIST = [
+      { short: 'Varinha (V)', full: '🪄 Varinha de Lótus & Salomão', color: 0xfbbf24 },
+      { short: 'Cajado (V)', full: '☀️ Cajado Solar de Rei Paimon', color: 0xf43f5e },
+      { short: 'Cetro (V)', full: '🔮 Cetro Astral de Thoth & Stolas', color: 0x38bdf8 }
+    ];
+
+    function buildFirstPersonViewmodels() {
+      weaponRoot = new THREE.Group();
+      weaponRoot.position.set(0.35, -0.32, -0.55);
+      weaponRoot.rotation.set(0.24, -0.12, 0);
+
+      const w1 = new THREE.Group();
+      const s1 = new THREE.Mesh(new THREE.CylinderGeometry(0.014, 0.028, 0.56, 10), MATS.ebony);
+      s1.rotation.x = -Math.PI / 2; s1.position.z = -0.14;
+      const g1 = new THREE.Mesh(new THREE.OctahedronGeometry(0.055, 0), MATS.goldCrystal);
+      g1.position.z = -0.45;
+      w1.add(s1, g1);
+
+      const w2 = new THREE.Group();
+      const s2 = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.03, 0.65, 10), MATS.gold);
+      s2.rotation.x = -Math.PI / 2; s2.position.z = -0.16;
+      const g2 = new THREE.Mesh(new THREE.SphereGeometry(0.058, 12, 12), MATS.rubyCrystal);
+      g2.position.z = -0.49;
+      const r2 = new THREE.Mesh(new THREE.TorusGeometry(0.11, 0.012, 8, 20), MATS.gold);
+      r2.position.z = -0.49;
+      w2.add(s2, g2, r2);
+      w2.visible = false;
+
+      const w3 = new THREE.Group();
+      const s3 = new THREE.Mesh(new THREE.CylinderGeometry(0.018, 0.028, 0.6, 10), MATS.silver);
+      s3.rotation.x = -Math.PI / 2; s3.position.z = -0.15;
+      const g3 = new THREE.Mesh(new THREE.OctahedronGeometry(0.062, 1), MATS.cyanCrystal);
+      g3.position.z = -0.48;
+      w3.add(s3, g3);
+      w3.visible = false;
+
+      weaponMeshes.push(w1, w2, w3);
+      weaponRoot.add(w1, w2, w3);
+
+      weaponTipGlow = makeGlowSprite(0xfbbf24, 0.38, 0.95);
+      weaponTipGlow.position.set(0, 0, -0.49);
+      weaponTipLight = new THREE.PointLight(0xfbbf24, 1.4, 14);
+      weaponTipLight.position.set(0, 0.05, -0.5);
+      weaponRoot.add(weaponTipGlow, weaponTipLight);
+      camera.add(weaponRoot);
+
+      broomViewmodel = new THREE.Group();
+      broomViewmodel.position.set(0, -0.36, -0.66);
+      const bShaft = new THREE.Mesh(new THREE.CylinderGeometry(0.032, 0.046, 1.7, 12), MATS.wood);
+      bShaft.rotation.x = Math.PI / 2;
+      bShaft.position.z = -0.35;
+      [-0.15, -0.55, -0.95].forEach((zp, idx) => {
+        const col = new THREE.Mesh(new THREE.TorusGeometry(0.048, 0.012, 8, 18), idx === 1 ? MATS.cyanCrystal : MATS.gold);
+        col.position.z = zp;
+        broomViewmodel.add(col);
+      });
+      const hBar = new THREE.Mesh(new THREE.TorusGeometry(0.20, 0.015, 8, 18, Math.PI), MATS.gold);
+      hBar.position.set(0, 0.05, -0.34);
+      hBar.rotation.x = -0.35;
+      const noseGem = new THREE.Mesh(new THREE.OctahedronGeometry(0.06, 0), MATS.cyanCrystal);
+      noseGem.scale.set(0.85, 0.85, 1.9);
+      noseGem.position.z = -1.32;
+      broomViewmodel.add(bShaft, hBar, noseGem, makeGlowSprite(0xfbbf24, 0.45, 0.9));
+
+      for (let i = 0; i < 8; i++) {
+        const sp = makeGlowSprite(i % 2 === 0 ? 0xfbbf24 : 0x38bdf8, 0.14, 0.85);
+        sp.position.set((Math.random() - 0.5) * 0.22, (Math.random() - 0.5) * 0.1, -1.2 + (i / 8) * 1.0);
+        broomViewmodel.add(sp);
+        broomSparks.push(sp);
+      }
+
+      broomViewmodel.visible = false;
+      camera.add(broomViewmodel);
+    }
+
+    function cycleWeapon() {
+      player.weaponIndex = (player.weaponIndex + 1) % WEAPON_LIST.length;
+      const w = WEAPON_LIST[player.weaponIndex];
+      weaponMeshes.forEach((m, idx) => { m.visible = idx === player.weaponIndex; });
+      weaponTipGlow.material.color.setHex(w.color);
+      weaponTipLight.color.setHex(w.color);
+      const badge = document.getElementById('weapon-name-badge');
+      if (badge) badge.textContent = w.short;
+      wandRecoil = 0.65;
+      showToast(w.full);
+    }
+
+    // --------------------------------------------------------------------------
+    // 11. FEITIÇOS SALOMÔNICOS & GOÉTICOS (POTENCIALIZADOS PELA BÊNÇÃO DO DAEMON)
+    // --------------------------------------------------------------------------
+    function spawnBurst(pos, hexColor, count = 18) {
+      for (let i = 0; i < count; i++) {
+        const sp = makeGlowSprite(hexColor, 0.48 + Math.random() * 0.35, 0.95);
+        sp.position.copy(pos);
+        const vel = new THREE.Vector3((Math.random() - 0.5) * 9.5, 1.8 + Math.random() * 6.5, (Math.random() - 0.5) * 9.5);
+        scene.add(sp);
+        activeParticles.push({ sprite: sp, vel, life: 0.55, maxLife: 0.55 });
+      }
+    }
+
+    function castSpell(num) {
+      wandRecoil = 1.0;
+      const dInfo = DAEMONS_DATA[activeDaemonState.id] || DAEMONS_DATA.paimon;
+
+      if (num === 1) {
+        const startPos = new THREE.Vector3();
+        if (weaponTipGlow) weaponTipGlow.getWorldPosition(startPos);
+        else startPos.copy(player.pos);
+
+        const dir = new THREE.Vector3();
+        camera.getWorldDirection(dir);
+
+        // Dispara Raio Principal + Raio Secundário da Bênção do Daemon
+        const offsets = [0, 0.16];
+        offsets.forEach((off, idx) => {
+          const bolt = new THREE.Group();
+          bolt.position.copy(startPos).add(new THREE.Vector3(off, 0, 0));
+          const cHex = idx === 0 ? dInfo.primaryColor : dInfo.secondaryColor;
+          const core = new THREE.Mesh(new THREE.OctahedronGeometry(0.18, 0), idx === 0 ? MATS.goldCrystal : MATS.rubyCrystal);
+          bolt.add(core, makeGlowSprite(cHex, 2.2, 0.95));
+          scene.add(bolt);
+          activeBolts.push({ group: bolt, vel: dir.clone().multiplyScalar(38), life: 1.8 });
+        });
+        playRitualChord([329.6, 440, 659.2], 0.4);
+        showToast(`🪄 Raio de ${dInfo.name}!`);
+
+      } else if (num === 2) {
+        const fwd = new THREE.Vector3(-Math.sin(player.yaw), 0, -Math.cos(player.yaw));
+        const center = player.pos.clone().addScaledVector(fwd, 15);
+        for (let i = 0; i < 7; i++) {
+          const m = new THREE.Group();
+          m.position.set(center.x + (Math.random() - 0.5) * 14, player.pos.y + 18 + i * 2.4, center.z + (Math.random() - 0.5) * 14);
+          m.add(new THREE.Mesh(new THREE.OctahedronGeometry(0.68, 0), MATS.rubyCrystal), makeGlowSprite(dInfo.primaryColor, 3.8, 0.92));
+          scene.add(m);
+          activeMeteors.push({ group: m, vel: new THREE.Vector3(-1.5, -23, 1.5) });
+        }
+        playRitualChord([110, 164.8, 220], 1.1);
+        showToast('☄️ Chuva de Meteoros Goéticos!');
+
+      } else if (num === 3) {
+        if (runeCircleMesh) scene.remove(runeCircleMesh);
+        runeCircleMesh = new THREE.Mesh(
+          new THREE.PlaneGeometry(8.2, 8.2),
+          new THREE.MeshBasicMaterial({
+            map: daemonSigilTextures[activeDaemonState.id] || solomonCircleTex,
+            transparent: true,
+            opacity: 0.95,
+            side: THREE.DoubleSide,
+            blending: THREE.AdditiveBlending,
+            depthWrite: false
+          })
+        );
+        runeCircleMesh.rotation.x = -Math.PI / 2;
+        const gy = getGroundHeight(player.pos.x, player.pos.z) ?? (player.pos.y - EYE_HEIGHT);
+        runeCircleMesh.position.set(player.pos.x, gy + 0.06, player.pos.z);
+        scene.add(runeCircleMesh);
+        runeCircleTimer = 6.5;
+        spawnBurst(runeCircleMesh.position, dInfo.primaryColor, 26);
+        playRitualChord(dInfo.chord, 1.4);
+        showToast(`✡️ Selo Sagrado de ${dInfo.name} Ativado!`);
+
+      } else if (num === 4) {
+        if (vortexGroup) scene.remove(vortexGroup);
+        vortexGroup = new THREE.Group();
+        vortexGroup.position.copy(player.pos);
+        for (let i = 0; i < 26; i++) {
+          const a = (i / 26) * Math.PI * 2;
+          const r = 2.4 + (i % 3) * 1.2;
+          const sp = makeGlowSprite(i % 2 === 0 ? dInfo.primaryColor : dInfo.secondaryColor, 1.15, 0.9);
+          sp.position.set(Math.cos(a) * r, -1.0 + (i / 26) * 4.0, Math.sin(a) * r);
+          vortexGroup.add(sp);
+        }
+        scene.add(vortexGroup);
+        vortexTimer = 5.5;
+        playRitualChord(dInfo.chord, 1.6);
+        showToast('⚡ Vórtice da Merkabah Sagrada!');
+      }
+    }
+
+    // --------------------------------------------------------------------------
+    // 12. VOO NA VASSOURA NIMBUS + MOVIMENTAÇÃO ÁGIL EM 1ª PESSOA
+    // --------------------------------------------------------------------------
+    function syncBroomUI() {
+      const topBtn = document.getElementById('btn-top-broom');
+      const actFly = document.getElementById('btn-action-fly');
+      const icoFly = document.getElementById('ico-action-fly');
+      const lblFly = document.getElementById('lbl-action-fly');
+      const lblUp = document.getElementById('lbl-action-up');
+
+      if (player.flyingBroom) {
+        if (topBtn) topBtn.classList.add('cyan-active');
+        if (actFly) actFly.classList.add('cyan-active');
+        if (icoFly) icoFly.textContent = '🚶';
+        if (lblFly) lblFly.textContent = 'Pousar';
+        if (lblUp) lblUp.textContent = 'Subir';
+      } else {
+        if (topBtn) topBtn.classList.remove('cyan-active');
+        if (actFly) actFly.classList.remove('cyan-active');
+        if (icoFly) icoFly.textContent = '🧹';
+        if (lblFly) lblFly.textContent = 'Voar';
+        if (lblUp) lblUp.textContent = 'Pular';
+      }
+    }
+
+    function toggleBroomFlight(stationOrigin = null) {
+      player.flyingBroom = !player.flyingBroom;
+      if (player.flyingBroom) {
+        if (stationOrigin) {
+          player.pos.set(stationOrigin.x, stationOrigin.y + EYE_HEIGHT + 1.6, stationOrigin.z);
+        } else {
+          player.pos.y += 1.2;
+        }
+        player.velY = 2.5;
+        player.grounded = false;
+        if (broomViewmodel) broomViewmodel.visible = true;
+        spawnBurst(new THREE.Vector3(player.pos.x, player.pos.y - 0.8, player.pos.z), 0xfbbf24, 24);
+        showToast('🧹 Voando na Vassoura Nimbus! (WASD/Joystick + ⬆️ Subir / ⬇️ Descer)');
+      } else {
+        if (broomViewmodel) broomViewmodel.visible = false;
+        player.roll = 0;
+        showToast('🚶 Pousou da Vassoura Voadora');
+      }
+      syncBroomUI();
+    }
+
+    function toggleSprintMode() {
+      virtualState.turboToggle = !virtualState.turboToggle;
+      const pill = document.getElementById('btn-sprint-pill');
+      if (pill) pill.classList.toggle('cyan-active', virtualState.turboToggle);
+      showToast(virtualState.turboToggle ? '⚡ Modo Turbo Ativado!' : '🚶 Velocidade Normal');
+    }
+
+    function triggerJump() {
+      if (player.flyingBroom) {
+        player.pos.y += 1.6;
+        return;
+      }
+      if (player.grounded) {
+        player.velY = JUMP_FORCE;
+        player.grounded = false;
+        player.jumpsUsed = 1;
+      } else if (player.jumpsUsed < 2) {
+        player.velY = DOUBLE_JUMP_FORCE;
+        player.jumpsUsed = 2;
+        spawnBurst(new THREE.Vector3(player.pos.x, player.pos.y - 1.4, player.pos.z), 0xfbbf24, 14);
+        showToast('✨ Levitação Hermética!');
+      }
+    }
+
+    function updatePlayer(dt, elapsed) {
+      const yawSpeed = 2.1, pitchSpeed = 1.55;
+      let turnDelta = 0;
+      if (keyInput.turnLeft || virtualState.camLeft) turnDelta += yawSpeed * dt;
+      if (keyInput.turnRight || virtualState.camRight) turnDelta -= yawSpeed * dt;
+      if (isOrbitActive()) {
+        // Com daemon evocado, as setas / D-pad giram a órbita em volta do daemon.
+        camYaw += turnDelta;
+        if (virtualState.camUp) camPitch = THREE.MathUtils.clamp(camPitch - pitchSpeed * dt, -0.15, 1.45);
+        if (virtualState.camDown) camPitch = THREE.MathUtils.clamp(camPitch + pitchSpeed * dt, -0.15, 1.45);
+      } else {
+        player.yaw += turnDelta;
+        if (virtualState.camUp) player.pitch = THREE.MathUtils.clamp(player.pitch + pitchSpeed * dt, -1.35, 1.35);
+        if (virtualState.camDown) player.pitch = THREE.MathUtils.clamp(player.pitch - pitchSpeed * dt, -1.35, 1.35);
+      }
+
+      const jMag = Math.hypot(virtualState.joyX, virtualState.joyY);
+      const jx = jMag > 0.07 ? virtualState.joyX : 0;
+      const jy = jMag > 0.07 ? virtualState.joyY : 0;
+
+      const moveFwd = (keyInput.forward ? 1 : 0) - (keyInput.backward ? 1 : 0) - jy;
+      const moveRight = (keyInput.right ? 1 : 0) - (keyInput.left ? 1 : 0) + jx;
+      const isTurbo = keyInput.sprint || virtualState.turboToggle;
+      const speedLinesEl = document.getElementById('speed-lines');
+      const statusBadge = document.getElementById('move-status-badge');
+
+      if (player.flyingBroom) {
+        const flySpeed = isTurbo ? BROOM_TURBO_SPEED : BROOM_SPEED;
+        camera.getWorldDirection(_vForward);
+        _vRight.set(Math.cos(player.yaw), 0, -Math.sin(player.yaw));
+        _vWish.set(0, 0, 0).addScaledVector(_vForward, moveFwd).addScaledVector(_vRight, moveRight);
+
+        const wMag = Math.min(1, _vWish.length());
+        if (wMag > 0.001) _vWish.normalize();
+
+        const vUp = (keyInput.ascend || virtualState.holdAscend) ? 1 : 0;
+        const vDown = (keyInput.descend || virtualState.holdDescend) ? 1 : 0;
+
+        player.vx = THREE.MathUtils.lerp(player.vx, _vWish.x * flySpeed * wMag, Math.min(1, dt * 12));
+        player.vz = THREE.MathUtils.lerp(player.vz, _vWish.z * flySpeed * wMag, Math.min(1, dt * 12));
+        player.velY = THREE.MathUtils.lerp(player.velY, _vWish.y * flySpeed * wMag + (vUp - vDown) * BROOM_VERT_SPEED, Math.min(1, dt * 12));
+
+        player.pos.x += player.vx * dt;
+        player.pos.y += player.velY * dt;
+        player.pos.z += player.vz * dt;
+
+        const gY = getGroundHeight(player.pos.x, player.pos.z);
+        if (gY !== null && player.pos.y < gY + EYE_HEIGHT + 0.35) {
+          player.pos.y = gY + EYE_HEIGHT + 0.35;
+          if (vDown > 0) {
+            player.pos.y = gY + EYE_HEIGHT;
+            player.velY = 0;
+            player.grounded = true;
+            toggleBroomFlight();
+            return;
+          }
+        }
+
+        const targetRoll = THREE.MathUtils.clamp((turnDelta * 8.0) - moveRight * 0.25, -0.35, 0.35);
+        player.roll = THREE.MathUtils.lerp(player.roll, targetRoll, Math.min(1, dt * 8));
+
+        camera.position.set(player.pos.x, player.pos.y + Math.sin(elapsed * 4.0) * 0.04, player.pos.z);
+        _euler.set(player.pitch, player.yaw, player.roll);
+        camera.quaternion.setFromEuler(_euler);
+
+        if (broomViewmodel) {
+          broomViewmodel.rotation.z = -player.roll * 1.3;
+          broomViewmodel.rotation.x = THREE.MathUtils.clamp(player.velY * 0.015, -0.25, 0.25);
+          for (let i = 0; i < broomSparks.length; i++) {
+            const sp = broomSparks[i];
+            sp.position.z += dt * (isTurbo ? 3.5 : 2.0);
+            if (sp.position.z > -0.15) sp.position.z = -1.25;
+          }
+        }
+
+        if (speedLinesEl) speedLinesEl.style.opacity = isTurbo ? '0.9' : (wMag > 0.1 ? '0.45' : '0');
+        if (statusBadge) statusBadge.textContent = isTurbo ? '🧹 Turbo (38.0)' : '🧹 Voando (25.0)';
+      } else {
+        const moveSpeed = isTurbo ? TURBO_WALK_SPEED : WALK_SPEED;
+        _vForward.set(-Math.sin(player.yaw), 0, -Math.cos(player.yaw));
+        _vRight.set(Math.cos(player.yaw), 0, -Math.sin(player.yaw));
+        _vWish.set(0, 0, 0).addScaledVector(_vForward, moveFwd).addScaledVector(_vRight, moveRight);
+
+        const wMag = Math.min(1, _vWish.length());
+        if (wMag > 0.01) _vWish.normalize();
+
+        player.vx = _vWish.x * moveSpeed * wMag;
+        player.vz = _vWish.z * moveSpeed * wMag;
+
+        const nextPos = resolveCollisions(player.pos.x + player.vx * dt, player.pos.z + player.vz * dt);
+        player.pos.x = nextPos.x;
+        player.pos.z = nextPos.z;
+
+        const gY = getGroundHeight(player.pos.x, player.pos.z);
+        if (gY !== null) {
+          const targetEye = gY + EYE_HEIGHT;
+          if (player.pos.y <= targetEye + 0.45 && player.velY <= 0) {
+            player.pos.y = THREE.MathUtils.lerp(player.pos.y, targetEye, Math.min(1, dt * 25));
+            player.velY = 0;
+            player.grounded = true;
+            player.jumpsUsed = 0;
+          } else {
+            player.grounded = false;
+            player.velY -= GRAVITY * dt;
+            player.pos.y += player.velY * dt;
+          }
+        } else {
+          player.grounded = false;
+          player.velY -= GRAVITY * dt;
+          player.pos.y += player.velY * dt;
+        }
+
+        if (player.pos.y < -15) {
+          player.pos.set(0, EYE_HEIGHT, 14);
+          player.velY = 0;
+          player.grounded = true;
+          showToast('✨ Resgate Hermético: Retornou ao Pátio de Salomão!');
+        }
+
+        const hSpeed = Math.hypot(player.vx, player.vz);
+        if (hSpeed > 0.25 && player.grounded) player.bobTimer += dt * hSpeed * 1.5;
+        const bobOffset = (hSpeed > 0.25 && player.grounded) ? Math.sin(player.bobTimer) * 0.035 : 0;
+        const crouchOffset = (keyInput.descend || virtualState.holdDescend) ? -0.45 : 0;
+
+        camera.position.set(player.pos.x, player.pos.y + bobOffset + crouchOffset, player.pos.z);
+        _euler.set(player.pitch, player.yaw, 0);
+        camera.quaternion.setFromEuler(_euler);
+
+        if (speedLinesEl) speedLinesEl.style.opacity = (isTurbo && hSpeed > 1) ? '0.6' : '0';
+        if (statusBadge) statusBadge.textContent = isTurbo ? '⚡ Turbo (17.0)' : '🚶 A Pé (9.5)';
+      }
+
+      // Órbita livre: com daemon evocado, a câmera orbita o daemon (em vez da 1ª pessoa).
+      if (isOrbitActive()) updateOrbitCamera(dt);
+
+      if (weaponRoot) {
+        wandRecoil = Math.max(0, wandRecoil - dt * 4.2);
+        weaponRoot.position.set(0.35, -0.32 + wandRecoil * 0.03, -0.55 + wandRecoil * 0.08);
+        weaponRoot.rotation.x = 0.24 + wandRecoil * 0.35;
+      }
+
+      let area = player.flyingBroom ? 'Céus Astrais da Goécia' : 'Ponte de Linha Ley';
+      if (Math.abs(player.pos.x) <= 12.0 && player.pos.z <= -6.0 && player.pos.z >= -30.0) {
+        area = 'Ilha 1: Interior do Templo de Salomão';
+      } else {
+        for (let i = 0; i < ISLANDS.length; i++) {
+          const isl = ISLANDS[i];
+          if (Math.hypot(player.pos.x - isl.x, player.pos.z - isl.z) <= isl.r) {
+            area = `Ilha ${isl.num}: ${isl.shortName}`;
+            break;
+          }
+        }
+      }
+      if (area !== player.currentArea) {
+        player.currentArea = area;
+        const sub = document.getElementById('location-subtitle');
+        if (sub) sub.textContent = `📍 ${area}`;
+      }
+    }
+
+    // --------------------------------------------------------------------------
+    // 13. MODAIS (GRIMÓRIO ARS GOETIA, ATLAS DE 12 ILHAS & COMUNHÃO DE LORE)
+    // --------------------------------------------------------------------------
+    function toggleGoetiaModal() {
+      const modal = document.getElementById('goetia-modal');
+      if (modal.classList.contains('hidden')) {
+        const grid = document.getElementById('goetia-grid');
+        grid.innerHTML = Object.values(DAEMONS_DATA).map(d => {
+          const isCurrent = activeDaemonState.id === d.id && activeDaemonState.group !== null;
+          return `
+            <div class="rounded-2xl bg-[#130b29]/95 border ${isCurrent ? 'border-amber-400 shadow-[0_0_20px_rgba(251,191,36,0.35)]' : 'border-[#e5c158]/35'} p-3.5 flex flex-col justify-between gap-2.5">
+              <div>
+                <div class="flex items-center justify-between text-[10px] font-cinzel text-rose-300">
+                  <span>${d.rank}</span>
+                  <span class="${isCurrent ? 'text-amber-300 font-bold' : 'text-indigo-300/70'}">${isCurrent ? '🔱 MANIFESTADO' : '✦ Lemegeton'}</span>
+                </div>
+                <h3 class="font-cinzel text-sm sm:text-base font-bold text-[#fff3cd] mt-1 flex items-center gap-1.5">
+                  <span class="text-lg">${d.icon}</span> <span>${d.name}</span>
+                </h3>
+                <div class="text-[11px] font-cinzel text-amber-300/95 mt-0.5">${d.title}</div>
+                <p class="text-[11px] text-indigo-100/85 mt-1.5 leading-relaxed">${d.lore}</p>
+                <div class="mt-2 rounded-xl bg-black/45 border border-amber-400/30 p-2">
+                  <div class="text-[10px] font-cinzel text-amber-300 font-bold">✦ Pacto & Bênção: ${d.boonName}</div>
+                  <div class="text-[10px] text-purple-100/90 mt-0.5">${d.boonDesc}</div>
+                </div>
+              </div>
+              <div class="flex items-center gap-1.5 pt-2 border-t border-white/10">
+                <button onclick="summonDaemonById('${d.id}', true); closeGoetiaModal();" class="arcane-btn goetia-active flex-1 py-1.5 rounded-full text-[11px] font-cinzel font-bold">
+                  🔱 Evocar Diante de Mim
+                </button>
+                <button onclick="summonDaemonById('${d.id}', false, new THREE.Vector3(0, 0, 3.5)); teleportToIsland('center', false); closeGoetiaModal();" class="arcane-btn active px-3 py-1.5 rounded-full text-[10px] font-cinzel font-bold">
+                  ✡️ No Pátio
+                </button>
+              </div>
+            </div>
+          `;
+        }).join('');
+        modal.classList.remove('hidden');
+        modal.classList.add('flex');
+        if (document.pointerLockElement) document.exitPointerLock();
+      } else {
+        closeGoetiaModal();
+      }
+    }
+
+    function closeGoetiaModal() {
+      const modal = document.getElementById('goetia-modal');
+      modal.classList.add('hidden');
+      modal.classList.remove('flex');
+    }
+
+    function enterCathedralInterior() {
+      if (player.flyingBroom) toggleBroomFlight();
+      player.pos.set(0, 0.4 + EYE_HEIGHT, -10.5);
+      player.yaw = 0;
+      player.pitch = 0.04;
+      closeAtlasModal();
+      spawnBurst(new THREE.Vector3(0, 1.0, -14), 0xfbbf24, 24);
+      showToast('🏛️ Interior do Grande Templo de Salomão');
+    }
+
+    function teleportToIsland(islandId, flyMode = false) {
+      const isl = ISLAND_MAP[islandId];
+      if (!isl) return;
+      closeAtlasModal();
+      if (flyMode) {
+        player.pos.set(isl.x, isl.y + 12.0, isl.z + 8);
+        player.yaw = 0;
+        player.pitch = -0.15;
+        if (!player.flyingBroom) toggleBroomFlight();
+        showToast(`🧹 Sobrevoando Ilha ${isl.num}: ${isl.shortName}`);
+      } else {
+        if (player.flyingBroom) toggleBroomFlight();
+        player.pos.set(isl.spawnX, isl.y + EYE_HEIGHT, isl.spawnZ);
+        player.velY = 0;
+        player.yaw = isl.yaw;
+        player.pitch = 0.02;
+        player.grounded = true;
+        spawnBurst(new THREE.Vector3(isl.spawnX, isl.y + 0.5, isl.spawnZ), 0xfbbf24, 22);
+        showToast(`🌀 Teleporte: Ilha ${isl.num} — ${isl.shortName}`);
+      }
+    }
+
+    function toggleAtlasModal() {
+      const modal = document.getElementById('atlas-modal');
+      if (modal.classList.contains('hidden')) {
+        const grid = document.getElementById('atlas-grid');
+        grid.innerHTML = ISLANDS.map(isl => {
+          const lore = LORE_DATA.find(l => l.islandId === isl.id);
+          const read = lore && discoveredLore.has(lore.id);
+          return `
+            <div class="rounded-2xl bg-[#130e2b]/90 border border-[#e5c158]/35 p-3 flex flex-col justify-between gap-2">
+              <div>
+                <div class="flex items-center justify-between text-[10px] font-cinzel text-[#38bdf8]">
+                  <span>ILHA ${isl.num} (${isl.x}, ${isl.z})</span>
+                  <span class="${read ? 'text-[#ffebb0]' : 'text-purple-300/70'}">${read ? '💎 Lido' : '💎 Tábua'}</span>
+                </div>
+                <h3 class="font-cinzel text-xs sm:text-sm font-bold text-[#f6e3a4] mt-1">${isl.icon} ${isl.name}</h3>
+                <p class="text-[11px] text-indigo-100/80 mt-1 leading-relaxed">${isl.desc}</p>
+              </div>
+              <div class="flex items-center gap-1.5 pt-2 border-t border-white/10">
+                <button onclick="teleportToIsland('${isl.id}', false)" class="arcane-btn flex-1 py-1 rounded-full text-[10px] font-cinzel font-bold">🚶 Pousar</button>
+                <button onclick="teleportToIsland('${isl.id}', true)" class="arcane-btn active flex-1 py-1 rounded-full text-[10px] font-cinzel font-bold">🧹 Voar</button>
+              </div>
+            </div>
+          `;
+        }).join('');
+        modal.classList.remove('hidden');
+        modal.classList.add('flex');
+        if (document.pointerLockElement) document.exitPointerLock();
+      } else {
+        closeAtlasModal();
+      }
+    }
+
+    function closeAtlasModal() {
+      const modal = document.getElementById('atlas-modal');
+      modal.classList.add('hidden');
+      modal.classList.remove('flex');
+    }
+
+    function openLoreModal(c) {
+      discoveredLore.add(c.id);
+      const cnt = document.getElementById('lore-counter');
+      if (cnt) cnt.textContent = `${discoveredLore.size}/12`;
+      document.getElementById('lore-category').textContent = `Ilha ${ISLAND_MAP[c.islandId].num} • Tábua Hermética`;
+      document.getElementById('lore-title').textContent = c.title;
+      document.getElementById('lore-description').textContent = c.desc;
+      document.getElementById('lore-secret').textContent = c.secret;
+      const modal = document.getElementById('lore-modal');
+      modal.classList.remove('hidden');
+      modal.classList.add('flex');
+      if (document.pointerLockElement) document.exitPointerLock();
+    }
+
+    function closeLoreModal() {
+      const modal = document.getElementById('lore-modal');
+      modal.classList.add('hidden');
+      modal.classList.remove('flex');
+    }
+
+    function interactWithNearest() {
+      if (nearestCrystal) {
+        openLoreModal(nearestCrystal);
+      } else if (nearestAltar) {
+        summonDaemonById(nearestAltar.daemonId, false, nearestAltar.pos);
+      } else if (isNearActiveDaemon) {
+        toggleGoetiaModal();
+      } else if (nearestBroomStation && !player.flyingBroom) {
+        toggleBroomFlight(nearestBroomStation);
+      } else {
+        toggleGoetiaModal();
+      }
+    }
+
+    function toggleBottomHUD() {
+      virtualState.hudVisible = !virtualState.hudVisible;
+      const bar = document.getElementById('bottom-controls-bar');
+      const btn = document.getElementById('btn-toggle-hud');
+      if (bar) bar.style.display = virtualState.hudVisible ? 'grid' : 'none';
+      if (btn) btn.classList.toggle('active', virtualState.hudVisible);
+    }
+
+    // --------------------------------------------------------------------------
+    // 14. ENTRADAS DE CONTROLE (JOYSTICK 360°, MULTI-TOUCH, MOUSE & TECLADO)
+    // --------------------------------------------------------------------------
+    function setupInputs() {
+      const canvas = renderer.domElement;
+      const joyBase = document.getElementById('joystick-base');
+      const joyKnob = document.getElementById('joystick-knob');
+
+      const btnUp = document.getElementById('btn-action-up');
+      const btnDown = document.getElementById('btn-action-down');
+
+      btnUp.addEventListener('pointerdown', (e) => {
+        e.preventDefault();
+        virtualState.holdAscend = true;
+        if (!player.flyingBroom) triggerJump();
+      });
+      const stopUp = () => { virtualState.holdAscend = false; };
+      btnUp.addEventListener('pointerup', stopUp);
+      btnUp.addEventListener('pointerleave', stopUp);
+      btnUp.addEventListener('pointercancel', stopUp);
+
+      btnDown.addEventListener('pointerdown', (e) => {
+        e.preventDefault();
+        virtualState.holdDescend = true;
+      });
+      const stopDown = () => { virtualState.holdDescend = false; };
+      btnDown.addEventListener('pointerup', stopDown);
+      btnDown.addEventListener('pointerleave', stopDown);
+      btnDown.addEventListener('pointercancel', stopDown);
+
+      function updateJoy(clientX, clientY) {
+        const rect = joyBase.getBoundingClientRect();
+        const cx = rect.left + rect.width * 0.5;
+        const cy = rect.top + rect.height * 0.5;
+        const maxR = rect.width * 0.36;
+        let dx = clientX - cx, dy = clientY - cy;
+        const d = Math.hypot(dx, dy);
+        if (d > maxR) { dx = (dx / d) * maxR; dy = (dy / d) * maxR; }
+        joyKnob.style.transform = `translate(${dx}px, ${dy}px)`;
+        virtualState.joyX = dx / maxR;
+        virtualState.joyY = dy / maxR;
+      }
+
+      function resetJoy() {
+        joystickPointerId = null;
+        joyKnob.style.transform = 'translate(0px, 0px)';
+        virtualState.joyX = 0;
+        virtualState.joyY = 0;
+      }
+
+      joyBase.addEventListener('pointerdown', (e) => {
+        e.preventDefault(); e.stopPropagation();
+        joystickPointerId = e.pointerId;
+        try { joyBase.setPointerCapture(e.pointerId); } catch (_) {}
+        updateJoy(e.clientX, e.clientY);
+      });
+      joyBase.addEventListener('pointermove', (e) => {
+        if (e.pointerId === joystickPointerId) updateJoy(e.clientX, e.clientY);
+      });
+      joyBase.addEventListener('pointerup', (e) => { if (e.pointerId === joystickPointerId) resetJoy(); });
+      joyBase.addEventListener('pointercancel', (e) => { if (e.pointerId === joystickPointerId) resetJoy(); });
+
+      let downX = 0, downY = 0;
+      canvas.addEventListener('pointerdown', (e) => {
+        if (e.pointerId === joystickPointerId) return;
+        lookPointerId = e.pointerId;
+        lastLookX = downX = e.clientX;
+        lastLookY = downY = e.clientY;
+        try { canvas.setPointerCapture(e.pointerId); } catch (_) {}
+      });
+      canvas.addEventListener('pointermove', (e) => {
+        if (pinchZoomActive) return; // pinça de 2 dedos: só o zoom mexe na câmera
+        if (document.pointerLockElement === canvas) {
+          if (isOrbitActive()) {
+            camYaw -= e.movementX * 0.0024;
+            camPitch = THREE.MathUtils.clamp(camPitch + e.movementY * 0.0024, -0.15, 1.45);
+          } else {
+            player.yaw -= e.movementX * 0.0024;
+            player.pitch = THREE.MathUtils.clamp(player.pitch - e.movementY * 0.0024, -1.35, 1.35);
+          }
+          return;
+        }
+        if (e.pointerId === lookPointerId) {
+          if (isOrbitActive()) {
+            // Órbita livre: arrastar gira a câmera em volta do daemon (360° sem trava).
+            camYaw -= (e.clientX - lastLookX) * 0.0085;
+            camPitch = THREE.MathUtils.clamp(camPitch + (e.clientY - lastLookY) * 0.0075, -0.15, 1.45);
+          } else {
+            player.yaw -= (e.clientX - lastLookX) * 0.0042;
+            player.pitch = THREE.MathUtils.clamp(player.pitch - (e.clientY - lastLookY) * 0.0042, -1.35, 1.35);
+          }
+          lastLookX = e.clientX;
+          lastLookY = e.clientY;
+        }
+      });
+      canvas.addEventListener('pointerup', (e) => {
+        if (e.pointerId === lookPointerId) {
+          lookPointerId = null;
+          if (Math.hypot(e.clientX - downX, e.clientY - downY) < 6 && (nearestCrystal || nearestAltar || nearestBroomStation || isNearActiveDaemon)) {
+            interactWithNearest();
+          }
+        }
+      });
+
+      // Zoom da órbita com a roda do mouse (só com daemon evocado).
+      canvas.addEventListener('wheel', (e) => {
+        if (!isOrbitActive()) return;
+        e.preventDefault();
+        camDistance = THREE.MathUtils.clamp(camDistance + e.deltaY * 0.006, minZoomDist, maxZoomDist);
+      }, { passive: false });
+
+      // Zoom da órbita com pinça de 2 dedos no celular (só com daemon evocado).
+      canvas.addEventListener('touchstart', (e) => {
+        if (e.touches.length === 2 && isOrbitActive()) {
+          pinchZoomActive = true;
+          pinchStartDist = Math.hypot(
+            e.touches[0].clientX - e.touches[1].clientX,
+            e.touches[0].clientY - e.touches[1].clientY
+          );
+        }
+      }, { passive: true });
+      canvas.addEventListener('touchmove', (e) => {
+        if (pinchZoomActive && e.touches.length === 2) {
+          const dist = Math.hypot(
+            e.touches[0].clientX - e.touches[1].clientX,
+            e.touches[0].clientY - e.touches[1].clientY
+          );
+          const deltaPinch = pinchStartDist - dist;
+          pinchStartDist = dist;
+          camDistance = THREE.MathUtils.clamp(camDistance + deltaPinch * 0.025, minZoomDist, maxZoomDist);
+        }
+      }, { passive: true });
+      canvas.addEventListener('touchend', () => { pinchZoomActive = false; });
+      canvas.addEventListener('touchcancel', () => { pinchZoomActive = false; });
+
+      document.querySelectorAll('.cam-dpad-btn').forEach(btn => {
+        const dir = btn.getAttribute('data-cam');
+        const setDir = (v) => {
+          if (dir === 'up') virtualState.camUp = v;
+          if (dir === 'down') virtualState.camDown = v;
+          if (dir === 'left') virtualState.camLeft = v;
+          if (dir === 'right') virtualState.camRight = v;
+        };
+        btn.addEventListener('pointerdown', (e) => { e.preventDefault(); setDir(true); });
+        btn.addEventListener('pointerup', () => setDir(false));
+        btn.addEventListener('pointerleave', () => setDir(false));
+      });
+
+      window.addEventListener('keydown', (e) => {
+        if (['Space', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.code)) e.preventDefault();
+        switch (e.code) {
+          case 'KeyW': case 'ArrowUp': keyInput.forward = true; break;
+          case 'KeyS': case 'ArrowDown': keyInput.backward = true; break;
+          case 'KeyA': case 'ArrowLeft': keyInput.left = true; break;
+          case 'KeyD': case 'ArrowRight': keyInput.right = true; break;
+          case 'ShiftLeft': case 'ShiftRight': keyInput.sprint = true; break;
+          case 'Space': keyInput.ascend = true; if (!player.flyingBroom) triggerJump(); break;
+          case 'KeyC': case 'ControlLeft': keyInput.descend = true; break;
+          case 'KeyQ': if (player.flyingBroom) keyInput.descend = true; else keyInput.turnLeft = true; break;
+          case 'KeyE': if (player.flyingBroom) keyInput.ascend = true; else keyInput.turnRight = true; break;
+          case 'KeyB': toggleBroomFlight(); break;
+          case 'KeyV': cycleWeapon(); break;
+          case 'KeyG': toggleGoetiaModal(); break;
+          case 'KeyF': interactWithNearest(); break;
+          case 'KeyM': toggleAtlasModal(); break;
+          case 'Digit1': castSpell(1); break;
+          case 'Digit2': castSpell(2); break;
+          case 'Digit3': castSpell(3); break;
+          case 'Digit4': castSpell(4); break;
+          case 'Escape': closeGoetiaModal(); closeAtlasModal(); closeLoreModal(); break;
+        }
+      });
+
+      window.addEventListener('keyup', (e) => {
+        switch (e.code) {
+          case 'KeyW': case 'ArrowUp': keyInput.forward = false; break;
+          case 'KeyS': case 'ArrowDown': keyInput.backward = false; break;
+          case 'KeyA': case 'ArrowLeft': keyInput.left = false; break;
+          case 'KeyD': case 'ArrowRight': keyInput.right = false; break;
+          case 'ShiftLeft': case 'ShiftRight': keyInput.sprint = false; break;
+          case 'Space': keyInput.ascend = false; break;
+          case 'KeyC': case 'ControlLeft': keyInput.descend = false; break;
+          case 'KeyQ': keyInput.descend = false; keyInput.turnLeft = false; break;
+          case 'KeyE': keyInput.ascend = false; keyInput.turnRight = false; break;
+        }
+      });
+    }
+
+    // --------------------------------------------------------------------------
+    // 15. RADAR / MINIMAPA CIRCULAR 66x66px & LOOP PRINCIPAL DE ANIMAÇÃO
+    // --------------------------------------------------------------------------
+    function drawRadar() {
+      const c = document.getElementById('minimap-canvas');
+      if (!c) return;
+      const ctx = c.getContext('2d');
+      const cx = 66, cy = 66, scale = 0.45;
+      ctx.clearRect(0, 0, 132, 132);
+
+      ctx.strokeStyle = 'rgba(229, 193, 88, 0.45)';
+      ctx.lineWidth = 1.5;
+      BRIDGES.forEach(br => {
+        ctx.beginPath();
+        ctx.moveTo(cx + br.ax * scale, cy + br.az * scale);
+        ctx.lineTo(cx + br.bx * scale, cy + br.bz * scale);
+        ctx.stroke();
+      });
+
+      ISLANDS.forEach(isl => {
+        ctx.fillStyle = 'rgba(28, 18, 56, 0.92)';
+        ctx.strokeStyle = 'rgba(229, 193, 88, 0.65)';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.arc(cx + isl.x * scale, cy + isl.z * scale, Math.max(2.5, isl.r * scale), 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+      });
+
+      // Posição do Daemon Ativo em Rubi/Ouro
+      if (activeDaemonState.group) {
+        ctx.fillStyle = '#f43f5e';
+        ctx.beginPath();
+        ctx.arc(cx + activeDaemonState.pos.x * scale, cy + activeDaemonState.pos.z * scale, 3.0, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      // Posição do Jogador
+      const px = cx + player.pos.x * scale;
+      const py = cy + player.pos.z * scale;
+      ctx.fillStyle = player.flyingBroom ? '#fbbf24' : '#38bdf8';
+      ctx.beginPath();
+      ctx.arc(px, py, 3.2, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    let toastTimer = null;
+    function showToast(msg) {
+      const el = document.getElementById('spell-toast');
+      if (!el) return;
+      el.textContent = msg;
+      el.style.opacity = '1';
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => { el.style.opacity = '0'; }, 2700);
+    }
+
+    function animate() {
+      requestAnimationFrame(animate);
+      const dt = Math.min(clock.getDelta(), 0.1);
+      const elapsed = clock.elapsedTime;
+
+      updatePlayer(dt, elapsed);
+      updateActiveDaemon(dt, elapsed);
+
+      if (starField) starField.rotation.y += dt * 0.006;
+      if (zodiacSkyWheel) zodiacSkyWheel.rotation.z += dt * 0.035;
+      if (centralTempleMerkabah) {
+        centralTempleMerkabah.rotation.y += dt * 0.55;
+        centralTempleMerkabah.rotation.x = Math.sin(elapsed * 0.8) * 0.25;
+      }
+
+      for (let i = 0; i < spinRings.length; i++) {
+        spinRings[i].mesh.rotation.z += spinRings[i].speed * dt;
+      }
+
+      for (let i = 0; i < floaters.length; i++) {
+        const f = floaters[i];
+        f.mesh.rotation.y += dt * 1.1;
+        f.mesh.position.y = f.baseY + Math.sin(elapsed * 2.2 + f.phase) * f.amp;
+      }
+
+      if (grandOrrery) {
+        grandOrrery.rotation.y += dt * 0.22;
+        for (let i = 0; i < orreryPlanets.length; i++) {
+          const p = orreryPlanets[i];
+          p.angle += p.speed * dt;
+          p.mesh.position.set(Math.cos(p.angle) * p.r, 0, Math.sin(p.angle) * p.r);
+        }
+      }
+
+      for (let i = 0; i < floatingBooks.length; i++) {
+        const b = floatingBooks[i];
+        b.angle += b.speed * dt;
+        b.mesh.position.set(Math.cos(b.angle) * b.r, b.y + Math.sin(elapsed * 2.5 + b.angle) * 0.2, Math.sin(b.angle) * b.r);
+        b.mesh.rotation.y = -b.angle;
+      }
+
+      if (solarBarqueGroup) {
+        solarBarqueGroup.position.y = 7.6 + Math.sin(elapsed * 1.4) * 0.45;
+      }
+
+      // Proximidade com Estações de Vassoura Voadora
+      let cBroom = null, minBroomD = 4.6;
+      for (let i = 0; i < broomStations.length; i++) {
+        const st = broomStations[i];
+        st.broomMesh.position.y = st.baseY + Math.sin(elapsed * 2.6 + st.phase) * 0.14;
+        const d = player.pos.distanceTo(st.pos);
+        if (d < minBroomD) { minBroomD = d; cBroom = st; }
+      }
+      nearestBroomStation = cBroom;
+
+      // Proximidade com os 5 Altares de Evocação de Salomão
+      let cAltar = null, minAltarD = 4.8;
+      for (let i = 0; i < evocationAltars.length; i++) {
+        const al = evocationAltars[i];
+        const d = player.pos.distanceTo(al.pos);
+        if (d < minAltarD) { minAltarD = d; cAltar = al; }
+      }
+      nearestAltar = cAltar;
+
+      // Passagem pelos 10 Anéis Celestes Dourados
+      for (let i = 0; i < skyRings.length; i++) {
+        const rk = skyRings[i];
+        rk.inner.rotation.z -= dt * 1.5;
+        if (player.pos.distanceTo(rk.group.position) < 4.5 && !passedRings.has(rk.id)) {
+          passedRings.add(rk.id);
+          rk.outer.material = MATS.emeraldCrystal;
+          const hc = document.getElementById('hoops-counter');
+          if (hc) hc.textContent = `${passedRings.size}/10`;
+          spawnBurst(rk.group.position, 0xfbbf24, 30);
+          playRitualChord([261.6, 329.6, 392, 523.2], 0.9);
+          showToast(`⭕ Anel Celeste Atravessado! (${passedRings.size}/10)`);
+        }
+      }
+
+      // Proximidade com as 12 Tábuas/Cristais de Lore
+      let cLore = null, minLoreD = 4.6;
+      for (let i = 0; i < loreCrystals.length; i++) {
+        const lc = loreCrystals[i];
+        lc.gem.rotation.y += dt * 1.4;
+        lc.ring.rotation.z -= dt * 1.0;
+        lc.group.position.y = lc.baseY + Math.sin(elapsed * 2.4 + lc.phase) * 0.15;
+        const d = player.pos.distanceTo(lc.vecPos);
+        if (d < minLoreD) { minLoreD = d; cLore = lc; }
+      }
+      nearestCrystal = cLore;
+
+      // Banner Contextual Inteligente no Centro Inferior
+      const banner = document.getElementById('proximity-banner');
+      const pIcon = document.getElementById('proximity-icon');
+      const pLabel = document.getElementById('proximity-label');
+      if (nearestCrystal) {
+        banner.classList.remove('hidden'); banner.classList.add('flex');
+        pIcon.textContent = '💎';
+        pLabel.textContent = `[F / Toque] Ler Tábua: ${nearestCrystal.title}`;
+      } else if (nearestAltar) {
+        const dObj = DAEMONS_DATA[nearestAltar.daemonId];
+        banner.classList.remove('hidden'); banner.classList.add('flex');
+        pIcon.textContent = '🔱';
+        pLabel.textContent = `[F / Toque] Evocar ${dObj.icon} ${dObj.name} no Altar`;
+      } else if (isNearActiveDaemon && activeDaemonState.group) {
+        const dObj = DAEMONS_DATA[activeDaemonState.id];
+        banner.classList.remove('hidden'); banner.classList.add('flex');
+        pIcon.textContent = dObj.icon;
+        pLabel.textContent = `[F / Toque] Comungar com ${dObj.name} (Ars Goetia)`;
+      } else if (nearestBroomStation && !player.flyingBroom) {
+        banner.classList.remove('hidden'); banner.classList.add('flex');
+        pIcon.textContent = '🧹';
+        pLabel.textContent = `[F / Toque] Montar: ${nearestBroomStation.name}`;
+      } else {
+        banner.classList.add('hidden'); banner.classList.remove('flex');
+      }
+
+      // Projéteis de Feitiços
+      for (let i = activeBolts.length - 1; i >= 0; i--) {
+        const b = activeBolts[i];
+        b.life -= dt;
+        b.group.position.addScaledVector(b.vel, dt);
+        let hit = false;
+        for (let j = 0; j < reactiveTargets.length; j++) {
+          const rt = reactiveTargets[j];
+          if (b.group.position.distanceTo(rt.pos) <= rt.r) {
+            rt.onHit();
+            hit = true;
+            break;
+          }
+        }
+        const gy = getGroundHeight(b.group.position.x, b.group.position.z);
+        if (hit || (gy !== null && b.group.position.y <= gy + 0.25) || b.life <= 0) {
+          if (!hit) spawnBurst(b.group.position, 0xfbbf24, 12);
+          scene.remove(b.group);
+          activeBolts.splice(i, 1);
+        }
+      }
+
+      for (let i = activeMeteors.length - 1; i >= 0; i--) {
+        const m = activeMeteors[i];
+        m.group.position.addScaledVector(m.vel, dt);
+        const gy = getGroundHeight(m.group.position.x, m.group.position.z) ?? 0;
+        if (m.group.position.y <= gy + 0.3) {
+          spawnBurst(m.group.position, 0xf43f5e, 18);
+          scene.remove(m.group);
+          activeMeteors.splice(i, 1);
+        }
+      }
+
+      if (runeCircleTimer > 0 && runeCircleMesh) {
+        runeCircleTimer -= dt;
+        const gy = getGroundHeight(player.pos.x, player.pos.z) ?? (player.pos.y - EYE_HEIGHT);
+        runeCircleMesh.position.set(player.pos.x, gy + 0.06, player.pos.z);
+        runeCircleMesh.rotation.z += dt * 1.4;
+        if (runeCircleTimer <= 0) { scene.remove(runeCircleMesh); runeCircleMesh = null; }
+      }
+
+      if (vortexTimer > 0 && vortexGroup) {
+        vortexTimer -= dt;
+        vortexGroup.position.copy(player.pos);
+        vortexGroup.rotation.y += dt * 3.8;
+        if (vortexTimer <= 0) { scene.remove(vortexGroup); vortexGroup = null; }
+      }
+
+      for (let i = activeParticles.length - 1; i >= 0; i--) {
+        const pt = activeParticles[i];
+        pt.life -= dt;
+        pt.sprite.position.addScaledVector(pt.vel, dt);
+        pt.vel.y -= 9.8 * dt * 0.35;
+        pt.sprite.material.opacity = Math.max(0, pt.life / pt.maxLife);
+        if (pt.life <= 0) { scene.remove(pt.sprite); activeParticles.splice(i, 1); }
+      }
+
+      drawRadar();
+      renderer.render(scene, camera);
+    }
+
+    function bootArcanumWorld() {
+      try {
+        const container = document.getElementById('canvas-container');
+        scene = new THREE.Scene();
+        camera = new THREE.PerspectiveCamera(68, window.innerWidth / window.innerHeight, 0.1, 750);
+        scene.add(camera);
+
+        renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+        renderer.domElement.id = 'world-canvas';
+        container.appendChild(renderer.domElement);
+
+        initMaterials();
+        buildSkyAndLights();
+        buildBridges();
+        buildIsland1AndSolomonTemple();
+        buildRemaining11Islands();
+        buildAltarsBroomsRingsAndLore();
+        buildFirstPersonViewmodels();
+        setupInputs();
+        syncBroomUI();
+
+        // Evoca inicialmente o Rei Paimon no Triângulo da Arte (0, 0, 3.5) diante do jogador!
+        summonDaemonById('paimon', false, new THREE.Vector3(0, 0, 3.5));
+
+        window.addEventListener('resize', () => {
+          camera.aspect = window.innerWidth / window.innerHeight;
+          camera.updateProjectionMatrix();
+          renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+
+        animate();
+      } catch (err) {
+        console.error('Erro na inicialização:', err);
+      }
+    }
+
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', bootArcanumWorld);
+    } else {
+      bootArcanumWorld();
+    }
+  </script>
+</body>
+</html>
