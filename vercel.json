@@ -1,0 +1,1 @@
+{"headers":[{"headers":[{"key":"Content-Encoding","value":"gzip"},{"key":"Content-Type","value":"application/wasm"}],"source":"/godot-arcanum/index.wasm"}],"rewrites":[{"destination":"/godot-arcanum/index.wasm.gz","source":"/godot-arcanum/index.wasm"}]}

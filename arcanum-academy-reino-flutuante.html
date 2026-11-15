@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>Arcanum Academy 3D</title>
+<style>
+*{box-sizing:border-box}html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#080b18;color:#f4e4bd;font-family:Georgia,serif}
+canvas{display:block;width:100%;height:100%;touch-action:none}
+#hud{position:fixed;inset:0;pointer-events:none}.panel{background:#0b1029d9;border:1px solid #b89558a8;border-radius:10px;padding:10px 13px;box-shadow:0 5px 22px #0008}
+#brand{position:absolute;top:12px;left:12px;font-size:17px;letter-spacing:2px}#brand small{display:block;font:10px Arial;letter-spacing:2px;color:#d0b477;margin-top:4px}
+#where{position:absolute;top:12px;right:12px;text-align:right;font:12px Arial}
+#help{position:absolute;bottom:12px;left:12px;font:11px/1.5 Arial;max-width:250px}
+#notice{position:absolute;bottom:12px;right:12px;font:11px Arial}
+#intro{position:fixed;inset:0;display:grid;place-items:center;background:#050716d9;pointer-events:auto;padding:18px}
+.card{max-width:460px;text-align:center;padding:26px 22px}.card h1{font-size:26px;letter-spacing:3px;font-weight:normal;color:#f1d494;margin:0 0 7px}.card .sub{font:10px Arial;letter-spacing:3px;color:#c3a7dc}.card p{font:13px/1.6 Arial;color:#e5e0ed}
+button{border:0;border-radius:8px;background:linear-gradient(130deg,#a77a3e,#e8cb82);color:#21172a;font-weight:bold;padding:12px 20px}
+#touch{position:fixed;bottom:20px;right:16px;display:none;gap:7px;pointer-events:auto}#touch button{width:48px;height:48px;padding:0;font-size:18px;opacity:.88}
+#stick{position:fixed;bottom:22px;left:18px;width:116px;height:116px;border:1px solid #c6a66b88;border-radius:50%;background:#10142b88;display:none;pointer-events:auto;touch-action:none}
+#nub{position:absolute;width:44px;height:44px;left:35px;top:35px;border-radius:50%;background:#c8a76b99;border:1px solid #f3d99b}
+@media(max-width:700px){#touch,#stick{display:block}#help{max-width:190px;font-size:9px}#notice{display:none}#where{font-size:10px}}
+</style></head><body>
+<canvas id="c"></canvas>
+<div id="hud"><div id="brand" class="panel">ARCANUM ACADEMY<small>O MUNDO DOS APRENDIZES</small></div>
+<div id="where" class="panel">✦ CIDADE FLUTUANTE<br><span style="color:#d3b8e8">REINO DE ARCANUM</span></div>
+<div id="help" class="panel">WASD / analógico — mover<br>Arraste a tela — girar câmera<br>ESPAÇO — saltar · E — magia</div>
+<div id="notice" class="panel">Explore a cidade e suas ilhas mágicas.</div></div>
+<div id="stick"><div id="nub"></div></div><div id="touch"><button id="jump">↑</button><button id="spell">✧</button></div>
+<div id="intro"><div class="card panel"><h1>ARCANUM ACADEMY</h1><div class="sub">UMA ESCOLA ALÉM DAS NUVENS</div><p>Entre em uma cidade mágica suspensa entre as estrelas. Explore o castelo, a biblioteca ancestral, a torre elemental, o jardim místico e a arena arcana.</p><p>Esta versão foi preparada para abrir diretamente no navegador do celular, sem baixar bibliotecas externas.</p><button id="enter">ENTRAR NO MUNDO</button></div></div>
+<script>
+(()=> {
+const cv=document.getElementById('c'),ctx=cv.getContext('2d');let W=0,H=0,D=1;
+function resize(){D=Math.min(devicePixelRatio||1,1.7);W=innerWidth;H=innerHeight;cv.width=W*D;cv.height=H*D;ctx.setTransform(D,0,0,D,0,0)}addEventListener('resize',resize);resize();
+let active=false,angle=0,zoom=1,px=0,pz=11,py=0,vy=0,keys={},moving={x:0,y:0},magic=[],particles=[];
+const islands=[{x:0,z:0,r:17,name:'CASTELO CENTRAL',type:'castle'},{x:-29,z:-18,r:8,name:'BIBLIOTECA ANCESTRAL',type:'library'},{x:29,z:-17,r:8,name:'TORRE ELEMENTAL',type:'tower'},{x:-28,z:22,r:8,name:'JARDIM MÍSTICO',type:'garden'},{x:29,z:22,r:8,name:'ARENA ARCANA',type:'arena'}];
+for(let i=0;i<180;i++)particles.push({x:Math.random()*2-1,y:Math.random(),r:Math.random()*1.5+.3,a:Math.random()});
+function project(x,y,z){let dx=x-px,dz=z-pz,ca=Math.cos(angle),sa=Math.sin(angle),rx=dx*ca-dz*sa,rz=dx*sa+dz*ca+16;let f=520/(rz+8);return {x:W/2+rx*f*zoom,y:H*.57+(y-2.5)*f*zoom+rz*.28*f*zoom,s:f}}
+function poly(points,color,stroke){ctx.beginPath();points.forEach((p,i)=>{let q=project(...p);i?ctx.lineTo(q.x,q.y):ctx.moveTo(q.x,q.y)});ctx.closePath();ctx.fillStyle=color;ctx.fill();if(stroke){ctx.strokeStyle=stroke;ctx.lineWidth=1;ctx.stroke()}}
+function line(a,b,color,w=2){let p=project(...a),q=project(...b);ctx.beginPath();ctx.moveTo(p.x,p.y);ctx.lineTo(q.x,q.y);ctx.strokeStyle=color;ctx.lineWidth=w;ctx.stroke()}
+function ellipse(x,y,z,rx,rz,color){let p=project(x,y,z);ctx.beginPath();ctx.ellipse(p.x,p.y,Math.abs(rx*p.s),Math.abs(rz*p.s*.5),0,0,Math.PI*2);ctx.fillStyle=color;ctx.fill()}
+function block(x,z,w,d,h,color,roof){let y=0;poly([[x-w/2,y,z-d/2],[x+w/2,y,z-d/2],[x+w/2,y,z+d/2],[x-w/2,y,z+d/2]],'#29283c');
+poly([[x-w/2,y,z-d/2],[x-w/2,y+h,z-d/2],[x+w/2,y+h,z-d/2],[x+w/2,y,z-d/2]],color);
+poly([[x+w/2,y,z-d/2],[x+w/2,y+h,z-d/2],[x+w/2,y+h,z+d/2],[x+w/2,y,z+d/2]],shade(color));
+poly([[x-w/2,y+h,z-d/2],[x+w/2,y+h,z-d/2],[x+w/2,y+h,z+d/2],[x-w/2,y+h,z+d/2]],roof||'#44334e');
+}
+function shade(hex){let n=parseInt(hex.slice(1),16);return '#'+[16,8,0].map((v,i)=>Math.max(0,((n>>v)&255)*.68|0).toString(16).padStart(2,'0')).join('')}
+function cone(x,y,z,r,h,color){let p=project(x,y+h,z),b=project(x,y,z);ctx.beginPath();ctx.moveTo(p.x,p.y);ctx.lineTo(b.x-r*b.s,b.y);ctx.lineTo(b.x+r*b.s,b.y);ctx.closePath();ctx.fillStyle=color;ctx.fill()}
+function islandBase(a){let {x,z,r}=a;ellipse(x,-1.4,z,r*1.12,r*.9,'#17172a');ellipse(x,-.3,z,r,r*.8,'#4b4255');ellipse(x,.08,z,r*.92,r*.74,a.type==='garden'?'#315746':'#344c43');
+for(let i=0;i<8;i++){let t=i*Math.PI/4,xx=x+Math.cos(t)*r*.72,zz=z+Math.sin(t)*r*.58;line([xx,-.2,zz],[xx*.99,-2.8,zz*.99],'#282438',3)}
+}
+function label(text,x,y,z){let p=project(x,y,z);ctx.font='bold '+Math.max(9,Math.min(14,12*p.s))+'px Georgia';ctx.textAlign='center';ctx.fillStyle='#f4d99b';ctx.shadowColor='#d9a84d';ctx.shadowBlur=9;ctx.fillText(text,p.x,p.y);ctx.shadowBlur=0}
+function castle(){block(0,0,12,10,5.5,'#b4a5a0','#4c3a55');block(0,-.1,7,6,7,'#c1b0a5','#51405e');
+for(let x of [-5,5])for(let z of [-4,4]){block(x,z,2.4,2.4,8,'#bcaea7','#44334e');cone(x,8,z,1.7,3.4,'#30243f');}
+cone(0,7,0,5,3.2,'#3b2a4b');line([0,10.2,0],[0,12,0],'#e3bd6d',3);ellipse(0,12,0,.55,.55,'#ffe6a1');
+block(0,1.3,2.4,.4,2.8,'#30263d','#30263d');for(let i=-2;i<=2;i++)block(i*1.5,-3.5,.8,.25,1.1,'#5a3c50','#5a3c50');
+}
+function sideBuild(a){let x=a.x,z=a.z;if(a.type==='library'){block(x,z,5,4,3.7,'#b5a29b','#47344f');cone(x,3.7,z,3.2,2.5,'#382641');for(let k=-1;k<=1;k++)block(x+k*1.4,z-2,.55,.2,2.2,'#40314e','#40314e')}
+if(a.type==='tower'){ellipse(x,.2,z,3,2.5,'#4d4058');block(x,z,3.3,3.3,7,'#b8a9a1','#40324c');cone(x,7,z,2.4,4,'#382743');ellipse(x,11,z,.5,.5,'#ffe09a')}
+if(a.type==='garden'){for(let i=0;i<6;i++){let t=i*1.04,xx=x+Math.cos(t)*3,zz=z+Math.sin(t)*2;line([xx,0,zz],[xx,1.6,zz],'#487a52',3);ellipse(xx,1.7,zz,.7,.45,['#a46cb5','#d4a4c8','#e1c27a'][i%3])}}
+if(a.type==='arena'){ellipse(x,.3,z,4.8,3.8,'#806a70');for(let i=0;i<4;i++){let t=i*Math.PI/2;line([x+Math.cos(t)*3,.3,z+Math.sin(t)*2],[x+Math.cos(t)*3,2.2,z+Math.sin(t)*2],'#d8b76e',3)}}
+}
+function draw(){ctx.clearRect(0,0,W,H);let sky=ctx.createLinearGradient(0,0,0,H);sky.addColorStop(0,'#080d24');sky.addColorStop(.65,'#171630');sky.addColorStop(1,'#30213a');ctx.fillStyle=sky;ctx.fillRect(0,0,W,H);
+for(let s of particles){let x=(s.x*W+performance.now()*.004*s.a)%W,y=s.y*H*.72;ctx.globalAlpha=.35+.55*Math.sin(performance.now()*.001+s.a*9);ctx.fillStyle='#e9dcff';ctx.beginPath();ctx.arc(x,y,s.r,0,7);ctx.fill()}ctx.globalAlpha=1;
+let sorted=[...islands].sort((a,b)=>((b.x-px)*Math.sin(angle)+(b.z-pz)*Math.cos(angle))-((a.x-px)*Math.sin(angle)+(a.z-pz)*Math.cos(angle)));
+sorted.forEach(a=>{islandBase(a);if(a.type==='castle')castle();else sideBuild(a);if(a.type!=='castle')label(a.name,a.x,13,a.z)});
+ // bridges
+ const bridges=[[0,0,-20,-13],[0,0,20,-12],[0,0,-19,16],[0,0,20,16]];
+ bridges.forEach(([x,z,bx,bz])=>{line([x,.2,z],[bx,.2,bz],'#9b8059',5);line([x,.35,z],[bx,.35,bz],'#e0bd77',1)});
+ // houses around castle
+ for(let i=0;i<8;i++){let t=i*Math.PI/4,x=Math.cos(t)*12,z=Math.sin(t)*10;block(x,z,2.6,2.3,2.2,'#a9958c','#45334d');cone(x,2.2,z,1.8,1.6,'#3c2c48')}
+ // player
+ let p=project(px,py,pz);ctx.save();ctx.translate(p.x,p.y);ctx.scale(p.s,p.s);
+ ctx.fillStyle='#171322';ctx.beginPath();ctx.ellipse(0,3,10,4,0,0,7);ctx.fill();
+ ctx.fillStyle='#3b294e';ctx.beginPath();ctx.moveTo(-10,-1);ctx.lineTo(-7,-27);ctx.lineTo(7,-27);ctx.lineTo(11,-1);ctx.closePath();ctx.fill();
+ ctx.fillStyle='#e3b991';ctx.beginPath();ctx.arc(0,-32,6,0,7);ctx.fill();
+ ctx.fillStyle='#332440';ctx.beginPath();ctx.moveTo(-8,-37);ctx.lineTo(0,-53);ctx.lineTo(9,-37);ctx.closePath();ctx.fill();
+ ctx.strokeStyle='#d7b56d';ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(12,-3);ctx.lineTo(17,-40);ctx.stroke();ctx.fillStyle='#ffe5a0';ctx.beginPath();ctx.arc(17,-42,4,0,7);ctx.fill();ctx.restore();
+ magic.forEach(m=>{let q=project(m.x,m.y,m.z);ctx.fillStyle='#c9a4ff';ctx.shadowColor='#b98cff';ctx.shadowBlur=15;ctx.beginPath();ctx.arc(q.x,q.y,5*q.s,0,7);ctx.fill();ctx.shadowBlur=0});
+ requestAnimationFrame(draw)}
+function cast(){magic.push({x:px,y:2,z:pz,vx:-Math.sin(angle)*.9,vz:-Math.cos(angle)*.9,life:55})}
+function jump(){if(py<=.01)vy=.28}
+document.getElementById('enter').onclick=()=>{active=true;document.getElementById('intro').style.display='none';};
+document.getElementById('spell').onclick=cast;document.getElementById('jump').onclick=jump;
+addEventListener('keydown',e=>{keys[e.code]=true;if(e.code==='KeyE')cast();if(e.code==='Space')jump()});addEventListener('keyup',e=>keys[e.code]=false);
+let drag=false,lastX=0;cv.addEventListener('pointerdown',e=>{drag=true;lastX=e.clientX});addEventListener('pointerup',()=>drag=false);addEventListener('pointermove',e=>{if(drag&&active){angle+=(e.clientX-lastX)*.008;lastX=e.clientX}});
+const stick=document.getElementById('stick'),nub=document.getElementById('nub');let stickOn=false;stick.addEventListener('pointerdown',e=>{stickOn=true;stick.setPointerCapture(e.pointerId);moveStick(e)});stick.addEventListener('pointermove',e=>{if(stickOn)moveStick(e)});stick.addEventListener('pointerup',()=>{stickOn=false;moving={x:0,y:0};nub.style.transform='translate(0,0)'});function moveStick(e){let r=stick.getBoundingClientRect(),x=e.clientX-r.left-58,y=e.clientY-r.top-58,l=Math.hypot(x,y),k=Math.min(1,48/(l||1));moving={x:x*k/48,y:y*k/48};nub.style.transform=`translate(${x*k}px,${y*k}px)`}
+let prev=performance.now();function tick(t){let dt=Math.min((t-prev)/16.67,2);prev=t;if(active){let f=(keys.KeyW||keys.ArrowUp?1:0)-(keys.KeyS||keys.ArrowDown?1:0)-moving.y;let s=(keys.KeyD||keys.ArrowRight?1:0)-(keys.KeyA||keys.ArrowLeft?1:0)+moving.x;let dx=(Math.cos(angle)*s-Math.sin(angle)*f)*.24*dt,dz=(Math.sin(angle)*s+Math.cos(angle)*f)*.24*dt;px+=dx;pz+=dz;vy-=.018*dt;py=Math.max(0,py+vy*dt);if(py===0)vy=0}
+magic.forEach(m=>{m.x+=m.vx;m.z+=m.vz;m.life--});magic=magic.filter(m=>m.life>0);draw();}requestAnimationFrame(tick)}requestAnimationFrame(tick);
+})();
+</script></body></html>
