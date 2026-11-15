@@ -1,0 +1,4317 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>Duelo Galáctico: Jedi vs. Sith — v3 Gráficos no Alto</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@600;700;900&family=Rajdhani:wght@500;600;700&display=swap" rel="stylesheet">
+  <style>
+    * {
+      box-sizing: border-box;
+      user-select: none;
+      -webkit-user-select: none;
+      touch-action: manipulation;
+    }
+
+    html, body {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background-color: #03050a;
+      font-family: 'Rajdhani', sans-serif;
+      color: #f1f5f9;
+    }
+
+    .font-display {
+      font-family: 'Orbitron', sans-serif;
+    }
+
+    /* Painéis estilo holograma industrial */
+    .holo-panel {
+      background: rgba(8, 12, 24, 0.86);
+      backdrop-filter: blur(14px);
+      border: 1px solid rgba(148, 163, 184, 0.24);
+      box-shadow: 0 14px 44px rgba(0, 0, 0, 0.78), inset 0 1px 0 rgba(255, 255, 255, 0.09);
+    }
+
+    .jedi-glow {
+      box-shadow: 0 0 24px rgba(0, 212, 255, 0.45), inset 0 0 16px rgba(0, 212, 255, 0.2);
+      border-color: #00d4ff !important;
+    }
+
+    .sith-glow {
+      box-shadow: 0 0 24px rgba(255, 30, 39, 0.5), inset 0 0 16px rgba(255, 30, 39, 0.22);
+      border-color: #ff1e27 !important;
+    }
+
+    .text-glow-blue {
+      text-shadow: 0 0 14px rgba(0, 212, 255, 0.85), 0 0 30px rgba(0, 140, 255, 0.5);
+    }
+
+    .text-glow-red {
+      text-shadow: 0 0 14px rgba(255, 30, 39, 0.85), 0 0 30px rgba(220, 20, 60, 0.5);
+    }
+
+    .text-glow-gold {
+      text-shadow: 0 0 14px rgba(250, 204, 21, 0.9), 0 0 32px rgba(234, 179, 8, 0.5);
+    }
+
+    ::-webkit-scrollbar {
+      width: 5px;
+      height: 5px;
+    }
+    ::-webkit-scrollbar-track {
+      background: rgba(15, 23, 42, 0.5);
+    }
+    ::-webkit-scrollbar-thumb {
+      background: rgba(100, 116, 139, 0.55);
+      border-radius: 9999px;
+    }
+
+    .touch-btn {
+      transition: transform 0.06s ease, filter 0.08s ease, box-shadow 0.1s ease;
+    }
+    .touch-btn:active, .touch-btn.pressed {
+      transform: scale(0.91);
+      filter: brightness(1.35);
+    }
+
+    @keyframes pulseScale {
+      0%, 100% { transform: scale(1); }
+      50% { transform: scale(1.06); }
+    }
+    .animate-pulse-fast {
+      animation: pulseScale 0.45s ease-in-out infinite;
+    }
+
+    /* Quadro do lutador em destaque — render Tripo AI (leve, ~10k faces) */
+    .tripo-frame {
+      box-shadow: 0 0 18px rgba(251, 191, 36, 0.28), inset 0 0 12px rgba(251, 191, 36, 0.14);
+    }
+  </style>
+</head>
+<body class="relative w-full h-full overflow-hidden">
+
+  <!-- Canvas Principal do Jogo -->
+  <canvas id="game-canvas" class="block w-full h-full"></canvas>
+
+  <!-- Botões Superiores Globais (Lista de Golpes + Som/Música) -->
+  <div class="fixed top-3 right-3 z-50 flex items-center gap-2">
+    <button id="btn-open-movelist" type="button" title="Ver Lista de Golpes e Técnicas"
+      class="holo-panel rounded-xl px-3 py-2 text-amber-300 hover:text-white hover:border-amber-400/70 transition flex items-center gap-1.5 text-xs sm:text-sm font-bold cursor-pointer">
+      <span>📜</span>
+      <span>Golpes</span>
+    </button>
+
+    <button id="btn-mute" type="button" title="Ativar/Desativar Áudio e Trilha"
+      class="holo-panel rounded-xl px-3 py-2 text-slate-200 hover:text-white hover:border-slate-400 transition flex items-center gap-1.5 text-xs sm:text-sm font-bold cursor-pointer">
+      <span id="mute-icon" class="text-base">🔊</span>
+      <span class="hidden sm:inline" id="mute-label">Som</span>
+    </button>
+  </div>
+
+  <!-- ==================== TELA INICIAL (ESTÚDIO DE DUELO) ==================== -->
+  <div id="start-screen" class="fixed inset-0 z-30 flex items-center justify-center p-2 sm:p-4 overflow-y-auto bg-slate-950/60">
+    <div class="holo-panel rounded-2xl w-full max-w-5xl p-4 sm:p-6 my-auto relative overflow-hidden">
+      <div id="menu-top-accent" class="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-cyan-400 via-sky-300 to-blue-500 transition-all duration-300"></div>
+
+      <!-- Cabeçalho -->
+      <div class="text-center mb-3 sm:mb-4 pr-16 sm:pr-0">
+        <div class="inline-flex items-center gap-2 px-3 py-0.5 rounded-full bg-slate-900/90 border border-slate-700 text-[10px] sm:text-xs tracking-widest uppercase text-amber-300 font-bold mb-1">
+          <span>Edição Action-Figure Articulada • Gráficos no Alto</span>
+          <span>•</span>
+          <span>Combate Cinematográfico</span>
+        </div>
+        <h1 class="font-display text-2xl sm:text-4xl md:text-5xl font-black tracking-wider uppercase text-white">
+          DUELO <span id="title-accent" class="text-cyan-400 text-glow-blue transition-colors duration-300">GALÁCTICO</span>
+        </h1>
+        <p class="text-slate-300 text-xs sm:text-sm mt-0.5">
+          Forje seu guerreiro articulado, domine combos aéreos, parries e poderes supremos da Força.
+        </p>
+      </div>
+
+      <!-- Grid de Configuração -->
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-3">
+
+        <!-- Coluna Esquerda (7 cols): Facção, Estilo de Luta e Cristal do Sabre -->
+        <div class="lg:col-span-7 flex flex-col gap-2.5">
+          <!-- 1. Facção -->
+          <div class="bg-slate-900/80 border border-slate-800 rounded-xl p-2.5 sm:p-3">
+            <h2 class="font-display text-xs uppercase tracking-wider text-slate-300 mb-2 flex items-center gap-2">
+              <span class="w-5 h-5 rounded-full bg-slate-800 text-cyan-400 flex items-center justify-center text-xs font-bold">1</span>
+              Lado da Força
+            </h2>
+            <div class="grid grid-cols-2 gap-2.5">
+              <button id="select-jedi" type="button"
+                class="faction-btn jedi-glow text-left rounded-xl p-2.5 bg-gradient-to-br from-cyan-950/75 to-slate-900/95 border-2 border-cyan-400 transition cursor-pointer">
+                <div class="flex items-center justify-between">
+                  <span class="font-display font-bold text-xs sm:text-sm text-cyan-300">LADO DA LUZ</span>
+                  <span class="text-base">✦</span>
+                </div>
+                <div class="text-xs font-bold text-white uppercase">Ordem Jedi</div>
+                <div class="mt-1 text-[11px] text-slate-300 leading-tight">
+                  Empurrão • Sabre Bumerangue • Puxão Ciclone • Harmonia Luminosa
+                </div>
+              </button>
+
+              <button id="select-sith" type="button"
+                class="faction-btn text-left rounded-xl p-2.5 bg-gradient-to-br from-red-950/65 to-slate-900/95 border-2 border-slate-700 hover:border-red-500/70 transition cursor-pointer">
+                <div class="flex items-center justify-between">
+                  <span class="font-display font-bold text-xs sm:text-sm text-red-400">LADO NEGRO</span>
+                  <span class="text-base">❖</span>
+                </div>
+                <div class="text-xs font-bold text-white uppercase">Império Sith</div>
+                <div class="mt-1 text-[11px] text-slate-300 leading-tight">
+                  Relâmpagos • Estrangulamento • Passo Fantasma • Tempestade Sombria
+                </div>
+              </button>
+            </div>
+          </div>
+
+          <!-- 2. Estilo de Luta (Forma de Combate) -->
+          <div class="bg-slate-900/80 border border-slate-800 rounded-xl p-2.5 sm:p-3">
+            <h2 class="font-display text-xs uppercase tracking-wider text-slate-300 mb-2 flex items-center gap-2">
+              <span class="w-5 h-5 rounded-full bg-slate-800 text-cyan-400 flex items-center justify-center text-xs font-bold">2</span>
+              Forma de Combate (Atributos)
+            </h2>
+            <div class="grid grid-cols-3 gap-2">
+              <button type="button" data-style="agile"
+                class="style-btn p-2 rounded-lg border border-slate-700 bg-slate-950/70 text-left transition cursor-pointer">
+                <div class="text-xs sm:text-sm font-bold text-emerald-400">⚡ Ágil (Ataru)</div>
+                <div class="text-[10px] text-slate-300">+22% Vel. • Dash rápido • 110 HP</div>
+              </button>
+              <button type="button" data-style="balanced"
+                class="style-btn p-2 rounded-lg border border-cyan-400 bg-slate-800/90 text-left transition cursor-pointer">
+                <div class="text-xs sm:text-sm font-bold text-sky-300">⚖️ Equilibrado</div>
+                <div class="text-[10px] text-slate-300">Versátil • Postura alta • 130 HP</div>
+              </button>
+              <button type="button" data-style="colossus"
+                class="style-btn p-2 rounded-lg border border-slate-700 bg-slate-950/70 text-left transition cursor-pointer">
+                <div class="text-xs sm:text-sm font-bold text-amber-400">🛡️ Colosso</div>
+                <div class="text-[10px] text-slate-300">+22% Dano • Armadura • 155 HP</div>
+              </button>
+            </div>
+          </div>
+
+          <!-- 3. Cor do Cristal do Sabre de Luz (7 opções) -->
+          <div class="bg-slate-900/80 border border-slate-800 rounded-xl p-2.5 sm:p-3">
+            <div class="flex items-center justify-between mb-2">
+              <h2 class="font-display text-xs uppercase tracking-wider text-slate-300 flex items-center gap-2">
+                <span class="w-5 h-5 rounded-full bg-slate-800 text-cyan-400 flex items-center justify-center text-xs font-bold">3</span>
+                Cristal Kyber do Sabre
+              </h2>
+              <span id="selected-saber-name" class="text-xs font-bold uppercase tracking-wider text-cyan-300">Azul Guardião</span>
+            </div>
+
+            <div id="saber-color-options" class="grid grid-cols-7 gap-1.5 mb-2"></div>
+
+            <!-- Pré-visualização da Empunhadura Metálica + Lâmina Neon -->
+            <div class="w-full h-8 bg-slate-950 rounded-lg border border-slate-800 flex items-center px-3 overflow-hidden">
+              <div class="w-14 h-3.5 bg-gradient-to-r from-slate-600 via-slate-200 to-slate-500 rounded-l-sm border-r-2 border-amber-400 flex items-center justify-around px-1 shrink-0 z-10 shadow">
+                <span class="w-1 h-2 bg-slate-900"></span>
+                <span class="w-1.5 h-1.5 rounded-full bg-red-500"></span>
+                <span class="w-1 h-2 bg-slate-900"></span>
+                <span class="w-1.5 h-2.5 bg-slate-800"></span>
+              </div>
+              <div id="saber-preview-blade" class="h-2.5 w-full rounded-r-full transition-all duration-300"
+                style="background: #ffffff; box-shadow: 0 0 12px #00d4ff, 0 0 26px #00d4ff;"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Coluna Direita (5 cols): Arena, Modo de Jogo e IA -->
+        <div class="lg:col-span-5 flex flex-col gap-2.5">
+          <!-- 4. Arena -->
+          <div class="bg-slate-900/80 border border-slate-800 rounded-xl p-2.5 sm:p-3">
+            <h2 class="font-display text-xs uppercase tracking-wider text-slate-300 mb-2 flex items-center gap-2">
+              <span class="w-5 h-5 rounded-full bg-slate-800 text-cyan-400 flex items-center justify-center text-xs font-bold">4</span>
+              Arena Multicamadas
+            </h2>
+            <div id="arena-options" class="space-y-1.5">
+              <button type="button" data-arena="temple"
+                class="arena-btn w-full flex items-center gap-2.5 p-2 rounded-lg border border-cyan-400 bg-slate-800/90 text-left transition cursor-pointer">
+                <span class="w-8 h-8 rounded-lg bg-indigo-950 border border-indigo-500/50 flex items-center justify-center text-base shrink-0">🏛️</span>
+                <div class="min-w-0">
+                  <div class="text-xs sm:text-sm font-bold text-white truncate">Templo Jedi sob Chuva de Faíscas</div>
+                  <div class="text-[10px] text-slate-400 truncate">Colunas monumentais, brasas ao vento e piso de mármore reflexivo</div>
+                </div>
+              </button>
+
+              <button type="button" data-arena="volcano"
+                class="arena-btn w-full flex items-center gap-2.5 p-2 rounded-lg border border-slate-700 bg-slate-950/60 hover:bg-slate-800/70 text-left transition cursor-pointer">
+                <span class="w-8 h-8 rounded-lg bg-red-950 border border-orange-500/50 flex items-center justify-center text-base shrink-0">🌋</span>
+                <div class="min-w-0">
+                  <div class="text-xs sm:text-sm font-bold text-white truncate">Fornalha Vulcânica de Lava</div>
+                  <div class="text-[10px] text-slate-400 truncate">Cascatas de magma, torres coletoras e plataforma de aço</div>
+                </div>
+              </button>
+
+              <button type="button" data-arena="station"
+                class="arena-btn w-full flex items-center gap-2.5 p-2 rounded-lg border border-slate-700 bg-slate-950/60 hover:bg-slate-800/70 text-left transition cursor-pointer">
+                <span class="w-8 h-8 rounded-lg bg-slate-800 border border-sky-500/40 flex items-center justify-center text-base shrink-0">🛸</span>
+                <div class="min-w-0">
+                  <div class="text-xs sm:text-sm font-bold text-white truncate">Núcleo da Estação Imperial</div>
+                  <div class="text-[10px] text-slate-400 truncate">Poço do reator pulsante, passarela suspensa e caças TIE</div>
+                </div>
+              </button>
+            </div>
+          </div>
+
+          <!-- 5. Modo de Jogo & Dificuldade -->
+          <div class="bg-slate-900/80 border border-slate-800 rounded-xl p-2.5 sm:p-3 flex-1 flex flex-col justify-between">
+            <div>
+              <h2 class="font-display text-xs uppercase tracking-wider text-slate-300 mb-2 flex items-center gap-2">
+                <span class="w-5 h-5 rounded-full bg-slate-800 text-cyan-400 flex items-center justify-center text-xs font-bold">5</span>
+                Modo de Jogo & IA
+              </h2>
+              <div class="grid grid-cols-2 gap-2 mb-2.5">
+                <button type="button" data-gamemode="arcade"
+                  class="mode-btn p-2 rounded-lg border border-cyan-400 bg-slate-800/90 text-left transition cursor-pointer">
+                  <div class="text-xs sm:text-sm font-bold text-white">🏆 Modo Arcade</div>
+                  <div class="text-[10px] text-slate-300">3 Desafiantes progressivos</div>
+                </button>
+                <button type="button" data-gamemode="training"
+                  class="mode-btn p-2 rounded-lg border border-slate-700 bg-slate-950/70 text-left transition cursor-pointer">
+                  <div class="text-xs sm:text-sm font-bold text-amber-300">🎯 Treino Livre</div>
+                  <div class="text-[10px] text-slate-300">Pratique combos e supremas</div>
+                </button>
+              </div>
+            </div>
+
+            <div id="difficulty-selector-box">
+              <div class="text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-1">Dificuldade do Oponente</div>
+              <div class="grid grid-cols-3 gap-1.5">
+                <button type="button" data-diff="apprentice"
+                  class="diff-btn py-1.5 px-1 rounded-lg border border-cyan-400 bg-slate-800 text-center transition cursor-pointer">
+                  <div class="text-xs font-bold text-emerald-400">Fácil</div>
+                </button>
+                <button type="button" data-diff="knight"
+                  class="diff-btn py-1.5 px-1 rounded-lg border border-slate-700 bg-slate-950/70 text-center transition cursor-pointer">
+                  <div class="text-xs font-bold text-amber-300">Normal</div>
+                </button>
+                <button type="button" data-diff="master"
+                  class="diff-btn py-1.5 px-1 rounded-lg border border-slate-700 bg-slate-950/70 text-center transition cursor-pointer">
+                  <div class="text-xs font-bold text-rose-400">Difícil</div>
+                </button>
+              </div>
+              <div class="text-[10px] text-emerald-300 mt-1">Fácil é o padrão: o NPC reage devagar, ataca pouco e abre bastante a guarda.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Painel do Lutador em Destaque — Render Tripo AI -->
+      <div id="tripo-showcase" class="mt-3 rounded-xl border border-amber-400/40 bg-slate-900/80 p-2.5 sm:p-3 flex items-center gap-3 overflow-hidden">
+        <div class="tripo-frame relative w-20 h-20 sm:w-24 sm:h-24 shrink-0 rounded-lg overflow-hidden bg-slate-950 border border-slate-700 flex items-center justify-center">
+          <img id="tripo-portrait-img" alt="Lutador Tripo" class="hidden w-full h-full object-cover" />
+          <div id="tripo-portrait-placeholder" class="absolute inset-0 flex flex-col items-center justify-center text-center px-1">
+            <span class="text-2xl leading-none">✦</span>
+            <span class="text-[9px] font-bold uppercase tracking-wider text-amber-300 mt-1">Render Tripo<br />em breve</span>
+          </div>
+        </div>
+        <div class="min-w-0 flex-1">
+          <div class="text-[10px] font-bold uppercase tracking-widest text-amber-300">Lutador em destaque • Tripo AI</div>
+          <div id="tripo-fighter-name" class="font-display font-bold text-base sm:text-lg text-white truncate">Cavaleiro Jedi</div>
+          <div id="tripo-fighter-sub" class="text-[11px] text-slate-300 truncate">Ordem Jedi • Modelo 3D leve (~10 mil faces, textura ~2K)</div>
+        </div>
+        <span class="hidden sm:inline-flex shrink-0 px-2 py-1 rounded-full bg-amber-400/15 border border-amber-400/50 text-amber-300 text-[10px] font-bold uppercase tracking-wider">Gráficos no alto</span>
+      </div>
+
+      <!-- Rodapé do Menu -->
+      <div class="mt-3 pt-3 border-t border-slate-800 flex flex-col sm:flex-row items-center justify-between gap-2.5">
+        <div class="text-[11px] text-slate-300 flex flex-wrap justify-center sm:justify-start gap-x-2.5 gap-y-1">
+          <span><kbd class="px-1.5 py-0.5 bg-slate-800 rounded border border-slate-600">A/D</kbd> Correr</span>
+          <span><kbd class="px-1.5 py-0.5 bg-slate-800 rounded border border-slate-600">W/Espaço</kbd> Pulo 2x</span>
+          <span><kbd class="px-1.5 py-0.5 bg-slate-800 rounded border border-slate-600">Shift/L</kbd> Dash</span>
+          <span><kbd class="px-1.5 py-0.5 bg-slate-800 rounded border border-slate-600">J/Z</kbd> Rápido (4x)</span>
+          <span><kbd class="px-1.5 py-0.5 bg-slate-800 rounded border border-slate-600">I/X</kbd> Pesado (<kbd class="px-1 bg-slate-800 rounded">W+I</kbd> Aéreo)</span>
+          <span><kbd class="px-1.5 py-0.5 bg-slate-800 rounded border border-slate-600">K/S</kbd> Defesa/Parry</span>
+          <span><kbd class="px-1.5 py-0.5 bg-slate-800 rounded border border-slate-600">U/O/P/H</kbd> Técnicas</span>
+        </div>
+
+        <button id="btn-start-game" type="button"
+          class="w-full sm:w-auto shrink-0 font-display font-bold text-sm sm:text-base tracking-wider uppercase px-7 py-2.5 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-slate-950 shadow-lg shadow-cyan-500/30 transition transform hover:scale-[1.02] active:scale-[0.98] cursor-pointer">
+          ⚔️ Iniciar Duelo
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== HUD EM COMBATE ==================== -->
+  <div id="battle-hud" class="fixed inset-0 z-20 pointer-events-none hidden flex-col justify-between p-2 sm:p-3">
+    <!-- Barra Superior -->
+    <div class="w-full max-w-6xl mx-auto pr-28 sm:pr-36">
+      <div class="grid grid-cols-12 gap-2 sm:gap-3 items-start">
+
+        <!-- Status P1 (Esquerda) -->
+        <div class="col-span-5 holo-panel rounded-xl p-2 sm:p-2.5">
+          <div class="flex items-center justify-between gap-1 mb-1">
+            <div class="flex items-center gap-1.5 min-w-0">
+              <span id="hud-p1-badge" class="px-1.5 rounded text-[10px] font-bold uppercase bg-cyan-500/20 text-cyan-300 border border-cyan-500/40">JEDI</span>
+              <img id="hud-p1-portrait" alt="" class="hidden w-6 h-6 sm:w-7 sm:h-7 rounded-md object-cover border border-slate-600 shrink-0" />
+              <span id="hud-p1-name" class="font-display font-bold text-xs sm:text-sm text-white truncate">Cavaleiro Jedi</span>
+            </div>
+            <span id="hud-p1-hp-text" class="text-[11px] sm:text-xs font-bold text-slate-200 shrink-0">130/130</span>
+          </div>
+
+          <!-- Vida P1 -->
+          <div class="w-full h-2.5 sm:h-3 bg-slate-950 rounded-full overflow-hidden border border-slate-700 relative">
+            <div id="hud-p1-hp-trail" class="absolute inset-y-0 left-0 bg-amber-300/80 transition-all duration-300" style="width: 100%"></div>
+            <div id="hud-p1-hp-bar" class="absolute inset-y-0 left-0 bg-gradient-to-r from-emerald-500 to-cyan-400 transition-all duration-75" style="width: 100%"></div>
+          </div>
+
+          <!-- Postura (Guarda) + Força P1 -->
+          <div class="mt-1 grid grid-cols-2 gap-1.5 items-center">
+            <div class="flex items-center gap-1">
+              <span class="text-[9px] font-bold uppercase text-amber-300">Postura</span>
+              <div class="flex-1 h-1.5 bg-slate-950 rounded-full overflow-hidden border border-slate-800">
+                <div id="hud-p1-stance-bar" class="h-full bg-amber-400 transition-all duration-75" style="width: 100%"></div>
+              </div>
+            </div>
+            <div class="flex items-center gap-1">
+              <span class="text-[9px] font-bold uppercase text-sky-300">Força</span>
+              <div class="flex-1 h-1.5 bg-slate-950 rounded-full overflow-hidden border border-slate-800">
+                <div id="hud-p1-force-bar" class="h-full bg-gradient-to-r from-blue-500 via-sky-400 to-white transition-all duration-75" style="width: 100%"></div>
+              </div>
+            </div>
+          </div>
+
+          <div id="hud-p1-status" class="mt-1 flex flex-wrap gap-1 min-h-[14px]"></div>
+        </div>
+
+        <!-- Centro: Fase / Treino & Botão Menu -->
+        <div class="col-span-2 flex flex-col items-center justify-center text-center">
+          <div class="holo-panel rounded-xl px-2 py-1 w-full">
+            <div id="hud-mode-label" class="text-[9px] sm:text-[10px] uppercase tracking-widest text-amber-300 font-bold">Arcade</div>
+            <div id="hud-stage-text" class="font-display font-black text-xs sm:text-sm text-white">1 / 3</div>
+            <div id="hud-diff-text" class="text-[9px] text-slate-400 uppercase truncate">Fácil</div>
+          </div>
+          <button id="btn-back-menu" type="button"
+            class="pointer-events-auto mt-1 px-2.5 py-0.5 rounded-lg bg-slate-900/90 hover:bg-slate-800 border border-slate-700 text-[10px] sm:text-xs font-semibold text-slate-300 hover:text-white transition cursor-pointer">
+            Menu
+          </button>
+        </div>
+
+        <!-- Status P2 (Direita) -->
+        <div class="col-span-5 holo-panel rounded-xl p-2 sm:p-2.5">
+          <div class="flex items-center justify-between gap-1 mb-1">
+            <span id="hud-p2-hp-text" class="text-[11px] sm:text-xs font-bold text-slate-200 shrink-0">130/130</span>
+            <div class="flex items-center gap-1.5 min-w-0 justify-end">
+              <img id="hud-p2-portrait" alt="" class="hidden w-6 h-6 sm:w-7 sm:h-7 rounded-md object-cover border border-slate-600 shrink-0" />
+              <span id="hud-p2-name" class="font-display font-bold text-xs sm:text-sm text-white truncate">Inquisidor Sith</span>
+              <span id="hud-p2-badge" class="px-1.5 rounded text-[10px] font-bold uppercase bg-red-500/20 text-red-300 border border-red-500/40">SITH</span>
+            </div>
+          </div>
+
+          <!-- Vida P2 -->
+          <div class="w-full h-2.5 sm:h-3 bg-slate-950 rounded-full overflow-hidden border border-slate-700 relative">
+            <div id="hud-p2-hp-trail" class="absolute inset-y-0 right-0 bg-amber-300/80 transition-all duration-300" style="width: 100%"></div>
+            <div id="hud-p2-hp-bar" class="absolute inset-y-0 right-0 bg-gradient-to-l from-rose-600 to-orange-400 transition-all duration-75" style="width: 100%"></div>
+          </div>
+
+          <!-- Postura + Força P2 -->
+          <div class="mt-1 grid grid-cols-2 gap-1.5 items-center">
+            <div class="flex items-center gap-1">
+              <div class="flex-1 h-1.5 bg-slate-950 rounded-full overflow-hidden border border-slate-800">
+                <div id="hud-p2-force-bar" class="h-full ml-auto bg-gradient-to-l from-blue-500 via-sky-400 to-white transition-all duration-75" style="width: 100%"></div>
+              </div>
+              <span class="text-[9px] font-bold uppercase text-sky-300">Força</span>
+            </div>
+            <div class="flex items-center gap-1">
+              <div class="flex-1 h-1.5 bg-slate-950 rounded-full overflow-hidden border border-slate-800">
+                <div id="hud-p2-stance-bar" class="h-full ml-auto bg-amber-400 transition-all duration-75" style="width: 100%"></div>
+              </div>
+              <span class="text-[9px] font-bold uppercase text-amber-300">Postura</span>
+            </div>
+          </div>
+
+          <div id="hud-p2-status" class="mt-1 flex flex-wrap justify-end gap-1 min-h-[14px]"></div>
+        </div>
+      </div>
+
+      <!-- Barra de Controle do Modo Treino Livre -->
+      <div id="training-toolbar" class="hidden pointer-events-auto mt-2 mx-auto w-fit holo-panel rounded-xl px-3 py-1.5 flex items-center gap-2 text-xs">
+        <span class="font-bold text-amber-300 uppercase">Boneco de Treino:</span>
+        <button type="button" data-dummy="idle" class="dummy-btn px-2 py-0.5 rounded bg-cyan-600 text-slate-950 font-bold cursor-pointer">Parado</button>
+        <button type="button" data-dummy="guard" class="dummy-btn px-2 py-0.5 rounded bg-slate-800 text-slate-200 font-semibold cursor-pointer">Defendendo</button>
+        <button type="button" data-dummy="ai" class="dummy-btn px-2 py-0.5 rounded bg-slate-800 text-slate-200 font-semibold cursor-pointer">Combate IA</button>
+        <button type="button" id="btn-refill-training" class="ml-1 px-2 py-0.5 rounded bg-emerald-600/80 hover:bg-emerald-500 text-white font-bold cursor-pointer">100% Força</button>
+      </div>
+
+      <!-- Banner de Combo + Rank de Estilo Dinâmico -->
+      <div id="combo-banner" class="mt-2 ml-1 inline-flex flex-col items-start opacity-0 transition-opacity duration-200">
+        <div class="flex items-baseline gap-2">
+          <span id="combo-count" class="font-display font-black text-2xl sm:text-4xl text-white italic drop-shadow">2 HITS!</span>
+          <span id="combo-rank-letter" class="font-display font-black text-3xl sm:text-5xl text-cyan-300 text-glow-blue">D</span>
+        </div>
+        <span id="combo-rank-title" class="text-[11px] sm:text-xs font-display uppercase tracking-widest text-amber-300 font-bold">Aprendiz</span>
+      </div>
+    </div>
+
+    <!-- Banner Central de Disputa de Choque de Sabres (Saber Clash) -->
+    <div id="clash-banner" class="hidden mx-auto holo-panel rounded-2xl px-5 py-3 border-2 border-amber-400 text-center animate-pulse-fast">
+      <div class="font-display font-black text-lg sm:text-2xl text-amber-300 text-glow-gold uppercase tracking-wider">
+        ⚡ CHOQUE DE SABRES! ⚡
+      </div>
+      <div class="text-xs sm:text-sm font-bold text-white mb-1.5">APERTE ATAQUE [J / Z] RAPIDAMENTE!</div>
+      <div class="w-56 sm:w-72 h-3 bg-slate-950 rounded-full overflow-hidden border border-slate-700 mx-auto">
+        <div id="clash-meter-bar" class="h-full bg-gradient-to-r from-cyan-400 via-white to-red-500 transition-all duration-75" style="width: 50%"></div>
+      </div>
+    </div>
+
+    <!-- Controles Virtuais Touch / Mouse na Parte Inferior -->
+    <div class="w-full max-w-6xl mx-auto flex items-end justify-between gap-2">
+      <!-- Direcional + Pulo + Dash (Esquerda) -->
+      <div class="pointer-events-auto flex flex-col gap-1.5">
+        <div class="flex gap-1.5">
+          <button type="button" data-action="jump"
+            class="touch-btn holo-panel w-12 h-10 sm:w-14 sm:h-11 rounded-xl flex flex-col items-center justify-center text-slate-100 font-bold cursor-pointer">
+            <span class="text-xs leading-none">▲</span>
+            <span class="text-[9px] text-slate-300">Pular</span>
+          </button>
+          <button type="button" data-action="dash"
+            class="touch-btn holo-panel w-14 h-10 sm:w-16 sm:h-11 rounded-xl flex flex-col items-center justify-center text-amber-300 font-bold cursor-pointer">
+            <span class="text-xs leading-none">⚡</span>
+            <span class="text-[9px] text-slate-200">Dash</span>
+          </button>
+          <button type="button" data-action="launcher"
+            class="touch-btn holo-panel w-14 h-10 sm:w-16 sm:h-11 rounded-xl flex flex-col items-center justify-center text-purple-300 font-bold cursor-pointer">
+            <span class="text-xs leading-none">⤴️</span>
+            <span class="text-[9px] text-slate-200">Aéreo</span>
+          </button>
+        </div>
+        <div class="flex gap-1.5">
+          <button type="button" data-action="left"
+            class="touch-btn holo-panel w-14 h-12 sm:w-16 sm:h-13 rounded-xl flex items-center justify-center text-white text-xl font-bold cursor-pointer">
+            ◀
+          </button>
+          <button type="button" data-action="right"
+            class="touch-btn holo-panel w-14 h-12 sm:w-16 sm:h-13 rounded-xl flex items-center justify-center text-white text-xl font-bold cursor-pointer">
+            ▶
+          </button>
+        </div>
+      </div>
+
+      <!-- Técnicas Especiais + Golpes de Sabre (Direita) -->
+      <div class="pointer-events-auto flex flex-col items-end gap-1.5">
+        <!-- 4 Técnicas da Força -->
+        <div class="flex flex-wrap justify-end gap-1 sm:gap-1.5">
+          <button type="button" id="btn-power-1" data-action="power1"
+            class="touch-btn holo-panel px-2 py-1 sm:px-2.5 sm:py-1.5 rounded-xl flex flex-col items-center justify-center border-sky-500/50 cursor-pointer min-w-[58px] sm:min-w-[74px]">
+            <span id="label-power-1" class="text-[10px] sm:text-xs font-bold text-sky-300 leading-tight">Empurrão</span>
+            <span id="cost-power-1" class="text-[8px] sm:text-[9px] text-slate-400">25 [U/1]</span>
+          </button>
+
+          <button type="button" id="btn-power-2" data-action="power2"
+            class="touch-btn holo-panel px-2 py-1 sm:px-2.5 sm:py-1.5 rounded-xl flex flex-col items-center justify-center border-sky-500/50 cursor-pointer min-w-[58px] sm:min-w-[74px]">
+            <span id="label-power-2" class="text-[10px] sm:text-xs font-bold text-sky-300 leading-tight">Sabre</span>
+            <span id="cost-power-2" class="text-[8px] sm:text-[9px] text-slate-400">35 [O/2]</span>
+          </button>
+
+          <button type="button" id="btn-power-3" data-action="power3"
+            class="touch-btn holo-panel px-2 py-1 sm:px-2.5 sm:py-1.5 rounded-xl flex flex-col items-center justify-center border-sky-500/50 cursor-pointer min-w-[58px] sm:min-w-[74px]">
+            <span id="label-power-3" class="text-[10px] sm:text-xs font-bold text-sky-300 leading-tight">Ciclone</span>
+            <span id="cost-power-3" class="text-[8px] sm:text-[9px] text-slate-400">45 [P/3]</span>
+          </button>
+
+          <button type="button" id="btn-power-4" data-action="power4"
+            class="touch-btn holo-panel px-2 py-1 sm:px-2.5 sm:py-1.5 rounded-xl flex flex-col items-center justify-center border-amber-400/80 bg-gradient-to-br from-amber-500/20 to-purple-600/20 cursor-pointer min-w-[64px] sm:min-w-[82px]">
+            <span id="label-power-4" class="text-[10px] sm:text-xs font-bold text-amber-300 leading-tight">SUPREMA</span>
+            <span id="cost-power-4" class="text-[8px] sm:text-[9px] text-amber-200">100% [H/4]</span>
+          </button>
+        </div>
+
+        <!-- Defesa/Parry, Golpe Pesado e Ataque Rápido -->
+        <div class="flex gap-1.5">
+          <button type="button" data-action="block"
+            class="touch-btn holo-panel w-14 h-12 sm:w-18 sm:h-13 px-2 rounded-xl flex flex-col items-center justify-center border-emerald-500/50 text-emerald-300 font-bold cursor-pointer">
+            <span class="text-sm leading-none">🛡️</span>
+            <span class="text-[9px] sm:text-[10px]">Parry [K]</span>
+          </button>
+          <button type="button" data-action="heavy"
+            class="touch-btn holo-panel w-16 h-12 sm:w-20 sm:h-13 px-2 rounded-xl flex flex-col items-center justify-center border-orange-500/60 text-orange-300 font-bold cursor-pointer">
+            <span class="text-sm leading-none">💥</span>
+            <span class="text-[9px] sm:text-[10px]">Pesado [I]</span>
+          </button>
+          <button type="button" data-action="attack"
+            class="touch-btn holo-panel w-18 h-12 sm:w-24 sm:h-13 px-2 rounded-xl flex flex-col items-center justify-center bg-gradient-to-br from-cyan-500/30 to-blue-600/30 border-cyan-400 text-white font-bold cursor-pointer">
+            <span class="text-sm leading-none">⚔️</span>
+            <span class="text-[10px] sm:text-xs font-display">RÁPIDO [J]</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== MODAL DE LISTA DE GOLPES E TÉCNICAS ==================== -->
+  <div id="movelist-modal" class="fixed inset-0 z-50 hidden items-center justify-center p-3 sm:p-5 bg-slate-950/80 backdrop-blur-md">
+    <div class="holo-panel rounded-2xl max-w-2xl w-full max-h-[88vh] flex flex-col overflow-hidden border border-slate-700">
+      <div class="p-4 border-b border-slate-800 flex items-center justify-between">
+        <div>
+          <h3 class="font-display font-black text-lg sm:text-xl text-white uppercase">📜 Grimório de Combate & Técnicas</h3>
+          <p class="text-xs text-slate-400">Domine cancels, lançadores aéreos e poderes da Força</p>
+        </div>
+        <button id="btn-close-movelist" type="button"
+          class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold text-xs sm:text-sm cursor-pointer">
+          ✕ Fechar
+        </button>
+      </div>
+
+      <div class="p-4 overflow-y-auto space-y-4 text-xs sm:text-sm">
+        <!-- Golpes Universais -->
+        <div>
+          <h4 class="font-display font-bold text-amber-300 uppercase tracking-wider mb-2">⚔️ Fundamentos & Combos Universais</h4>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            <div class="bg-slate-900/90 border border-slate-800 rounded-lg p-2.5">
+              <div class="font-bold text-white">Combo Rápido (4 Golpes) — <span class="text-cyan-300">[J ou Z]</span></div>
+              <div class="text-slate-400 text-xs">Sequência veloz com giro final. Pode ser cancelado em Dash ou Técnicas!</div>
+            </div>
+            <div class="bg-slate-900/90 border border-slate-800 rounded-lg p-2.5">
+              <div class="font-bold text-white">Estocada Veloz — <span class="text-cyan-300">[Correndo + J/Z]</span></div>
+              <div class="text-slate-400 text-xs">Investida perfurante de longo alcance para encurtar distância.</div>
+            </div>
+            <div class="bg-slate-900/90 border border-slate-800 rounded-lg p-2.5">
+              <div class="font-bold text-white">Corte Pesado Quebra-Guarda — <span class="text-orange-300">[I ou X]</span></div>
+              <div class="text-slate-400 text-xs">Golpe devastador que arranca grande parte da Postura do rival.</div>
+            </div>
+            <div class="bg-slate-900/90 border border-slate-800 rounded-lg p-2.5">
+              <div class="font-bold text-white">Gancho Aéreo (Launcher) — <span class="text-purple-300">[W + I]</span></div>
+              <div class="text-slate-400 text-xs">Lança o inimigo ao ar! Pule em seguida para combos aéreos e esmagamento.</div>
+            </div>
+            <div class="bg-slate-900/90 border border-slate-800 rounded-lg p-2.5">
+              <div class="font-bold text-white">Defesa & Parry Perfeito — <span class="text-emerald-300">[K ou S]</span></div>
+              <div class="text-slate-400 text-xs">Apertar no instante exato do impacto atordoa o inimigo em câmera lenta!</div>
+            </div>
+            <div class="bg-slate-900/90 border border-slate-800 rounded-lg p-2.5">
+              <div class="font-bold text-white">Dash da Força (Chão/Ar) — <span class="text-amber-300">[Shift ou L]</span></div>
+              <div class="text-slate-400 text-xs">Esquiva com invulnerabilidade (i-frames) e rastro espectral.</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Técnicas Jedi -->
+        <div>
+          <h4 class="font-display font-bold text-cyan-300 uppercase tracking-wider mb-2">✦ Técnicas do Lado da Luz (Jedi)</h4>
+          <ul class="space-y-1.5 text-xs bg-cyan-950/20 border border-cyan-500/20 rounded-xl p-3">
+            <li><strong class="text-cyan-300">[U / 1] Empurrão da Força (25 Força):</strong> Onda telecinética que arremessa o inimigo e destrói projéteis.</li>
+            <li><strong class="text-cyan-300">[O / 2] Sabre Bumerangue (35 Força):</strong> Arremessa o sabre girando, atingindo o alvo na ida e na volta.</li>
+            <li><strong class="text-cyan-300">[P / 3] Puxão + Corte Ciclone (45 Força):</strong> Puxa o rival com a Força e executa um turbilhão de cortes.</li>
+            <li><strong class="text-amber-300">[H / 4] SUPREMA — Harmonia Luminosa (100% Força):</strong> Cura +35 HP, cria aura invulnerável e dispara 3 ondas cortantes de luz.</li>
+          </ul>
+        </div>
+
+        <!-- Técnicas Sith -->
+        <div>
+          <h4 class="font-display font-bold text-red-400 uppercase tracking-wider mb-2">❖ Técnicas do Lado Negro (Sith)</h4>
+          <ul class="space-y-1.5 text-xs bg-red-950/20 border border-red-500/20 rounded-xl p-3">
+            <li><strong class="text-red-400">[U / 1] Relâmpagos da Força (30 Força):</strong> Rajada elétrica contínua de múltiplos hits e paralisia.</li>
+            <li><strong class="text-red-400">[O / 2] Estrangulamento Telecinético (40 Força):</strong> Ergue o oponente no ar sufocando-o e o esmaga no chão.</li>
+            <li><strong class="text-red-400">[P / 3] Passo Fantasma Sombrio (40 Força):</strong> Teleporta em fumaça negra para trás do inimigo e ataca pelas costas.</li>
+            <li><strong class="text-amber-300">[H / 4] SUPREMA — Tempestade Sombria (100% Força):</strong> Eclipse na arena, esmagamento gravitacional e rajada frenética carmesim.</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== OVERLAY DE FIM DE DUELO ==================== -->
+  <div id="end-overlay" class="fixed inset-0 z-40 hidden items-center justify-center p-4 bg-slate-950/75 backdrop-blur-sm">
+    <div class="holo-panel rounded-2xl max-w-md w-full p-5 sm:p-6 text-center border border-slate-700">
+      <div id="end-subtitle" class="text-xs uppercase tracking-widest text-amber-300 font-bold mb-1">Duelo Encerrado</div>
+      <h2 id="end-title" class="font-display text-3xl sm:text-4xl font-black uppercase text-white mb-2">VITÓRIA!</h2>
+      <p id="end-desc" class="text-sm text-slate-300 mb-4">Você dominou a arena com maestria na Força.</p>
+
+      <div class="grid grid-cols-3 gap-2 bg-slate-900/85 border border-slate-800 rounded-xl p-3 mb-5">
+        <div>
+          <div class="text-[10px] uppercase text-slate-400">Dano Total</div>
+          <div id="stat-damage" class="font-display font-bold text-base sm:text-lg text-cyan-300">0</div>
+        </div>
+        <div>
+          <div class="text-[10px] uppercase text-slate-400">Rank Máximo</div>
+          <div id="stat-combo" class="font-display font-bold text-base sm:text-lg text-amber-300">D (0x)</div>
+        </div>
+        <div>
+          <div class="text-[10px] uppercase text-slate-400">Parries</div>
+          <div id="stat-parries" class="font-display font-bold text-base sm:text-lg text-emerald-300">0</div>
+        </div>
+      </div>
+
+      <div class="flex flex-col gap-2.5">
+        <button id="btn-next-stage" type="button"
+          class="hidden w-full font-display font-bold text-sm sm:text-base uppercase tracking-wider py-3 px-4 rounded-xl bg-gradient-to-r from-amber-400 to-orange-500 hover:from-amber-300 hover:to-orange-400 text-slate-950 shadow-lg transition cursor-pointer">
+          Próximo Desafiante ▶
+        </button>
+
+        <button id="btn-play-again" type="button"
+          class="w-full font-display font-bold text-sm sm:text-base uppercase tracking-wider py-3 px-4 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-slate-950 shadow-lg transition cursor-pointer">
+          Jogar Novamente
+        </button>
+
+        <button id="btn-change-side" type="button"
+          class="w-full font-semibold text-xs sm:text-sm uppercase tracking-wider py-2.5 px-4 rounded-xl bg-slate-800/90 hover:bg-slate-700 text-slate-200 border border-slate-700 transition cursor-pointer">
+          Estúdio / Trocar de Lado
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    /**
+     * ============================================================================
+     * DUELO GALÁCTICO: JEDI VS. SITH — EDIÇÃO ACTION-FIGURE ARTICULADA
+     * Motor 2D com Cinemática Articulada Volumétrica, Iluminação Dinâmica de Sabre,
+     * Piso Reflexivo, Câmera Inteligente com Zoom e Áudio Procedural + Trilha.
+     * ============================================================================
+     */
+
+    // ============================================================================
+    // 1. MOTOR DE ÁUDIO PROCEDURAL + TRILHA SINTETIZADA (WEB AUDIO API)
+    // ============================================================================
+    class SoundEngine {
+      constructor() {
+        this.ctx = null;
+        this.muted = false;
+        this.noiseBuffer = null;
+        this.bgmInterval = null;
+        this.bgmStep = 0;
+      }
+
+      init() {
+        if (!this.ctx) {
+          const AudioCtx = window.AudioContext || window.webkitAudioContext;
+          if (AudioCtx) {
+            this.ctx = new AudioCtx();
+            this._createNoiseBuffer();
+            this._startAmbientMusic();
+          }
+        }
+        if (this.ctx && this.ctx.state === 'suspended') {
+          this.ctx.resume().catch(() => {});
+        }
+      }
+
+      _createNoiseBuffer() {
+        if (!this.ctx) return;
+        const sr = this.ctx.sampleRate;
+        const buf = this.ctx.createBuffer(1, sr * 1.5, sr);
+        const data = buf.getChannelData(0);
+        for (let i = 0; i < data.length; i++) data[i] = Math.random() * 2 - 1;
+        this.noiseBuffer = buf;
+      }
+
+      // Trilha sonora orquestral sintetizada sutil em loop
+      _startAmbientMusic() {
+        if (this.bgmInterval) return;
+        const jediNotes = [146.83, 174.61, 220.0, 261.63, 220.0, 174.61, 130.81, 146.83]; // Ré menor heroico
+        const sithNotes = [110.0, 116.54, 146.83, 110.0, 130.81, 103.83, 98.0, 110.0];    // Lá menor sombrio
+
+        this.bgmInterval = setInterval(() => {
+          if (this.muted || !this.ctx || this.ctx.state !== 'running') return;
+          const now = this.ctx.currentTime;
+          const isSith = gameConfig.faction === 'sith';
+          const scale = isSith ? sithNotes : jediNotes;
+          const freq = scale[this.bgmStep % scale.length];
+          this.bgmStep++;
+
+          const osc = this.ctx.createOscillator();
+          const sub = this.ctx.createOscillator();
+          const filter = this.ctx.createBiquadFilter();
+          const gain = this.ctx.createGain();
+
+          osc.type = isSith ? 'sawtooth' : 'triangle';
+          sub.type = 'sine';
+          osc.frequency.setValueAtTime(freq, now);
+          sub.frequency.setValueAtTime(freq * 0.5, now);
+
+          filter.type = 'lowpass';
+          filter.frequency.setValueAtTime(state.mode === 'playing' ? 420 : 280, now);
+
+          const vol = state.mode === 'playing' ? 0.045 : 0.03;
+          gain.gain.setValueAtTime(0.001, now);
+          gain.gain.linearRampToValueAtTime(vol, now + 0.18);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.72);
+
+          osc.connect(filter);
+          sub.connect(filter);
+          filter.connect(gain);
+          gain.connect(this.ctx.destination);
+
+          osc.start(now);
+          sub.start(now);
+          osc.stop(now + 0.74);
+          sub.stop(now + 0.74);
+        }, 760);
+      }
+
+      toggleMute() {
+        this.muted = !this.muted;
+        return this.muted;
+      }
+
+      playSaberIgnite(isSith = false) {
+        if (this.muted) return;
+        this.init();
+        if (!this.ctx) return;
+
+        const now = this.ctx.currentTime;
+        const osc = this.ctx.createOscillator();
+        const sub = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        const filter = this.ctx.createBiquadFilter();
+
+        osc.type = 'sawtooth';
+        sub.type = 'triangle';
+        const base = isSith ? 80 : 104;
+
+        osc.frequency.setValueAtTime(42, now);
+        osc.frequency.exponentialRampToValueAtTime(base * 2.2, now + 0.14);
+        osc.frequency.exponentialRampToValueAtTime(base, now + 0.42);
+
+        sub.frequency.setValueAtTime(36, now);
+        sub.frequency.exponentialRampToValueAtTime(base * 0.5, now + 0.4);
+
+        filter.type = 'lowpass';
+        filter.frequency.setValueAtTime(240, now);
+        filter.frequency.exponentialRampToValueAtTime(1750, now + 0.15);
+        filter.frequency.exponentialRampToValueAtTime(400, now + 0.44);
+
+        gain.gain.setValueAtTime(0.001, now);
+        gain.gain.linearRampToValueAtTime(0.24, now + 0.06);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.46);
+
+        osc.connect(filter);
+        sub.connect(filter);
+        filter.connect(gain);
+        gain.connect(this.ctx.destination);
+
+        osc.start(now);
+        sub.start(now);
+        osc.stop(now + 0.47);
+        sub.stop(now + 0.47);
+      }
+
+      playSwing(step = 1, isSith = false, heavy = false) {
+        if (this.muted) return;
+        this.init();
+        if (!this.ctx) return;
+
+        const now = this.ctx.currentTime;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        const filter = this.ctx.createBiquadFilter();
+
+        osc.type = 'sawtooth';
+        const mult = heavy ? 0.78 : [1.0, 1.14, 0.92, 1.24][(step - 1) % 4];
+        const base = (isSith ? 90 : 112) * mult;
+
+        osc.frequency.setValueAtTime(base * 0.85, now);
+        osc.frequency.exponentialRampToValueAtTime(base * 1.95, now + 0.08);
+        osc.frequency.exponentialRampToValueAtTime(base * 0.62, now + (heavy ? 0.32 : 0.22));
+
+        filter.type = 'bandpass';
+        filter.Q.value = 3.0;
+        filter.frequency.setValueAtTime(220, now);
+        filter.frequency.exponentialRampToValueAtTime(1050, now + 0.08);
+        filter.frequency.exponentialRampToValueAtTime(180, now + 0.25);
+
+        gain.gain.setValueAtTime(0.001, now);
+        gain.gain.linearRampToValueAtTime(heavy ? 0.26 : 0.2, now + 0.05);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + (heavy ? 0.33 : 0.23));
+
+        osc.connect(filter);
+        filter.connect(gain);
+        gain.connect(this.ctx.destination);
+        osc.start(now);
+        osc.stop(now + 0.34);
+      }
+
+      playClash() {
+        if (this.muted) return;
+        this.init();
+        if (!this.ctx) return;
+
+        const now = this.ctx.currentTime;
+        if (this.noiseBuffer) {
+          const noise = this.ctx.createBufferSource();
+          noise.buffer = this.noiseBuffer;
+          const nFilter = this.ctx.createBiquadFilter();
+          nFilter.type = 'bandpass';
+          nFilter.frequency.setValueAtTime(2400, now);
+          nFilter.Q.value = 1.3;
+          const nGain = this.ctx.createGain();
+          nGain.gain.setValueAtTime(0.36, now);
+          nGain.gain.exponentialRampToValueAtTime(0.001, now + 0.32);
+          noise.connect(nFilter);
+          nFilter.connect(nGain);
+          nGain.connect(this.ctx.destination);
+          noise.start(now);
+          noise.stop(now + 0.33);
+        }
+
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = 'square';
+        osc.frequency.setValueAtTime(340, now);
+        osc.frequency.exponentialRampToValueAtTime(52, now + 0.24);
+        gain.gain.setValueAtTime(0.24, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.25);
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        osc.start(now);
+        osc.stop(now + 0.26);
+      }
+
+      playHit(heavy = false) {
+        if (this.muted) return;
+        this.init();
+        if (!this.ctx) return;
+
+        const now = this.ctx.currentTime;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(heavy ? 170 : 240, now);
+        osc.frequency.exponentialRampToValueAtTime(36, now + (heavy ? 0.28 : 0.17));
+        gain.gain.setValueAtTime(heavy ? 0.32 : 0.22, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + (heavy ? 0.29 : 0.18));
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        osc.start(now);
+        osc.stop(now + 0.3);
+      }
+
+      playParry() {
+        if (this.muted) return;
+        this.init();
+        if (!this.ctx) return;
+
+        const now = this.ctx.currentTime;
+        [587.33, 880, 1318.5, 1760].forEach((freq, idx) => {
+          const osc = this.ctx.createOscillator();
+          const gain = this.ctx.createGain();
+          osc.type = idx === 0 ? 'triangle' : 'sine';
+          osc.frequency.setValueAtTime(freq, now);
+          osc.frequency.exponentialRampToValueAtTime(freq * 1.05, now + 0.36);
+          gain.gain.setValueAtTime(0.16 / (idx + 1), now);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.38);
+          osc.connect(gain);
+          gain.connect(this.ctx.destination);
+          osc.start(now);
+          osc.stop(now + 0.4);
+        });
+      }
+
+      playForcePush() {
+        if (this.muted) return;
+        this.init();
+        if (!this.ctx) return;
+
+        const now = this.ctx.currentTime;
+        const sub = this.ctx.createOscillator();
+        const subGain = this.ctx.createGain();
+        sub.type = 'sine';
+        sub.frequency.setValueAtTime(165, now);
+        sub.frequency.exponentialRampToValueAtTime(28, now + 0.44);
+        subGain.gain.setValueAtTime(0.38, now);
+        subGain.gain.exponentialRampToValueAtTime(0.001, now + 0.45);
+        sub.connect(subGain);
+        subGain.connect(this.ctx.destination);
+        sub.start(now);
+        sub.stop(now + 0.46);
+      }
+
+      playLightning() {
+        if (this.muted) return;
+        this.init();
+        if (!this.ctx) return;
+
+        const now = this.ctx.currentTime;
+        if (this.noiseBuffer) {
+          const noise = this.ctx.createBufferSource();
+          noise.buffer = this.noiseBuffer;
+          const filter = this.ctx.createBiquadFilter();
+          filter.type = 'highpass';
+          filter.frequency.setValueAtTime(1450, now);
+          const gain = this.ctx.createGain();
+          gain.gain.setValueAtTime(0.25, now);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.55);
+          noise.connect(filter);
+          filter.connect(gain);
+          gain.connect(this.ctx.destination);
+          noise.start(now);
+          noise.stop(now + 0.56);
+        }
+      }
+
+      playSupreme(isSith = false) {
+        if (this.muted) return;
+        this.init();
+        if (!this.ctx) return;
+
+        const now = this.ctx.currentTime;
+        const chords = isSith ? [65.41, 98.0, 123.47, 155.56] : [261.63, 329.63, 392.0, 523.25, 659.25];
+        chords.forEach((f, i) => {
+          const osc = this.ctx.createOscillator();
+          const gain = this.ctx.createGain();
+          osc.type = isSith ? 'sawtooth' : 'triangle';
+          const start = now + i * 0.05;
+          osc.frequency.setValueAtTime(f, start);
+          gain.gain.setValueAtTime(0.14, start);
+          gain.gain.exponentialRampToValueAtTime(0.001, start + 0.85);
+          osc.connect(gain);
+          gain.connect(this.ctx.destination);
+          osc.start(start);
+          osc.stop(start + 0.86);
+        });
+      }
+
+      playDash() {
+        if (this.muted) return;
+        this.init();
+        if (!this.ctx || !this.noiseBuffer) return;
+
+        const now = this.ctx.currentTime;
+        const noise = this.ctx.createBufferSource();
+        noise.buffer = this.noiseBuffer;
+        const filter = this.ctx.createBiquadFilter();
+        filter.type = 'bandpass';
+        filter.frequency.setValueAtTime(620, now);
+        filter.frequency.exponentialRampToValueAtTime(1900, now + 0.14);
+        const gain = this.ctx.createGain();
+        gain.gain.setValueAtTime(0.18, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.16);
+        noise.connect(filter);
+        filter.connect(gain);
+        gain.connect(this.ctx.destination);
+        noise.start(now);
+        noise.stop(now + 0.17);
+      }
+    }
+
+    const sound = new SoundEngine();
+
+    // ============================================================================
+    // 2. CONFIGURAÇÕES DE CRISTAIS, ESTILOS DE LUTA, TÉCNICAS E OPONENTES
+    // ============================================================================
+    const SABER_CRYSTALS = [
+      { id: 'blue', name: 'Azul Guardião', core: '#ffffff', glow: '#00d4ff', swatch: '#00d4ff' },
+      { id: 'green', name: 'Verde Cônsul', core: '#ffffff', glow: '#22ff55', swatch: '#22ff55' },
+      { id: 'purple', name: 'Roxo Mestre', core: '#ffffff', glow: '#c84bff', swatch: '#c84bff' },
+      { id: 'yellow', name: 'Amarelo Sentinela', core: '#ffffff', glow: '#ffd700', swatch: '#ffd700' },
+      { id: 'white', name: 'Branco Purificado', core: '#ffffff', glow: '#e2e8f0', swatch: '#f8fafc' },
+      { id: 'crimson', name: 'Carmesim Sith', core: '#ffffff', glow: '#ff1e27', swatch: '#ff1e27' },
+      { id: 'darksaber', name: 'Sabre Negro', core: '#09090b', glow: '#a855f7', edge: '#ffffff', swatch: '#18181b' }
+    ];
+
+    const COMBAT_STYLES = {
+      agile: { label: 'Ágil (Ataru)', hp: 110, speed: 455, dmgMult: 0.94, stance: 85, dashCd: 0.48 },
+      balanced: { label: 'Equilibrado', hp: 130, speed: 380, dmgMult: 1.0, stance: 100, dashCd: 0.62 },
+      colossus: { label: 'Colosso', hp: 155, speed: 325, dmgMult: 1.22, stance: 125, dashCd: 0.78 }
+    };
+
+    const FORCE_POWERS = {
+      jedi: [
+        { id: 'push', name: 'Empurrão', cost: 25, key: 'U/1' },
+        { id: 'throw', name: 'Bumerangue', cost: 35, key: 'O/2' },
+        { id: 'cyclone', name: 'Puxão Ciclone', cost: 45, key: 'P/3' },
+        { id: 'supreme_jedi', name: 'Harmonia', cost: 100, key: 'H/4', supreme: true }
+      ],
+      sith: [
+        { id: 'lightning', name: 'Relâmpagos', cost: 30, key: 'U/1' },
+        { id: 'choke', name: 'Estrangular', cost: 40, key: 'O/2' },
+        { id: 'phantom', name: 'Passo Sombrio', cost: 40, key: 'P/3' },
+        { id: 'supreme_sith', name: 'Tempestade', cost: 100, key: 'H/4', supreme: true }
+      ]
+    };
+
+    const ARCADE_ROSTER = {
+      jedi: [
+        {
+          name: 'Inquisidor Vane',
+          faction: 'sith',
+          style: 'agile',
+          saber: SABER_CRYSTALS[5], // Carmesim
+          hpMult: 0.9,
+          dmgMult: 0.88,
+          aiSkill: 0.5
+        },
+        {
+          name: 'Executora Nyx',
+          faction: 'sith',
+          style: 'balanced',
+          saber: SABER_CRYSTALS[2], // Roxo
+          hpMult: 1.05,
+          dmgMult: 1.02,
+          aiSkill: 0.74
+        },
+        {
+          name: 'Darth Malakor',
+          faction: 'sith',
+          style: 'colossus',
+          saber: SABER_CRYSTALS[6], // Sabre Negro
+          hpMult: 1.25,
+          dmgMult: 1.15,
+          aiSkill: 0.96
+        }
+      ],
+      sith: [
+        {
+          name: 'Padawan Lira',
+          faction: 'jedi',
+          style: 'agile',
+          saber: SABER_CRYSTALS[1], // Verde
+          hpMult: 0.9,
+          dmgMult: 0.88,
+          aiSkill: 0.5
+        },
+        {
+          name: 'Sentinela Solis',
+          faction: 'jedi',
+          style: 'balanced',
+          saber: SABER_CRYSTALS[3], // Amarelo
+          hpMult: 1.05,
+          dmgMult: 1.02,
+          aiSkill: 0.74
+        },
+        {
+          name: 'Grão-Mestre Kaelen',
+          faction: 'jedi',
+          style: 'colossus',
+          saber: SABER_CRYSTALS[4], // Branco Purificado
+          hpMult: 1.25,
+          dmgMult: 1.15,
+          aiSkill: 0.96
+        }
+      ]
+    };
+
+    // v3 — NPC MUITO mais fácil por padrão: reação lenta, pouca agressão,
+    // menos vida e dano, hesita (fica parado) e abre a guarda depois de atacar.
+    const DIFFICULTY_CONFIG = {
+      apprentice: { label: 'Fácil', reaction: 0.62, aggression: 0.30, hpMult: 0.70, dmgMult: 0.60, forceUse: 0.30, hesitate: 0.30, recoveryPause: 0.55 },
+      knight: { label: 'Normal', reaction: 0.30, aggression: 0.55, hpMult: 0.95, dmgMult: 0.88, forceUse: 0.60, hesitate: 0.10, recoveryPause: 0.28 },
+      master: { label: 'Difícil', reaction: 0.16, aggression: 0.90, hpMult: 1.15, dmgMult: 1.12, forceUse: 1.0, hesitate: 0, recoveryPause: 0.10 }
+    };
+
+    function getStyleRank(hits) {
+      if (hits >= 12) return { letter: 'S', title: 'LENDA GALÁCTICA!', color: '#fde047', glow: 'text-glow-gold' };
+      if (hits >= 9) return { letter: 'A', title: 'MESTRE DA FORÇA', color: '#f43f5e', glow: 'text-glow-red' };
+      if (hits >= 6) return { letter: 'B', title: 'CAVALEIRO / GUERREIRO', color: '#a855f7', glow: 'text-glow-blue' };
+      if (hits >= 4) return { letter: 'C', title: 'PADAWAN / ACÓLITO', color: '#38bdf8', glow: 'text-glow-blue' };
+      return { letter: 'D', title: 'APRENDIZ', color: '#94a3b8', glow: '' };
+    }
+
+    // ============================================================================
+    // 3. ESTADO GLOBAL, CÂMERA DINÂMICA E EFEITOS VISUAIS
+    // ============================================================================
+    const canvas = document.getElementById('game-canvas');
+    const ctx = canvas.getContext('2d');
+
+    const gameConfig = {
+      faction: 'jedi',
+      style: 'balanced',
+      saber: SABER_CRYSTALS[0],
+      arena: 'temple',
+      gameMode: 'arcade', // 'arcade' | 'training'
+      difficulty: 'apprentice', // v3: Fácil é o padrão
+      dummyBehavior: 'idle' // 'idle' | 'guard' | 'ai'
+    };
+
+    // ============================================================================
+    // PERSONAGENS TRIPO AI — renders leves dos modelos 3D (~10.000 faces, ~2K)
+    // Os modelos Jedi/Sith são gerados no Tripo Studio e entregues aqui.
+    // Basta preencher `portrait` (PNG 512x512 com transparência, para a tela de
+    // escolha e o HUD) e `sprite` (PNG do lutador de corpo inteiro, com
+    // transparência, ~512x1024) com o caminho do arquivo. Enquanto estiver
+    // vazio, o jogo usa o boneco articulado vetorial original — nada muda no
+    // combate. O sabre continua procedural (lâmina, rastro e brilho) por cima
+    // do render, então os efeitos de luta funcionam nos dois modos.
+    // ============================================================================
+    const TRIPO_CHARACTERS = {
+      jedi: {
+        name: 'Cavaleiro Jedi',
+        sub: 'Ordem Jedi • Modelo 3D leve (~10 mil faces, textura ~2K)',
+        portrait: '',
+        sprite: ''
+      },
+      sith: {
+        name: 'Lorde Sith',
+        sub: 'Império Sith • Modelo 3D leve (~10 mil faces, textura ~2K)',
+        portrait: '',
+        sprite: ''
+      }
+    };
+    const tripoAssets = {
+      jedi: { portraitImg: null, spriteImg: null },
+      sith: { portraitImg: null, spriteImg: null }
+    };
+
+    function tripoLoadAssets() {
+      ['jedi', 'sith'].forEach(key => {
+        const cfg = TRIPO_CHARACTERS[key];
+        if (cfg.portrait) {
+          const im = new Image();
+          im.onload = () => { tripoAssets[key].portraitImg = im; updateTripoPreview(); updateTripoHUDPortraits(); };
+          im.src = cfg.portrait;
+        }
+        if (cfg.sprite) {
+          const im = new Image();
+          im.onload = () => { tripoAssets[key].spriteImg = im; };
+          im.src = cfg.sprite;
+        }
+      });
+    }
+
+    function tripoSpriteFor(f) {
+      if (!f) return null;
+      const a = tripoAssets[f.faction];
+      if (!a || !a.spriteImg) return null;
+      if (!a.spriteImg.complete || a.spriteImg.naturalWidth <= 0) return null;
+      return a.spriteImg;
+    }
+
+    function updateTripoPreview() {
+      const cfg = TRIPO_CHARACTERS[gameConfig.faction];
+      const img = document.getElementById('tripo-portrait-img');
+      const ph = document.getElementById('tripo-portrait-placeholder');
+      const nameEl = document.getElementById('tripo-fighter-name');
+      const subEl = document.getElementById('tripo-fighter-sub');
+      if (!img || !ph || !nameEl || !subEl) return;
+      nameEl.textContent = cfg.name;
+      subEl.textContent = cfg.sub;
+      const ready = tripoAssets[gameConfig.faction].portraitImg;
+      if (ready) {
+        img.src = ready.src;
+        img.classList.remove('hidden');
+        ph.classList.add('hidden');
+      } else {
+        img.classList.add('hidden');
+        ph.classList.remove('hidden');
+      }
+    }
+
+    function updateTripoHUDPortraits() {
+      [['hud-p1-portrait', player], ['hud-p2-portrait', opponent]].forEach(([id, f]) => {
+        const el = document.getElementById(id);
+        if (!el || !f) return;
+        const im = tripoAssets[f.faction] ? tripoAssets[f.faction].portraitImg : null;
+        if (im) {
+          el.src = im.src;
+          el.classList.remove('hidden');
+        } else {
+          el.classList.add('hidden');
+        }
+      });
+    }
+
+    // Desenha o lutador com o render Tripo (corpo inteiro) + sabre procedural.
+    function drawTripoFighter(f, isReflection) {
+      const img = tripoSpriteFor(f);
+      if (!img) return;
+      const H = 198; // altura do lutador em unidades do mundo
+      const W = H * (img.naturalWidth / Math.max(1, img.naturalHeight));
+      const bob = f.onGround ? Math.sin(state.time * 2.4 + (f.isPlayer ? 0 : 2.1)) * 1.6 : 0;
+      ctx.save();
+      ctx.translate(f.x, f.y + bob);
+      ctx.scale(f.facing, 1);
+      ctx.drawImage(img, -W / 2, -H, W, H);
+      ctx.restore();
+
+      if (f.saberThrown) return;
+
+      // Rastro do sabre (mesma fita do boneco vetorial)
+      if (f.bladeTrail.length > 1) {
+        ctx.save();
+        ctx.globalCompositeOperation = 'lighter';
+        for (let i = 0; i < f.bladeTrail.length - 1; i++) {
+          const c = f.bladeTrail[i];
+          const n = f.bladeTrail[i + 1];
+          const alpha = (i / f.bladeTrail.length) * 0.4;
+          ctx.fillStyle = f.saber.glow;
+          ctx.globalAlpha = alpha;
+          ctx.beginPath();
+          ctx.moveTo(c.x, c.y);
+          ctx.lineTo(n.x, n.y);
+          ctx.lineTo(n.x + 3, n.y + 3);
+          ctx.lineTo(c.x + 3, c.y + 3);
+          ctx.closePath();
+          ctx.fill();
+        }
+        ctx.restore();
+      }
+
+      // Empunhadura + lâmina neon por cima do render
+      // v3 — Mão anatômica do sprite Tripo (peito/cintura, nunca acima da cabeça)
+      const handX = f.x + f.facing * 26;
+      const handY = f.y - 78;
+      const cos = Math.cos(f.bladeAngle) * f.facing;
+      const sin = Math.sin(f.bladeAngle);
+      const emitterX = handX + cos * 14;
+      const emitterY = handY + sin * 14;
+      const bladeLen = 96 + (Math.random() - 0.5) * 2.5;
+      const tipX = emitterX + cos * bladeLen;
+      const tipY = emitterY + sin * bladeLen;
+      f.saberTipX = tipX;
+      f.saberTipY = tipY;
+
+      ctx.save();
+      // Halo externo largo (luz do sabre no ar)
+      ctx.globalCompositeOperation = 'lighter';
+      ctx.strokeStyle = f.saber.glow;
+      ctx.globalAlpha = 0.22;
+      ctx.lineWidth = 20;
+      ctx.lineCap = 'round';
+      ctx.beginPath();
+      ctx.moveTo(emitterX, emitterY);
+      ctx.lineTo(tipX, tipY);
+      ctx.stroke();
+      ctx.globalAlpha = 1;
+      ctx.globalCompositeOperation = 'source-over';
+      // Lâmina com brilho cinematográfico
+      ctx.shadowColor = f.saber.glow;
+      ctx.shadowBlur = isReflection ? 10 : (state.quality.level >= 2 ? 28 : 16);
+      ctx.strokeStyle = f.saber.glow;
+      ctx.lineWidth = 9.5;
+      ctx.beginPath();
+      ctx.moveTo(emitterX, emitterY);
+      ctx.lineTo(tipX, tipY);
+      ctx.stroke();
+      if (f.saber.edge) {
+        ctx.shadowBlur = 10;
+        ctx.strokeStyle = f.saber.edge;
+        ctx.lineWidth = 6;
+        ctx.beginPath();
+        ctx.moveTo(emitterX, emitterY);
+        ctx.lineTo(tipX, tipY);
+        ctx.stroke();
+      }
+      ctx.shadowBlur = 0;
+      ctx.strokeStyle = f.saber.core;
+      ctx.lineWidth = 3.6;
+      ctx.beginPath();
+      ctx.moveTo(emitterX, emitterY);
+      ctx.lineTo(tipX, tipY);
+      ctx.stroke();
+      ctx.restore();
+
+      // Aura de Harmonia Suprema Jedi (também vale no modo Tripo)
+      if (!isReflection && f.harmonyTimer > 0) {
+        ctx.save();
+        ctx.strokeStyle = 'rgba(253, 224, 71, 0.8)';
+        ctx.fillStyle = 'rgba(56, 189, 248, 0.14)';
+        ctx.lineWidth = 2.5;
+        ctx.beginPath();
+        ctx.ellipse(f.x, f.y - 62, 42, 64, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+        ctx.restore();
+      }
+    }
+
+    function hexToRgba(hex, alpha) {
+      const h = hex.replace('#', '');
+      const r = parseInt(h.substring(0, 2), 16);
+      const g = parseInt(h.substring(2, 4), 16);
+      const b = parseInt(h.substring(4, 6), 16);
+      return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+    }
+
+    // Luz dinâmica dos sabres sobre a arena + flash do choque de sabres
+    function renderSaberLights() {
+      if (state.quality.level < 2) return; // só no nível alto de qualidade
+      ctx.save();
+      ctx.globalCompositeOperation = 'lighter';
+      [player, opponent].forEach(f => {
+        if (!f || !f.isAlive || f.saberThrown || f.saberTipX === undefined) return;
+        const tx = f.saberTipX;
+        const ty = f.saberTipY;
+        const grad = ctx.createRadialGradient(tx, ty, 4, tx, ty, 190);
+        grad.addColorStop(0, hexToRgba(f.saber.glow, 0.30));
+        grad.addColorStop(1, hexToRgba(f.saber.glow, 0));
+        ctx.fillStyle = grad;
+        ctx.beginPath();
+        ctx.arc(tx, ty, 190, 0, Math.PI * 2);
+        ctx.fill();
+        // Poça de luz do sabre no piso
+        const pool = ctx.createRadialGradient(f.x, state.groundY + 4, 2, f.x, state.groundY + 4, 70);
+        pool.addColorStop(0, hexToRgba(f.saber.glow, 0.16));
+        pool.addColorStop(1, hexToRgba(f.saber.glow, 0));
+        ctx.fillStyle = pool;
+        ctx.beginPath();
+        ctx.ellipse(f.x, state.groundY + 4, 70, 12, 0, 0, Math.PI * 2);
+        ctx.fill();
+      });
+      // Flash do choque de sabres
+      if (state.clash.active) {
+        const pulse = 0.5 + 0.5 * Math.sin(state.time * 18);
+        const fg = ctx.createRadialGradient(state.clash.x, state.clash.y, 4, state.clash.x, state.clash.y, 240);
+        fg.addColorStop(0, `rgba(255, 255, 255, ${0.5 + 0.25 * pulse})`);
+        fg.addColorStop(0.4, `rgba(253, 224, 71, ${0.28 + 0.14 * pulse})`);
+        fg.addColorStop(1, 'rgba(253, 224, 71, 0)');
+        ctx.fillStyle = fg;
+        ctx.beginPath();
+        ctx.arc(state.clash.x, state.clash.y, 240, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      ctx.restore();
+    }
+
+    const state = {
+      mode: 'menu', // 'menu' | 'playing' | 'paused' | 'round_over'
+      stageIndex: 0,
+      worldWidth: 1400,
+      worldHeight: 720,
+      groundY: 600,
+      gravity: 2200,
+      time: 0,
+      hitstopTimer: 0,
+      slowMoTimer: 0,
+      eclipseTimer: 0,
+      shakeTimer: 0,
+      shakeIntensity: 0,
+      camera: { x: 700, y: 360, zoom: 1.05 },
+      // Qualidade adaptativa (mesmo padrão do jogo da Arcanum Academy):
+      // pixelRatio 2 -> 1.5 -> 1.25 -> 1 conforme o FPS; sobe de volta se sobrar fôlego
+      quality: { level: 3, dpr: 2, fps: 60, timer: 0, cooldown: 0 },
+      clash: {
+        active: false,
+        timer: 0,
+        balance: 0.5, // 0 = P2 vence, 1 = P1 vence
+        x: 700,
+        y: 520
+      },
+      particles: [],
+      ambientParticles: [],
+      projectiles: [],
+      floatingTexts: [],
+      lightningBolts: [],
+      shockwaves: [],
+      stars: [],
+      stats: {
+        damageDealt: 0,
+        maxCombo: 0,
+        parries: 0
+      }
+    };
+
+    for (let i = 0; i < 120; i++) {
+      state.stars.push({
+        x: Math.random(),
+        y: Math.random() * 0.72,
+        size: Math.random() * 2 + 0.5,
+        phase: Math.random() * Math.PI * 2,
+        speed: Math.random() * 0.45 + 0.15
+      });
+    }
+
+    // ============================================================================
+    // 4. CLASSE DO LUTADOR ACTION-FIGURE ARTICULADO
+    // ============================================================================
+    class Fighter {
+      constructor(opts) {
+        this.isPlayer = opts.isPlayer;
+        this.name = opts.name;
+        this.faction = opts.faction; // 'jedi' | 'sith'
+        this.styleKey = opts.style || 'balanced';
+        const styleCfg = COMBAT_STYLES[this.styleKey];
+
+        this.saber = opts.saber;
+        this.maxHp = Math.round(styleCfg.hp * (opts.hpMult || 1));
+        this.hp = this.maxHp;
+        this.hpTrail = this.maxHp;
+
+        this.maxStance = styleCfg.stance;
+        this.stance = this.maxStance;
+        this.maxForce = 100;
+        this.force = 100;
+
+        this.baseSpeed = styleCfg.speed;
+        this.dmgMult = styleCfg.dmgMult * (opts.dmgMult || 1);
+        this.dashCdDuration = styleCfg.dashCd;
+
+        this.x = opts.x;
+        this.y = state.groundY;
+        this.vx = 0;
+        this.vy = 0;
+        this.facing = opts.facing;
+
+        // Estados de movimento & acrobacia
+        this.onGround = true;
+        this.jumpsLeft = 2;
+        this.flipAngle = 0;
+        this.isFlipping = false;
+        this.dashTimer = 0;
+        this.dashCooldown = 0;
+        this.afterimages = [];
+
+        // Estados de combate
+        this.attackState = 'none'; // 'none' | 'windup' | 'active' | 'recovery'
+        this.attackType = 'light'; // 'light' | 'running' | 'heavy' | 'launcher' | 'air_slam' | 'cyclone'
+        this.attackTimer = 0;
+        this.comboStep = 0; // 1..4
+        this.queuedAction = null;
+        this.hasHitThisSwing = false;
+        this.comboCounter = 0;
+        this.comboResetTimer = 0;
+
+        // Postura / Defesa / Parry
+        this.blocking = false;
+        this.blockDuration = 0;
+
+        // Status especiais
+        this.stunTimer = 0;
+        this.chokedTimer = 0;
+        this.harmonyTimer = 0;
+        this.saberThrown = false;
+
+        // Articulação e cinemática dos membros (action-figure)
+        this.bodyLean = 0;
+        // v3 — Guarda anatômica: sabre na mão, na altura do peito, lâmina quase horizontal
+        this.shoulderAngle = 0.15;
+        this.elbowAngle = 0.45;
+        this.bladeAngle = 0.12;
+        this.offArmAngle = 0.4;
+        this.bladeTrail = [];
+
+        // Física de tecido (Capa / Túnica com 7 pontos Verlet)
+        this.clothNodes = [];
+        for (let i = 0; i < 7; i++) {
+          this.clothNodes.push({
+            x: this.x - this.facing * i * 7,
+            y: this.y - 96 + i * 12,
+            oldX: this.x - this.facing * i * 7,
+            oldY: this.y - 96 + i * 12
+          });
+        }
+
+        // IA
+        this.aiSkill = opts.aiSkill || 0.65;
+        this.aiDecisionTimer = 0.18;
+        this.aiDesiredMove = 0;
+      }
+
+      get isAlive() {
+        return this.hp > 0;
+      }
+
+      get canAct() {
+        return this.isAlive && this.stunTimer <= 0 && this.chokedTimer <= 0 && this.dashTimer <= 0 && !state.clash.active;
+      }
+
+      jump() {
+        if (!this.canAct) return;
+        if (this.jumpsLeft > 0) {
+          const isDouble = this.jumpsLeft === 1;
+          this.vy = isDouble ? -760 : -820;
+          this.onGround = false;
+          this.jumpsLeft--;
+          this.blocking = false;
+          if (isDouble) {
+            this.isFlipping = true;
+            this.flipAngle = 0;
+          }
+          spawnParticles(this.x, this.y, this.saber.glow, 12, 160);
+          sound.playDash();
+        }
+      }
+
+      dash(dirOverride = null) {
+        if (!this.isAlive || this.stunTimer > 0 || this.chokedTimer > 0 || state.clash.active) return;
+        // Permite cancelar ataques rápidos em Dash!
+        if (this.dashCooldown > 0) return;
+
+        const dir = dirOverride !== null ? dirOverride : this.facing;
+        this.facing = dir;
+        this.dashTimer = 0.18;
+        this.dashCooldown = this.dashCdDuration;
+        this.vx = dir * 980;
+        this.vy = this.onGround ? 0 : -120;
+        this.blocking = false;
+        this.attackState = 'none';
+        this.comboStep = 0;
+        sound.playDash();
+        spawnParticles(this.x, this.y - 52, this.saber.glow, 16, 210);
+      }
+
+      // Ataque Rápido (Combo de 4 golpes ou Estocada Veloz correndo)
+      attackLight(opponent) {
+        if (!this.canAct || this.saberThrown) return;
+
+        if (this.attackState !== 'none') {
+          if (this.attackType === 'light' && this.comboStep < 4 && this.attackTimer > 0.03) {
+            this.queuedAction = 'light';
+          }
+          return;
+        }
+
+        if (opponent && this.onGround) {
+          this.facing = opponent.x >= this.x ? 1 : -1;
+        }
+
+        this.blocking = false;
+        this.hasHitThisSwing = false;
+        this.queuedAction = null;
+
+        // Verifica se está correndo rápido -> Estocada Veloz!
+        if (this.onGround && Math.abs(this.vx) > this.baseSpeed * 0.72 && this.comboStep === 0) {
+          this.attackType = 'running';
+          this.comboStep = 1;
+          this.attackState = 'windup';
+          this.attackTimer = 0.08;
+          this.vx = this.facing * 540;
+          sound.playSwing(4, this.faction === 'sith', false);
+          return;
+        }
+
+        this.attackType = 'light';
+        this.comboStep = (this.comboStep % 4) + 1;
+        this.attackState = 'windup';
+        this.attackTimer = this.comboStep === 4 ? 0.1 : 0.065;
+        this.vx = this.facing * (this.comboStep === 4 ? 320 : 185);
+        if (!this.onGround) {
+          this.vy = Math.min(this.vy, -140); // Mantém suspensão no combo aéreo!
+        }
+        sound.playSwing(this.comboStep, this.faction === 'sith', false);
+      }
+
+      // Golpe Pesado (Quebra-Guarda no chão, Gancho Launcher com W+I, ou Esmagamento Aéreo!)
+      attackHeavy(opponent, forceLauncher = false) {
+        if (!this.canAct || this.saberThrown) return;
+
+        if (this.attackState !== 'none') {
+          // Permite cancelar combo rápido em Golpe Pesado ou Launcher!
+          if (this.attackType === 'light') {
+            this.queuedAction = forceLauncher ? 'launcher' : 'heavy';
+          }
+          return;
+        }
+
+        if (opponent && this.onGround) {
+          this.facing = opponent.x >= this.x ? 1 : -1;
+        }
+
+        this.blocking = false;
+        this.hasHitThisSwing = false;
+        this.comboStep = 0;
+        this.queuedAction = null;
+
+        if (forceLauncher && this.onGround) {
+          // Gancho Ascendente (Launcher)
+          this.attackType = 'launcher';
+          this.attackState = 'windup';
+          this.attackTimer = 0.09;
+          this.vx = this.facing * 220;
+          sound.playSwing(2, this.faction === 'sith', true);
+        } else if (!this.onGround) {
+          // Esmagamento Aéreo Descendente (Air Slam)
+          this.attackType = 'air_slam';
+          this.attackState = 'windup';
+          this.attackTimer = 0.08;
+          this.vy = 620;
+          this.vx = this.facing * 240;
+          sound.playSwing(3, this.faction === 'sith', true);
+        } else {
+          // Corte Pesado Quebra-Guarda
+          this.attackType = 'heavy';
+          this.attackState = 'windup';
+          this.attackTimer = 0.14;
+          this.vx = this.facing * 280;
+          sound.playSwing(3, this.faction === 'sith', true);
+        }
+      }
+
+      setBlocking(active) {
+        if (!this.canAct || this.attackState !== 'none' || this.saberThrown) {
+          this.blocking = false;
+          this.blockDuration = 0;
+          return;
+        }
+        if (active && !this.blocking) {
+          this.blocking = true;
+          this.blockDuration = 0;
+        } else if (!active) {
+          this.blocking = false;
+          this.blockDuration = 0;
+        }
+      }
+
+      // 4 Técnicas Especiais por Facção (canceláveis a partir de ataques!)
+      useForcePower(slot, opponent) {
+        if (!this.isAlive || this.stunTimer > 0 || this.chokedTimer > 0 || state.clash.active) return false;
+        if (this.attackState !== 'none' && this.attackType !== 'light') return false;
+
+        const power = FORCE_POWERS[this.faction][slot - 1];
+        if (!power || this.force < power.cost) return false;
+
+        if (opponent) {
+          this.facing = opponent.x >= this.x ? 1 : -1;
+        }
+        this.blocking = false;
+        this.attackState = 'none';
+        this.comboStep = 0;
+
+        // ---- TÉCNICAS JEDI ----
+        if (this.faction === 'jedi') {
+          if (power.id === 'push') {
+            this.force -= power.cost;
+            sound.playForcePush();
+            state.projectiles.push({
+              type: 'force_push',
+              owner: this,
+              x: this.x + this.facing * 45,
+              y: this.y - 62,
+              vx: this.facing * 1050,
+              radius: 58,
+              life: 0.44,
+              maxLife: 0.44,
+              damage: Math.round(15 * this.dmgMult),
+              hitDone: false
+            });
+            addFloatingText(this.x, this.y - 135, 'EMPURRÃO DA FORÇA!', '#38bdf8');
+            return true;
+          }
+
+          if (power.id === 'throw') {
+            if (this.saberThrown) return false;
+            this.force -= power.cost;
+            this.saberThrown = true;
+            sound.playSaberIgnite(false);
+            state.projectiles.push({
+              type: 'saber_throw',
+              owner: this,
+              x: this.x + this.facing * 50,
+              y: this.y - 64,
+              vx: this.facing * 920,
+              returning: false,
+              traveled: 0,
+              maxDist: 600,
+              angle: 0,
+              damage: Math.round(13 * this.dmgMult),
+              hitOut: false,
+              hitBack: false,
+              saber: this.saber
+            });
+            addFloatingText(this.x, this.y - 135, 'SABRE BUMERANGUE!', '#38bdf8');
+            return true;
+          }
+
+          if (power.id === 'cyclone') {
+            this.force -= power.cost;
+            sound.playForcePush();
+            // Puxa o oponente com a Força se estiver no alcance
+            if (opponent && opponent.isAlive && Math.abs(opponent.x - this.x) < 540) {
+              opponent.x = this.x + this.facing * 92;
+              opponent.y = this.y;
+              opponent.vx = 0;
+              opponent.stunTimer = 0.45;
+              spawnParticles(opponent.x, opponent.y - 60, '#38bdf8', 22, 240);
+            }
+            // Inicia Corte Ciclone Giratório
+            this.attackType = 'cyclone';
+            this.attackState = 'active';
+            this.attackTimer = 0.38;
+            this.hasHitThisSwing = false;
+            this.isFlipping = true;
+            this.flipAngle = 0;
+            sound.playSwing(4, false, true);
+            addFloatingText(this.x, this.y - 135, 'PUXÃO + CORTE CICLONE!', '#38bdf8');
+            return true;
+          }
+
+          if (power.id === 'supreme_jedi') {
+            this.force = 0;
+            this.hp = Math.min(this.maxHp, this.hp + 35);
+            this.stance = this.maxStance;
+            this.harmonyTimer = 3.5;
+            sound.playSupreme(false);
+            triggerShake(14, 0.35);
+            state.hitstopTimer = 0.075;
+            spawnParticles(this.x, this.y - 60, '#fde047', 45, 340);
+            spawnParticles(this.x, this.y - 60, '#38bdf8', 35, 300);
+
+            // Dispara 3 ondas cortantes de luz
+            [-1, 1].forEach(dir => {
+              state.projectiles.push({
+                type: 'light_wave',
+                owner: this,
+                x: this.x + dir * 40,
+                y: this.y - 62,
+                vx: dir * 950,
+                life: 0.75,
+                damage: Math.round(28 * this.dmgMult),
+                hitDone: false
+              });
+            });
+            addFloatingText(this.x, this.y - 145, '★ HARMONIA LUMINOSA ★', '#fde047');
+            return true;
+          }
+        }
+
+        // ---- TÉCNICAS SITH ----
+        if (this.faction === 'sith') {
+          if (power.id === 'lightning') {
+            this.force -= power.cost;
+            sound.playLightning();
+            state.lightningBolts.push({
+              owner: this,
+              target: opponent,
+              timer: 0.65,
+              tickTimer: 0,
+              range: 460,
+              damagePerTick: Math.round(6 * this.dmgMult)
+            });
+            addFloatingText(this.x, this.y - 135, 'RELÂMPAGOS DA FORÇA!', '#c084fc');
+            return true;
+          }
+
+          if (power.id === 'choke') {
+            if (!opponent || Math.abs(opponent.x - this.x) > 500 || opponent.dashTimer > 0) {
+              if (this.isPlayer) addFloatingText(this.x, this.y - 135, 'ALVO FORA DE ALCANCE!', '#94a3b8');
+              return false;
+            }
+            this.force -= power.cost;
+            sound.playForcePush();
+            opponent.chokedTimer = 1.15;
+            opponent.blocking = false;
+            opponent.attackState = 'none';
+            opponent.vy = -240;
+            opponent.vx = 0;
+            this.stunTimer = 0.4;
+            addFloatingText(this.x, this.y - 135, 'ESTRANGULAMENTO!', '#f87171');
+            addFloatingText(opponent.x, opponent.y - 135, 'SUFOCANDO!', '#ef4444');
+            return true;
+          }
+
+          if (power.id === 'phantom') {
+            this.force -= power.cost;
+            sound.playDash();
+            spawnParticles(this.x, this.y - 60, '#18181b', 28, 240);
+            spawnParticles(this.x, this.y - 60, '#ff1e27', 16, 200);
+
+            if (opponent && opponent.isAlive) {
+              const behindX = Math.max(80, Math.min(state.worldWidth - 80, opponent.x - opponent.facing * 78));
+              this.x = behindX;
+              this.y = opponent.y;
+              this.facing = opponent.x >= this.x ? 1 : -1;
+            } else {
+              this.x = Math.max(80, Math.min(state.worldWidth - 80, this.x + this.facing * 260));
+            }
+
+            spawnParticles(this.x, this.y - 60, '#ff1e27', 24, 240);
+            this.attackType = 'heavy';
+            this.attackState = 'active';
+            this.attackTimer = 0.16;
+            this.hasHitThisSwing = false;
+            sound.playSwing(3, true, true);
+            addFloatingText(this.x, this.y - 135, 'PASSO FANTASMA!', '#f87171');
+            return true;
+          }
+
+          if (power.id === 'supreme_sith') {
+            this.force = 0;
+            state.eclipseTimer = 3.2;
+            sound.playSupreme(true);
+            triggerShake(16, 0.45);
+            state.hitstopTimer = 0.085;
+            spawnParticles(this.x, this.y - 60, '#ff1e27', 50, 360);
+
+            if (opponent && opponent.isAlive) {
+              opponent.chokedTimer = 0.95;
+              opponent.vy = -340;
+              opponent.receiveDamage(Math.round(34 * this.dmgMult), this, 280, -320, { unblockable: true, stun: 0.9 });
+            }
+
+            state.lightningBolts.push({
+              owner: this,
+              target: opponent,
+              timer: 1.1,
+              tickTimer: 0,
+              range: 850,
+              damagePerTick: Math.round(5 * this.dmgMult)
+            });
+            addFloatingText(this.x, this.y - 145, '❖ TEMPESTADE SOMBRIA ❖', '#ff1e27');
+            return true;
+          }
+        }
+
+        return false;
+      }
+
+      receiveDamage(amount, attacker, kbX = 210, kbY = -90, opts = {}) {
+        if (!this.isAlive) return;
+
+        // Invulnerabilidade durante Dash ou Harmonia Suprema
+        if (this.dashTimer > 0 || this.harmonyTimer > 2.2) {
+          addFloatingText(this.x, this.y - 125, 'ESQUIVA!', '#fde047');
+          return;
+        }
+
+        const dirFromAttacker = attacker ? (this.x >= attacker.x ? 1 : -1) : -this.facing;
+
+        // 1. PARRY PERFEITO (janela de 0.22s ao iniciar bloqueio)
+        if (this.blocking && !opts.unblockable && this.blockDuration <= 0.22) {
+          sound.playParry();
+          triggerShake(12, 0.24);
+          state.hitstopTimer = 0.075;
+          state.slowMoTimer = 0.25;
+          this.force = Math.min(this.maxForce, this.force + 30);
+          this.stance = Math.min(this.maxStance, this.stance + 25);
+          spawnParticles(this.x + this.facing * 36, this.y - 68, '#fde047', 36, 340);
+          addFloatingText(this.x, this.y - 135, 'PARRY PERFEITO!', '#fde047');
+
+          if (this.isPlayer) state.stats.parries++;
+
+          if (attacker) {
+            attacker.stunTimer = 1.35;
+            attacker.attackState = 'none';
+            attacker.vx = -dirFromAttacker * 360;
+            addFloatingText(attacker.x, attacker.y - 130, 'ATORDOADO!', '#fb923c');
+          }
+          return;
+        }
+
+        // 2. DEFESA NORMAL (Consome Barra de Postura)
+        if (this.blocking && !opts.unblockable) {
+          const stanceCost = opts.stanceDamage || Math.round(amount * 1.45);
+          this.stance = Math.max(0, this.stance - stanceCost);
+
+          if (this.stance <= 0) {
+            // QUEBRA DE GUARDA (Guard Break)!
+            this.blocking = false;
+            this.stunTimer = 1.45;
+            this.stance = this.maxStance * 0.5;
+            sound.playClash();
+            triggerShake(14, 0.28);
+            spawnParticles(this.x, this.y - 65, '#f97316', 32, 300);
+            addFloatingText(this.x, this.y - 135, 'QUEBRA DE GUARDA!', '#f97316');
+            return;
+          }
+
+          const chipDmg = Math.max(1, Math.round(amount * 0.2));
+          this.hp = Math.max(0, this.hp - chipDmg);
+          this.vx = dirFromAttacker * (kbX * 0.55);
+          sound.playClash();
+          spawnParticles(this.x + this.facing * 32, this.y - 65, this.saber.glow, 14, 210);
+          addFloatingText(this.x, this.y - 120, `DEFESA (-${chipDmg})`, '#93c5fd');
+          return;
+        }
+
+        // 3. IMPACTO DIRETO
+        const finalDmg = Math.max(1, Math.round(amount));
+        this.hp = Math.max(0, this.hp - finalDmg);
+        this.vx = dirFromAttacker * kbX;
+        if (kbY !== 0) {
+          this.vy = kbY;
+          this.onGround = false;
+        }
+        if (opts.stun) {
+          this.stunTimer = Math.max(this.stunTimer, opts.stun);
+          this.attackState = 'none';
+        }
+
+        // Atualiza combo e rank do atacante
+        if (attacker) {
+          attacker.comboCounter++;
+          attacker.comboResetTimer = 2.3;
+          attacker.force = Math.min(attacker.maxForce, attacker.force + 5);
+
+          if (attacker.isPlayer) {
+            state.stats.damageDealt += finalDmg;
+            if (attacker.comboCounter > state.stats.maxCombo) {
+              state.stats.maxCombo = attacker.comboCounter;
+            }
+            updateComboHUD(attacker.comboCounter);
+          }
+        }
+
+        const isHeavyHit = finalDmg >= 16 || opts.heavy;
+        sound.playHit(isHeavyHit);
+        if (isHeavyHit) {
+          state.hitstopTimer = 0.055;
+          triggerShake(12, 0.18);
+        } else {
+          triggerShake(6, 0.12);
+        }
+
+        spawnParticles(this.x, this.y - 62, attacker ? attacker.saber.glow : '#ff4444', 20, 260);
+        addFloatingText(this.x, this.y - 120, `-${finalDmg}`, '#ff4d4d');
+      }
+
+      update(dt, opponent, input) {
+        // Suavização da barra de vida e regeneração de Postura/Força
+        if (this.hpTrail > this.hp) {
+          this.hpTrail = Math.max(this.hp, this.hpTrail - dt * 62);
+        } else {
+          this.hpTrail = this.hp;
+        }
+
+        if (this.isAlive) {
+          this.force = Math.min(this.maxForce, this.force + 8.5 * dt);
+          if (!this.blocking && this.stunTimer <= 0) {
+            this.stance = Math.min(this.maxStance, this.stance + 18 * dt);
+          }
+        }
+
+        if (this.dashCooldown > 0) this.dashCooldown -= dt;
+        if (this.stunTimer > 0) this.stunTimer -= dt;
+        if (this.harmonyTimer > 0) this.harmonyTimer -= dt;
+
+        if (this.comboResetTimer > 0) {
+          this.comboResetTimer -= dt;
+          if (this.comboResetTimer <= 0) {
+            this.comboCounter = 0;
+            if (this.isPlayer) updateComboHUD(0);
+          }
+        }
+
+        if (this.blocking) this.blockDuration += dt;
+
+        // Estrangulamento Sith (levitação + queda brusca ao final)
+        if (this.chokedTimer > 0) {
+          this.chokedTimer -= dt;
+          this.y = Math.max(state.groundY - 145, this.y - 155 * dt);
+          this.vy = Math.sin(state.time * 22) * 30;
+          this.onGround = false;
+          if (Math.random() < dt * 7) {
+            this.hp = Math.max(1, this.hp - 2);
+            if (opponent && opponent.isPlayer) state.stats.damageDealt += 2;
+            spawnParticles(this.x, this.y - 85, '#ef4444', 3, 90);
+          }
+          if (this.chokedTimer <= 0) {
+            this.vy = 780; // Esmaga no chão ao encerrar estrangulamento!
+          }
+        }
+
+        // Dash & Afterimages
+        if (this.dashTimer > 0) {
+          this.dashTimer -= dt;
+          this.afterimages.push({
+            x: this.x,
+            y: this.y,
+            facing: this.facing,
+            alpha: 0.65,
+            lean: this.bodyLean
+          });
+        }
+        for (let i = this.afterimages.length - 1; i >= 0; i--) {
+          this.afterimages[i].alpha -= dt * 3.2;
+          if (this.afterimages[i].alpha <= 0) this.afterimages.splice(i, 1);
+        }
+
+        // Movimento horizontal
+        if (this.canAct && this.attackState === 'none') {
+          let moveDir = 0;
+          if (this.isPlayer) {
+            if (input.left) moveDir -= 1;
+            if (input.right) moveDir += 1;
+          } else {
+            moveDir = this.aiDesiredMove;
+          }
+
+          const speedMult = this.blocking ? 0.42 : 1.0;
+          if (moveDir !== 0) {
+            this.vx = moveDir * this.baseSpeed * speedMult;
+            if (!this.blocking) this.facing = moveDir;
+          } else {
+            this.vx *= Math.pow(0.0006, dt);
+          }
+        } else if (this.dashTimer <= 0) {
+          this.vx *= Math.pow(0.003, dt);
+        }
+
+        // Inclinação corporal realista ao correr/atacar
+        const targetLean = Math.max(-0.28, Math.min(0.28, (this.vx * this.facing) / 1450));
+        this.bodyLean += (targetLean - this.bodyLean) * Math.min(1, dt * 14);
+
+        // Giro acrobático no pulo duplo ou corte ciclone
+        if (this.isFlipping) {
+          this.flipAngle += this.facing * 18 * dt;
+          if (Math.abs(this.flipAngle) >= Math.PI * 2) {
+            this.flipAngle = 0;
+            this.isFlipping = false;
+          }
+        }
+
+        // Máquina de Estados dos Ataques
+        if (this.attackState !== 'none') {
+          this.attackTimer -= dt;
+
+          if (this.attackState === 'windup' && this.attackTimer <= 0) {
+            this.attackState = 'active';
+            this.attackTimer = this.attackType === 'heavy' || this.attackType === 'launcher' ? 0.16 : 0.12;
+          } else if (this.attackState === 'active') {
+            this._checkMeleeCombat(opponent);
+            if (this.attackTimer <= 0) {
+              this.attackState = 'recovery';
+              this.attackTimer = this.attackType === 'heavy' ? 0.22 : 0.12;
+            }
+          } else if (this.attackState === 'recovery' && this.attackTimer <= 0) {
+            this.attackState = 'none';
+            const next = this.queuedAction;
+            this.queuedAction = null;
+            if (next === 'light') {
+              this.attackLight(opponent);
+            } else if (next === 'heavy') {
+              this.attackHeavy(opponent, false);
+            } else if (next === 'launcher') {
+              this.attackHeavy(opponent, true);
+            } else {
+              this.comboStep = 0;
+            }
+          }
+        }
+
+        // Gravidade e Chão
+        if (!this.onGround && this.chokedTimer <= 0) {
+          this.vy += state.gravity * dt;
+        }
+        this.x += this.vx * dt;
+        this.y += this.vy * dt;
+
+        if (this.y >= state.groundY) {
+          if (!this.onGround && this.vy > 520) {
+            // Impacto de aterrissagem
+            spawnParticles(this.x, state.groundY, '#94a3b8', 10, 140);
+            if (this.attackType === 'air_slam') {
+              triggerShake(10, 0.18);
+              spawnParticles(this.x, state.groundY, this.saber.glow, 22, 260);
+            }
+          }
+          this.y = state.groundY;
+          this.vy = 0;
+          this.onGround = true;
+          this.jumpsLeft = 2;
+          this.isFlipping = false;
+          this.flipAngle = 0;
+        }
+
+        const margin = 65;
+        this.x = Math.max(margin, Math.min(state.worldWidth - margin, this.x));
+
+        // Colisão suave corpo a corpo
+        if (opponent && this.isAlive && opponent.isAlive) {
+          const dx = this.x - opponent.x;
+          const dy = Math.abs(this.y - opponent.y);
+          if (Math.abs(dx) < 44 && dy < 75) {
+            const push = (44 - Math.abs(dx)) * 0.5;
+            const sign = dx >= 0 ? 1 : -1;
+            this.x += sign * push;
+            opponent.x -= sign * push;
+          }
+        }
+
+        this._updateArticulation(dt);
+        this._updateCloth(dt);
+      }
+
+      _checkMeleeCombat(opponent) {
+        if (!opponent || !opponent.isAlive || this.hasHitThisSwing) return;
+
+        const reach = this.attackType === 'running' ? 165 : this.attackType === 'heavy' ? 155 : 138;
+        const dx = (opponent.x - this.x) * this.facing;
+        const dy = Math.abs(opponent.y - this.y);
+
+        if (dx >= -22 && dx <= reach && dy <= 105) {
+          // Verifica Choque de Sabres (Saber Clash)!
+          if (opponent.attackState === 'active' && !opponent.hasHitThisSwing && !state.clash.active) {
+            this.hasHitThisSwing = true;
+            opponent.hasHitThisSwing = true;
+            this.attackState = 'none';
+            opponent.attackState = 'none';
+            startSaberClash(this, opponent);
+            return;
+          }
+
+          this.hasHitThisSwing = true;
+
+          if (this.attackType === 'launcher') {
+            // Gancho Ascendente: joga o oponente alto no ar!
+            const dmg = Math.round(14 * this.dmgMult);
+            opponent.receiveDamage(dmg, this, 145, -760, { heavy: true, stanceDamage: 24 });
+            addFloatingText(opponent.x, opponent.y - 135, 'LANÇAMENTO AÉREO!', '#c084fc');
+          } else if (this.attackType === 'air_slam') {
+            // Esmagamento Aéreo: derruba com força no chão!
+            const dmg = Math.round(18 * this.dmgMult);
+            opponent.receiveDamage(dmg, this, 320, 680, { heavy: true, stun: 0.45 });
+            addFloatingText(opponent.x, opponent.y - 130, 'ESMAGAMENTO!', '#fb923c');
+          } else if (this.attackType === 'heavy') {
+            // Corte Pesado Quebra-Guarda
+            const dmg = Math.round(20 * this.dmgMult);
+            opponent.receiveDamage(dmg, this, 420, -160, { heavy: true, stanceDamage: 46 });
+          } else if (this.attackType === 'running') {
+            // Estocada Veloz
+            const dmg = Math.round(13 * this.dmgMult);
+            opponent.receiveDamage(dmg, this, 280, -90, { stanceDamage: 20 });
+          } else if (this.attackType === 'cyclone') {
+            const dmg = Math.round(22 * this.dmgMult);
+            opponent.receiveDamage(dmg, this, 380, -240, { heavy: true, stanceDamage: 30 });
+          } else {
+            // Combo Rápido de 4 golpes
+            const stepDmg = [9, 10, 12, 16][this.comboStep - 1] || 10;
+            const dmg = Math.round(stepDmg * this.dmgMult);
+            const kbX = this.comboStep === 4 ? 420 : 175;
+            const kbY = !this.onGround ? -180 : (this.comboStep === 4 ? -220 : -50);
+            opponent.receiveDamage(dmg, this, kbX, kbY, { heavy: this.comboStep === 4 });
+          }
+        }
+      }
+
+      // Cinemática Direta das Juntas (Ombro, Cotovelo e Punho do Sabre)
+      _updateArticulation(dt) {
+        // v3 — Poses anatômicas: o cabo está SEMPRE na mão; a lâmina cruza a
+        // altura do torso e nunca flutua acima da cabeça em guarda. O vento
+        // (windup) leva a lâmina para trás e para BAIXO, não para cima.
+        let targetShoulder = 0.15;
+        let targetElbow = 0.45;
+        let targetBlade = 0.12;
+        let targetOffArm = 0.45;
+
+        if (this.blocking) {
+          targetShoulder = 0.55;
+          targetElbow = 0.9;
+          targetBlade = -0.5; // Guarda alta na frente do rosto, cabo no peito
+          targetOffArm = -0.65; // Postura Soresu com mão livre à frente!
+        } else if (this.attackState === 'windup') {
+          targetShoulder = -0.85;
+          targetElbow = -0.35;
+          targetBlade = this.comboStep === 2 ? 2.35 : 2.55; // lâmina para trás e para baixo
+          targetOffArm = 0.85;
+        } else if (this.attackState === 'active') {
+          if (this.attackType === 'running') {
+            targetShoulder = 0.05;
+            targetElbow = 0.0;
+            targetBlade = 0.02; // Estocada horizontal reta!
+          } else if (this.attackType === 'launcher') {
+            targetShoulder = -0.1;
+            targetElbow = 0.15;
+            targetBlade = -0.75; // Corte ascendente a partir da cintura
+          } else if (this.attackType === 'heavy') {
+            targetShoulder = 0.45;
+            targetElbow = 0.1;
+            targetBlade = 0.55; // Talho descendente na altura do torso
+          } else {
+            targetShoulder = 0.3;
+            targetElbow = 0.25;
+            targetBlade = this.comboStep === 2 ? -0.5 : 0.35; // horizontal / diagonal na altura do torso
+          }
+          targetOffArm = 0.9;
+        } else if (this.attackState === 'recovery') {
+          targetShoulder = 0.2;
+          targetElbow = 0.3;
+          targetBlade = 0.5;
+        } else if (Math.abs(this.vx) > 55) {
+          targetShoulder = -0.3 + Math.sin(state.time * 15) * 0.14;
+          targetElbow = 0.4;
+          targetBlade = -0.2; // sabre baixo ao correr
+          targetOffArm = 0.65 - Math.sin(state.time * 15) * 0.2;
+        } else {
+          // Respiração sutil em guarda — sabre na mão, na altura do peito
+          targetShoulder = 0.15 + Math.sin(state.time * 3.8) * 0.05;
+          targetElbow = 0.45;
+          targetBlade = 0.12 + Math.sin(state.time * 3.8) * 0.06;
+        }
+
+        const lerp = this.attackState === 'active' ? 0.58 : 0.26;
+        this.shoulderAngle += (targetShoulder - this.shoulderAngle) * lerp;
+        this.elbowAngle += (targetElbow - this.elbowAngle) * lerp;
+        this.bladeAngle += (targetBlade - this.bladeAngle) * lerp;
+        this.offArmAngle += (targetOffArm - this.offArmAngle) * 0.24;
+
+        // Calcula posição exata da mão e ponta da lâmina para o rastro poligonal e faíscas no piso
+        if (!this.saberThrown && this.isAlive) {
+          const shoulderX = this.x + this.facing * 12;
+          const shoulderY = this.y - 98; // v3: ombro na altura anatômica
+          const elbowX = shoulderX + Math.cos(this.shoulderAngle) * 20 * this.facing;
+          const elbowY = shoulderY + Math.sin(this.shoulderAngle) * 20;
+          const handX = elbowX + Math.cos(this.shoulderAngle + this.elbowAngle) * 20 * this.facing;
+          const handY = elbowY + Math.sin(this.shoulderAngle + this.elbowAngle) * 20;
+
+          const bladeLen = 96;
+          const tipX = handX + Math.cos(this.bladeAngle) * bladeLen * this.facing;
+          const tipY = handY + Math.sin(this.bladeAngle) * bladeLen;
+
+          this.bladeTrail.unshift({ hx: handX, hy: handY, tx: tipX, ty: tipY, life: 1.0 });
+          if (this.bladeTrail.length > 10) this.bladeTrail.pop();
+
+          // Faíscas no piso reflexivo se a ponta da lâmina raspar perto do chão!
+          if (tipY >= state.groundY - 12 && Math.random() < 0.65) {
+            spawnParticles(tipX, state.groundY - 2, this.saber.glow, 2, 130);
+          }
+        } else {
+          this.bladeTrail.length = 0;
+        }
+
+        for (let i = this.bladeTrail.length - 1; i >= 0; i--) {
+          this.bladeTrail[i].life -= dt * 8.5;
+          if (this.bladeTrail[i].life <= 0) this.bladeTrail.splice(i, 1);
+        }
+      }
+
+      // Física Verlet para Capa / Túnica articulada
+      _updateCloth(dt) {
+        const anchorX = this.x - this.facing * 10;
+        const anchorY = this.y - 95;
+        this.clothNodes[0].x = anchorX;
+        this.clothNodes[0].y = anchorY;
+
+        const windX = -this.facing * (55 + Math.abs(this.vx) * 0.32) + Math.sin(state.time * 5.5) * 22;
+        for (let i = 1; i < this.clothNodes.length; i++) {
+          const node = this.clothNodes[i];
+          const vx = (node.x - node.oldX) * 0.88;
+          const vy = (node.y - node.oldY) * 0.88;
+          node.oldX = node.x;
+          node.oldY = node.y;
+
+          node.x += vx + windX * dt * 1.4;
+          node.y += vy + 320 * dt * dt * 60;
+        }
+
+        // Restrições de distância entre nós
+        for (let iter = 0; iter < 3; iter++) {
+          this.clothNodes[0].x = anchorX;
+          this.clothNodes[0].y = anchorY;
+          for (let i = 1; i < this.clothNodes.length; i++) {
+            const prev = this.clothNodes[i - 1];
+            const curr = this.clothNodes[i];
+            const dx = curr.x - prev.x;
+            const dy = curr.y - prev.y;
+            const dist = Math.hypot(dx, dy) || 1;
+            const seg = 13.5;
+            if (dist > seg) {
+              curr.x = prev.x + (dx / dist) * seg;
+              curr.y = prev.y + (dy / dist) * seg;
+            }
+          }
+        }
+      }
+    }
+
+    // ============================================================================
+    // 5. SISTEMA DE CHOQUE DE SABRES (SABER CLASH) & IA AVANÇADA
+    // ============================================================================
+    function startSaberClash(f1, f2) {
+      state.clash.active = true;
+      state.clash.timer = 1.35;
+      state.clash.balance = 0.5;
+      state.clash.x = (f1.x + f2.x) * 0.5;
+      state.clash.y = Math.min(f1.y, f2.y) - 68;
+
+      sound.playClash();
+      triggerShake(14, 0.3);
+      spawnParticles(state.clash.x, state.clash.y, '#ffffff', 35, 360);
+
+      const banner = document.getElementById('clash-banner');
+      banner.classList.remove('hidden');
+      document.getElementById('clash-meter-bar').style.width = '50%';
+    }
+
+    function updateSaberClash(dt) {
+      if (!state.clash.active) return;
+      state.clash.timer -= dt;
+
+      // IA disputa pressionando contra o jogador
+      const aiPush = (0.34 + DIFFICULTY_CONFIG[gameConfig.difficulty].aggression * 0.25) * dt;
+      state.clash.balance = Math.max(0, Math.min(1, state.clash.balance - aiPush));
+
+      document.getElementById('clash-meter-bar').style.width = `${state.clash.balance * 100}%`;
+
+      if (Math.random() < 0.75) {
+        spawnParticles(state.clash.x, state.clash.y, '#fde047', 4, 260);
+      }
+
+      if (state.clash.timer <= 0 || state.clash.balance >= 0.96 || state.clash.balance <= 0.04) {
+        state.clash.active = false;
+        document.getElementById('clash-banner').classList.add('hidden');
+
+        const playerWon = state.clash.balance >= 0.5;
+        const winner = playerWon ? player : opponent;
+        const loser = playerWon ? opponent : player;
+
+        sound.playForcePush();
+        triggerShake(16, 0.3);
+        state.hitstopTimer = 0.07;
+        loser.receiveDamage(18, winner, 620, -240, { unblockable: true, stun: 0.65, heavy: true });
+        winner.vx = -winner.facing * 220;
+        addFloatingText(winner.x, winner.y - 135, 'VENCEU O CHOQUE!', '#fde047');
+      }
+    }
+
+    function updateAI(ai, target, dt) {
+      if (!ai.isAlive || !target.isAlive || state.clash.active) {
+        ai.aiDesiredMove = 0;
+        ai.setBlocking(false);
+        return;
+      }
+
+      // Modo Treino Livre: respeita comportamento escolhido
+      if (gameConfig.gameMode === 'training') {
+        ai.aiDesiredMove = 0;
+        ai.setBlocking(gameConfig.dummyBehavior === 'guard');
+        if (gameConfig.dummyBehavior !== 'ai') return;
+      }
+
+      const diff = DIFFICULTY_CONFIG[gameConfig.difficulty];
+      const skill = Math.min(1.0, ai.aiSkill * (0.72 + diff.aggression * 0.45));
+
+      ai.aiDecisionTimer -= dt;
+      if (ai.aiDecisionTimer > 0) return;
+      ai.aiDecisionTimer = diff.reaction * (0.85 + Math.random() * 0.35);
+
+      // v3 — No Fácil o NPC hesita: fica parado, sem atacar, abrindo a guarda
+      if (Math.random() < (diff.hesitate || 0)) {
+        ai.aiDesiredMove = 0;
+        ai.setBlocking(false);
+        ai.aiDecisionTimer = diff.reaction * 1.6;
+        return;
+      }
+
+      const dx = target.x - ai.x;
+      const absDx = Math.abs(dx);
+      const dir = dx >= 0 ? 1 : -1;
+
+      // Reage a projéteis
+      const proj = state.projectiles.find(p => p.owner !== ai && Math.abs(p.x - ai.x) < 210);
+      if (proj && Math.random() < skill * 0.85) {
+        if (ai.dashCooldown <= 0 && Math.random() < 0.55) ai.dash(-dir);
+        else ai.setBlocking(true);
+        return;
+      }
+
+      // Reage a ataques próximos tentando Parry ou Esquiva
+      if ((target.attackState === 'windup' || target.attackState === 'active') && absDx < 160) {
+        if (Math.random() < skill * 0.78) {
+          if (Math.random() < 0.35 && ai.dashCooldown <= 0) ai.dash(-dir);
+          else {
+            ai.facing = dir;
+            ai.setBlocking(true);
+          }
+          return;
+        }
+      }
+
+      ai.setBlocking(false);
+
+      // Usa Suprema com 100% Força!
+      if (ai.force >= 100 && Math.random() < skill * 0.65 * (diff.forceUse ?? 1)) {
+        if (ai.useForcePower(4, target)) return;
+      }
+
+      // Usa Técnicas Especiais (1, 2, 3)
+      if (absDx > 160 && absDx < 450 && ai.force >= 35 && Math.random() < skill * 0.46 * (diff.forceUse ?? 1)) {
+        const slot = [1, 2, 3][Math.floor(Math.random() * 3)];
+        if (ai.useForcePower(slot, target)) return;
+      }
+
+      // Movimentação e Combos
+      if (absDx > 125) {
+        ai.aiDesiredMove = dir;
+        if (absDx > 390 && ai.dashCooldown <= 0 && Math.random() < skill * 0.35) {
+          ai.dash(dir);
+        }
+      } else {
+        ai.aiDesiredMove = 0;
+        ai.facing = dir;
+        if (Math.random() < diff.aggression) {
+          if (target.blocking && Math.random() < 0.55) {
+            ai.attackHeavy(target, false); // Quebra-guarda se jogador estiver defendendo muito!
+          } else if (Math.random() < 0.22 * (0.3 + diff.aggression)) {
+            ai.attackHeavy(target, true);  // Gancho aéreo!
+          } else {
+            ai.attackLight(target);
+          }
+          // v3 — Abertura depois do ataque: o NPC fica vulnerável um tempo (maior no Fácil)
+          ai.aiDecisionTimer = Math.max(ai.aiDecisionTimer, diff.recoveryPause || 0);
+        }
+      }
+    }
+
+    // ============================================================================
+    // 6. RENDERIZAÇÃO DE ACTION-FIGURE ARTICULADA + ILUMINAÇÃO DINÂMICA DE SABRE
+    // ============================================================================
+    function drawArticulatedFighter(f, otherFighter, isReflection = false) {
+      if (!f.isAlive) return;
+
+      ctx.save();
+
+      if (isReflection) {
+        // Transformação espelhada no piso reflexivo
+        ctx.translate(0, state.groundY * 2);
+        ctx.scale(1, -0.58);
+        ctx.globalAlpha = 0.22;
+      } else {
+        // Afterimages da esquiva
+        f.afterimages.forEach(img => {
+          ctx.save();
+          ctx.globalAlpha = img.alpha * 0.42;
+          ctx.fillStyle = f.saber.glow;
+          ctx.beginPath();
+          ctx.roundRect(img.x - 18, img.y - 122, 36, 118, 14); // v3: altura 120u
+          ctx.fill();
+          ctx.restore();
+        });
+
+        // Sombra de contato realista no piso
+        const heightAir = Math.max(0, state.groundY - f.y);
+        const sScale = Math.max(0.32, 1 - heightAir / 380);
+        const shGrad = ctx.createRadialGradient(f.x, state.groundY + 2, 2, f.x, state.groundY + 2, 38 * sScale);
+        shGrad.addColorStop(0, 'rgba(0,0,0,0.75)');
+        shGrad.addColorStop(1, 'rgba(0,0,0,0)');
+        ctx.fillStyle = shGrad;
+        ctx.beginPath();
+        ctx.ellipse(f.x, state.groundY + 2, 38 * sScale, 9 * sScale, 0, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      // Modo Tripo: render leve do modelo 3D no lugar do boneco vetorial
+      if (tripoSpriteFor(f)) {
+        drawTripoFighter(f, isReflection);
+        ctx.restore();
+        return;
+      }
+
+      // Calcula Rim Light dinâmico vindo dos sabres próximos!
+      let rimColor = f.saber.glow;
+      let rimStrength = f.saberThrown ? 0.15 : 0.75;
+      if (otherFighter && otherFighter.isAlive && !otherFighter.saberThrown) {
+        const dist = Math.abs(otherFighter.x - f.x);
+        if (dist < 240) {
+          rimColor = otherFighter.saber.glow;
+          rimStrength = Math.max(rimStrength, 1 - dist / 240);
+        }
+      }
+
+      // 1. Capa / Túnica Fluida (Verlet Cloth) com dobras e brilho de borda
+      ctx.save();
+      ctx.beginPath();
+      ctx.moveTo(f.clothNodes[0].x, f.clothNodes[0].y);
+      for (let i = 1; i < f.clothNodes.length; i++) {
+        ctx.lineTo(f.clothNodes[i].x, f.clothNodes[i].y);
+      }
+      for (let i = f.clothNodes.length - 1; i >= 0; i--) {
+        ctx.lineTo(f.clothNodes[i].x - f.facing * (7 + i * 3.4), f.clothNodes[i].y + 4);
+      }
+      ctx.closePath();
+
+      const capeGrad = ctx.createLinearGradient(f.x - 40, f.y - 95, f.x + 40, f.y);
+      if (f.faction === 'sith') {
+        capeGrad.addColorStop(0, '#18181b');
+        capeGrad.addColorStop(0.6, '#09090b');
+        capeGrad.addColorStop(1, '#27272a');
+      } else {
+        capeGrad.addColorStop(0, '#443627');
+        capeGrad.addColorStop(0.6, '#292018');
+        capeGrad.addColorStop(1, '#574634');
+      }
+      ctx.fillStyle = capeGrad;
+      ctx.fill();
+
+      // Reflexo de luz do sabre na borda da capa
+      ctx.strokeStyle = rimColor;
+      ctx.globalAlpha = isReflection ? 0.15 : rimStrength * 0.65;
+      ctx.lineWidth = 2;
+      ctx.stroke();
+      ctx.restore();
+
+      // Aplica inclinação corporal e mortal aéreo ao esqueleto do boneco
+      ctx.save();
+      ctx.translate(f.x, f.y - 60); // v3: centro do corpo
+      ctx.rotate(f.bodyLean + f.flipAngle);
+      ctx.translate(-f.x, -(f.y - 60));
+
+      const crouch = f.blocking ? 7 : 0;
+      const runPhase = f.onGround && Math.abs(f.vx) > 45 ? state.time * 16 : 0;
+
+      // Cores de armadura / traje baseadas na facção e estilo
+      const armorPrimary = f.faction === 'sith' ? '#1e222d' : '#d6cfc2';
+      const armorSecondary = f.faction === 'sith' ? '#0b0d13' : '#786b59';
+      const metalTrim = f.faction === 'sith' ? '#64748b' : '#b45309';
+
+      // Helper para desenhar segmento cilíndrico 3D + junta esférica de action-figure
+      const drawLimbSegment = (x1, y1, x2, y2, radius, c1, c2, joint = true) => {
+        const angle = Math.atan2(y2 - y1, x2 - x1);
+        const nx = -Math.sin(angle) * radius;
+        const ny = Math.cos(angle) * radius;
+
+        const grad = ctx.createLinearGradient(x1 + nx, y1 + ny, x1 - nx, y1 - ny);
+        grad.addColorStop(0, rimColor);
+        grad.addColorStop(0.18, c1);
+        grad.addColorStop(0.75, c2);
+        grad.addColorStop(1, '#020617');
+
+        ctx.strokeStyle = grad;
+        ctx.lineWidth = radius * 2;
+        ctx.lineCap = 'round';
+        ctx.beginPath();
+        ctx.moveTo(x1, y1);
+        ctx.lineTo(x2, y2);
+        ctx.stroke();
+
+        // Junta esférica articulada estilo Black Series
+        if (joint) {
+          ctx.fillStyle = '#0f172a';
+          ctx.beginPath();
+          ctx.arc(x1, y1, radius * 0.85, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.strokeStyle = metalTrim;
+          ctx.lineWidth = 1.2;
+          ctx.stroke();
+        }
+      };
+
+      // ==================================================================
+      // ANATOMIA v3 — proporções humanas corretas (engenheiro-chefe)
+      // Altura total 120u: cabeça Ø16 (1/7,5 da altura), pescoço, torso 40u,
+      // pernas 58u (coxa 28 + canela 30), braços 42u (22 + 20). O sabre sai
+      // da MÃO (luva desenhada no punho) — nunca flutua acima da cabeça.
+      // ==================================================================
+      const hipY = f.y - 58 + crouch;
+      const shoulderY0 = f.y - 98 + crouch;
+      const headY = f.y - 112 + crouch;
+
+      // 2. Pernas (Traseira -> Dianteira) — coxa 28u + canela 30u + bota
+      const backThighAngle = Math.PI * 0.52 - Math.sin(runPhase) * 0.38;
+      const backKneeX = f.x - f.facing * 5 + Math.cos(backThighAngle) * 26;
+      const backKneeY = hipY + Math.sin(backThighAngle) * 26;
+      const backFootX = backKneeX - f.facing * 7;
+      const backFootY = f.y - 3;
+
+      drawLimbSegment(f.x - f.facing * 4, hipY, backKneeX, backKneeY, 6, armorSecondary, '#090d16');
+      drawLimbSegment(backKneeX, backKneeY, backFootX, backFootY, 5.5, '#1e293b', '#05070c');
+
+      const frontThighAngle = Math.PI * 0.44 + Math.sin(runPhase) * 0.42;
+      const frontKneeX = f.x + f.facing * 6 + Math.cos(frontThighAngle) * 26;
+      const frontKneeY = hipY + Math.sin(frontThighAngle) * 26;
+      const frontFootX = frontKneeX + f.facing * 9;
+      const frontFootY = f.y - 3;
+
+      drawLimbSegment(f.x + f.facing * 4, hipY, frontKneeX, frontKneeY, 6.5, armorPrimary, armorSecondary);
+      drawLimbSegment(frontKneeX, frontKneeY, frontFootX, frontFootY, 6, '#334155', '#090d16');
+
+      // Botas articuladas com biqueira
+      ctx.fillStyle = '#0b0d13';
+      ctx.beginPath();
+      ctx.roundRect(backFootX - 8, backFootY - 5, 17, 6, 2);
+      ctx.fill();
+      ctx.beginPath();
+      ctx.roundRect(frontFootX - 8, frontFootY - 5, 18, 6, 2);
+      ctx.fill();
+
+      // Joelheira blindada articulada
+      ctx.fillStyle = metalTrim;
+      ctx.beginPath();
+      ctx.arc(frontKneeX + f.facing * 3, frontKneeY, 4.5, 0, Math.PI * 2);
+      ctx.fill();
+
+      // 3. Braço Secundário (atrás do torso) — mão livre em guarda
+      const backShoulderX = f.x - f.facing * 10;
+      const backShoulderY = shoulderY0;
+      const backElbowX = backShoulderX + Math.cos(f.offArmAngle) * 20 * f.facing;
+      const backElbowY = backShoulderY + Math.sin(f.offArmAngle) * 20;
+      const backHandX = backElbowX + Math.cos(f.offArmAngle - 0.35) * 18 * f.facing;
+      const backHandY = backElbowY + Math.sin(f.offArmAngle - 0.35) * 18;
+      drawLimbSegment(backShoulderX, backShoulderY, backElbowX, backElbowY, 5, armorSecondary, '#090d16');
+      drawLimbSegment(backElbowX, backElbowY, backHandX, backHandY, 4.5, '#1e293b', '#020617');
+      // Luva da mão livre
+      ctx.fillStyle = f.faction === 'sith' ? '#0b0d13' : '#5c4b37';
+      ctx.beginPath();
+      ctx.arc(backHandX, backHandY, 4.5, 0, Math.PI * 2);
+      ctx.fill();
+
+      // 4. Torso — túnica em camadas (Jedi) ou couraça (Sith) + cinto largo
+      const torsoTopY = shoulderY0;
+      const torsoGrad = ctx.createLinearGradient(f.x - 15, torsoTopY, f.x + 15, hipY);
+      torsoGrad.addColorStop(0, armorPrimary);
+      torsoGrad.addColorStop(0.75, armorSecondary);
+      torsoGrad.addColorStop(1, '#090d16');
+
+      ctx.fillStyle = torsoGrad;
+      ctx.beginPath();
+      ctx.roundRect(f.x - 15, torsoTopY, 30, hipY - torsoTopY + 2, 8);
+      ctx.fill();
+
+      // Borda luminosa do sabre no peitoral
+      ctx.strokeStyle = rimColor;
+      ctx.lineWidth = 1.6;
+      ctx.stroke();
+
+      if (f.faction === 'sith') {
+        // Painel de suporte vital Sith no peito
+        ctx.fillStyle = '#0f172a';
+        ctx.fillRect(f.x + f.facing * 2 - 6, torsoTopY + 10, 12, 14);
+        ctx.fillStyle = '#ef4444';
+        ctx.fillRect(f.x + f.facing * 2 - 3, torsoTopY + 13, 3, 3);
+        ctx.fillStyle = '#38bdf8';
+        ctx.fillRect(f.x + f.facing * 2 + 1, torsoTopY + 13, 3, 3);
+        // Juntas da couraça
+        ctx.strokeStyle = 'rgba(100, 116, 139, 0.7)';
+        ctx.lineWidth = 1.2;
+        ctx.beginPath();
+        ctx.moveTo(f.x - 15, torsoTopY + 16);
+        ctx.lineTo(f.x + 15, torsoTopY + 16);
+        ctx.moveTo(f.x - 15, torsoTopY + 28);
+        ctx.lineTo(f.x + 15, torsoTopY + 28);
+        ctx.stroke();
+      } else {
+        // Tabardo Jedi: duas faixas verticais da túnica
+        ctx.fillStyle = '#8a6d4b';
+        ctx.fillRect(f.x - 9, torsoTopY + 2, 5, hipY - torsoTopY - 2);
+        ctx.fillRect(f.x + 4, torsoTopY + 2, 5, hipY - torsoTopY - 2);
+        // Faixa cruzada da túnica
+        ctx.strokeStyle = '#5c4b37';
+        ctx.lineWidth = 4;
+        ctx.beginPath();
+        ctx.moveTo(f.x - 11, torsoTopY + 4);
+        ctx.lineTo(f.x + 11, hipY - 4);
+        ctx.stroke();
+      }
+
+      // Cinto tático largo com fivela e bolsas
+      ctx.fillStyle = '#1e293b';
+      ctx.fillRect(f.x - 15, hipY - 8, 30, 8);
+      ctx.fillStyle = '#cbd5e1';
+      ctx.fillRect(f.x + f.facing * 4 - 4, hipY - 7, 8, 5);
+      ctx.fillStyle = '#0f172a';
+      ctx.fillRect(f.x - f.facing * 12, hipY - 5, 6, 6);
+      ctx.fillRect(f.x + f.facing * 6, hipY - 5, 6, 6);
+
+      // 5. Pescoço + Cabeça (raio 8 — proporção 1/7,5 da altura)
+      ctx.fillStyle = f.faction === 'sith' ? '#0f172a' : '#c7a98b';
+      ctx.fillRect(f.x - 3.5, headY + 6, 7, 8);
+
+      const headGrad = ctx.createRadialGradient(f.x + f.facing * 3, headY - 2, 1, f.x, headY, 9);
+      if (f.faction === 'sith') {
+        headGrad.addColorStop(0, '#334155');
+        headGrad.addColorStop(0.55, '#0f172a');
+        headGrad.addColorStop(1, '#020617');
+      } else {
+        headGrad.addColorStop(0, '#f3e3d3');
+        headGrad.addColorStop(0.7, '#c7a98b');
+        headGrad.addColorStop(1, '#785c43');
+      }
+
+      ctx.fillStyle = headGrad;
+      ctx.beginPath();
+      ctx.arc(f.x, headY, 8, 0, Math.PI * 2);
+      ctx.fill();
+
+      if (f.faction === 'sith') {
+        // Capacete angular estilo Inquisidor / Lorde Sith
+        ctx.fillStyle = '#09090b';
+        ctx.beginPath();
+        ctx.moveTo(f.x - f.facing * 9, headY + 4);
+        ctx.lineTo(f.x - f.facing * 7, headY - 8);
+        ctx.lineTo(f.x + f.facing * 5, headY - 9);
+        ctx.lineTo(f.x + f.facing * 9, headY - 1);
+        ctx.lineTo(f.x - f.facing * 1, headY + 2);
+        ctx.closePath();
+        ctx.fill();
+        ctx.strokeStyle = rimColor;
+        ctx.lineWidth = 1.2;
+        ctx.stroke();
+
+        // Visor carmesim brilhante
+        ctx.save();
+        ctx.fillStyle = '#ff1e27';
+        ctx.shadowColor = '#ff1e27';
+        ctx.shadowBlur = 10;
+        ctx.beginPath();
+        ctx.moveTo(f.x + f.facing * 2, headY - 2);
+        ctx.lineTo(f.x + f.facing * 8, headY - 0.5);
+        ctx.lineTo(f.x + f.facing * 2.5, headY + 1.5);
+        ctx.closePath();
+        ctx.fill();
+        ctx.restore();
+      } else {
+        // Capuz Jedi emoldurando o rosto
+        ctx.fillStyle = '#3a2d1f';
+        ctx.beginPath();
+        ctx.arc(f.x - f.facing * 1, headY - 1, 10, Math.PI * 0.72, Math.PI * 2.18);
+        ctx.fill();
+        // Rosto: olho brilhante + sobrancelha
+        ctx.fillStyle = '#38bdf8';
+        ctx.fillRect(f.x + f.facing * 2.5, headY - 1.5, 2.6, 1.8);
+        ctx.strokeStyle = '#3e2723';
+        ctx.lineWidth = 1.2;
+        ctx.beginPath();
+        ctx.moveTo(f.x + f.facing * 1, headY - 4);
+        ctx.lineTo(f.x + f.facing * 6, headY - 3.4);
+        ctx.stroke();
+      }
+
+      // 6. Braço Principal Bi-Articulado (Ombro -> Cotovelo -> Antebraço -> MÃO do Sabre)
+      const shoulderX = f.x + f.facing * 11;
+      const shoulderY = shoulderY0;
+      const elbowX = shoulderX + Math.cos(f.shoulderAngle) * 22 * f.facing;
+      const elbowY = shoulderY + Math.sin(f.shoulderAngle) * 22;
+      const handX = elbowX + Math.cos(f.shoulderAngle + f.elbowAngle) * 20 * f.facing;
+      const handY = elbowY + Math.sin(f.shoulderAngle + f.elbowAngle) * 20;
+
+      drawLimbSegment(shoulderX, shoulderY, elbowX, elbowY, 5.5, armorPrimary, armorSecondary);
+      drawLimbSegment(elbowX, elbowY, handX, handY, 5, '#334155', '#090d16');
+
+      // Ombreira blindada articulada (Pauldron)
+      ctx.fillStyle = metalTrim;
+      ctx.beginPath();
+      ctx.arc(shoulderX, shoulderY - 2, 8, Math.PI, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = rimColor;
+      ctx.lineWidth = 1.4;
+      ctx.stroke();
+
+      // LUVA segurando o cabo — o sabre nasce aqui, na mão, sempre
+      ctx.fillStyle = f.faction === 'sith' ? '#0b0d13' : '#5c4b37';
+      ctx.beginPath();
+      ctx.arc(handX, handY, 5.5, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = metalTrim;
+      ctx.lineWidth = 1.2;
+      ctx.stroke();
+
+
+      // 7. Rastro Poligonal do Sabre de Luz (Ribbon Trail)
+      if (!isReflection && f.bladeTrail.length > 1) {
+        for (let i = 0; i < f.bladeTrail.length - 1; i++) {
+          const c = f.bladeTrail[i];
+          const n = f.bladeTrail[i + 1];
+          ctx.save();
+          ctx.globalAlpha = c.life * 0.36;
+          ctx.fillStyle = f.saber.glow;
+          ctx.beginPath();
+          ctx.moveTo(c.hx, c.hy);
+          ctx.lineTo(c.tx, c.ty);
+          ctx.lineTo(n.tx, n.ty);
+          ctx.lineTo(n.hx, n.hy);
+          ctx.closePath();
+          ctx.fill();
+          ctx.restore();
+        }
+      }
+
+      // 8. Empunhadura Detalhada + Lâmina Neon Cinematográfica
+      if (!f.saberThrown) {
+        const cos = Math.cos(f.bladeAngle) * f.facing;
+        const sin = Math.sin(f.bladeAngle);
+
+        const hiltStartX = handX - cos * 7;
+        const hiltStartY = handY - sin * 7;
+        const emitterX = handX + cos * 14;
+        const emitterY = handY + sin * 14;
+
+        // Punho metálico
+        ctx.strokeStyle = '#e2e8f0';
+        ctx.lineWidth = 5.5;
+        ctx.lineCap = 'round';
+        ctx.beginPath();
+        ctx.moveTo(hiltStartX, hiltStartY);
+        ctx.lineTo(emitterX, emitterY);
+        ctx.stroke();
+
+        // Anel emissor dourado/escuro
+        ctx.strokeStyle = '#f59e0b';
+        ctx.lineWidth = 6;
+        ctx.beginPath();
+        ctx.moveTo(emitterX - cos * 3, emitterY - sin * 3);
+        ctx.lineTo(emitterX, emitterY);
+        ctx.stroke();
+
+        // Lâmina de plasma
+        const bladeLen = 96 + (Math.random() - 0.5) * 2.5;
+        const tipX = emitterX + cos * bladeLen;
+        const tipY = emitterY + sin * bladeLen;
+        f.saberTipX = tipX;
+        f.saberTipY = tipY;
+
+        ctx.save();
+        // Halo externo largo (luz do sabre no ar)
+        ctx.globalCompositeOperation = 'lighter';
+        ctx.strokeStyle = f.saber.glow;
+        ctx.globalAlpha = 0.22;
+        ctx.lineWidth = 20;
+        ctx.lineCap = 'round';
+        ctx.beginPath();
+        ctx.moveTo(emitterX, emitterY);
+        ctx.lineTo(tipX, tipY);
+        ctx.stroke();
+        ctx.globalAlpha = 1;
+        ctx.globalCompositeOperation = 'source-over';
+        ctx.shadowColor = f.saber.glow;
+        ctx.shadowBlur = isReflection ? 10 : (state.quality.level >= 2 ? 28 : 16);
+        ctx.strokeStyle = f.saber.glow;
+        ctx.lineWidth = 9.5;
+        ctx.beginPath();
+        ctx.moveTo(emitterX, emitterY);
+        ctx.lineTo(tipX, tipY);
+        ctx.stroke();
+
+        if (f.saber.edge) {
+          ctx.shadowBlur = 10;
+          ctx.strokeStyle = f.saber.edge;
+          ctx.lineWidth = 6;
+          ctx.beginPath();
+          ctx.moveTo(emitterX, emitterY);
+          ctx.lineTo(tipX, tipY);
+          ctx.stroke();
+        }
+
+        ctx.shadowBlur = 0;
+        ctx.strokeStyle = f.saber.core;
+        ctx.lineWidth = 3.6;
+        ctx.beginPath();
+        ctx.moveTo(emitterX, emitterY);
+        ctx.lineTo(tipX, tipY);
+        ctx.stroke();
+        ctx.restore();
+      }
+
+      ctx.restore(); // Fim rotação corporal
+
+      // Aura de Harmonia Suprema Jedi
+      if (!isReflection && f.harmonyTimer > 0) {
+        ctx.save();
+        ctx.strokeStyle = 'rgba(253, 224, 71, 0.8)';
+        ctx.fillStyle = 'rgba(56, 189, 248, 0.14)';
+        ctx.lineWidth = 2.5;
+        ctx.beginPath();
+        ctx.ellipse(f.x, f.y - 62, 42, 64, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+        ctx.restore();
+      }
+
+      ctx.restore();
+    }
+
+    // ============================================================================
+    // 7. RENDERIZAÇÃO DAS 3 ARENAS EM PARALLAX COM PISO REFLEXIVO
+    // ============================================================================
+    function renderArena() {
+      const w = state.worldWidth;
+      const h = state.worldHeight;
+      const gy = state.groundY;
+      const camOffset = (state.camera.x - w * 0.5) * 0.25;
+
+      if (gameConfig.arena === 'temple') {
+        // Céu crepuscular/noturno do Templo Jedi
+        const sky = ctx.createLinearGradient(0, 0, 0, gy);
+        sky.addColorStop(0, '#040714');
+        sky.addColorStop(0.55, '#0c1938');
+        sky.addColorStop(1, '#1e293b');
+        ctx.fillStyle = sky;
+        ctx.fillRect(0, 0, w, gy);
+
+        // Estrelas
+        state.stars.forEach(s => {
+          const alpha = 0.3 + 0.7 * Math.abs(Math.sin(state.time * s.speed + s.phase));
+          ctx.fillStyle = `rgba(226, 232, 240, ${alpha})`;
+          ctx.beginPath();
+          ctx.arc(s.x * w, s.y * gy, s.size, 0, Math.PI * 2);
+          ctx.fill();
+        });
+
+        // Camada Parallax 1: Torres de Coruscant ao longe
+        ctx.fillStyle = '#081024';
+        for (let i = -1; i < 16; i++) {
+          const bx = i * 105 - camOffset * 0.4;
+          const bh = 120 + ((Math.abs(i) * 67) % 140);
+          ctx.fillRect(bx, gy - bh, 78, bh);
+          ctx.fillStyle = 'rgba(251, 191, 36, 0.22)';
+          ctx.fillRect(bx + 18, gy - bh + 22, 4, bh - 40);
+          ctx.fillStyle = '#081024';
+        }
+
+        // Camada Parallax 2: Colunas monumentais do Templo Jedi
+        for (let i = 0; i < 8; i++) {
+          const px = 110 + i * 185 - camOffset * 0.85;
+          const colGrad = ctx.createLinearGradient(px - 32, 0, px + 32, 0);
+          colGrad.addColorStop(0, '#0f172a');
+          colGrad.addColorStop(0.5, '#1e293b');
+          colGrad.addColorStop(1, '#090d16');
+          ctx.fillStyle = colGrad;
+          ctx.fillRect(px - 32, 40, 64, gy - 40);
+
+          // Frisos luminosos dourado/azul
+          ctx.fillStyle = 'rgba(56, 189, 248, 0.4)';
+          ctx.fillRect(px - 3, 85, 6, gy - 115);
+        }
+
+        // Lua gigante + emblema da Ordem Jedi no fundo
+        const moonX = w * 0.82 - camOffset * 0.15;
+        const moonY = 92;
+        const moonGlow = ctx.createRadialGradient(moonX, moonY, 8, moonX, moonY, 90);
+        moonGlow.addColorStop(0, 'rgba(226, 232, 240, 0.5)');
+        moonGlow.addColorStop(0.35, 'rgba(148, 163, 184, 0.16)');
+        moonGlow.addColorStop(1, 'rgba(148, 163, 184, 0)');
+        ctx.fillStyle = moonGlow;
+        ctx.beginPath();
+        ctx.arc(moonX, moonY, 90, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = '#e2e8f0';
+        ctx.beginPath();
+        ctx.arc(moonX, moonY, 34, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = 'rgba(148, 163, 184, 0.55)';
+        ctx.beginPath();
+        ctx.arc(moonX - 10, moonY - 6, 7, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.beginPath();
+        ctx.arc(moonX + 8, moonY + 10, 5, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Emblema da Ordem Jedi (círculo com asas) entre duas colunas
+        const ex = 572 - camOffset * 0.3; // v3: entre as colunas, sem sobrepor
+        const ey = 150;
+        ctx.save();
+        ctx.strokeStyle = 'rgba(56, 189, 248, 0.28)';
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.arc(ex, ey, 46, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.arc(ex, ey, 34, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(ex - 78, ey);
+        ctx.lineTo(ex - 46, ey);
+        ctx.moveTo(ex + 46, ey);
+        ctx.lineTo(ex + 78, ey);
+        ctx.stroke();
+        ctx.fillStyle = 'rgba(56, 189, 248, 0.35)';
+        ctx.beginPath();
+        ctx.arc(ex, ey, 10, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+
+        // v3 — Estátuas de Jedi + vitrais de luz atrás delas
+        for (let s = 0; s < 3; s++) {
+          const sx = 202 + s * 555 - camOffset * 0.85;
+          const paneColors = ['rgba(56,189,248,0.30)', 'rgba(250,204,21,0.28)', 'rgba(168,85,247,0.30)'];
+          ctx.fillStyle = paneColors[s % 3];
+          ctx.beginPath();
+          ctx.moveTo(sx - 26, gy - 190);
+          ctx.lineTo(sx, gy - 214);
+          ctx.lineTo(sx + 26, gy - 190);
+          ctx.lineTo(sx + 26, gy - 96);
+          ctx.lineTo(sx - 26, gy - 96);
+          ctx.closePath();
+          ctx.fill();
+          ctx.strokeStyle = 'rgba(148,163,184,0.5)';
+          ctx.lineWidth = 1.5;
+          ctx.stroke();
+          // Estátua Jedi de pedra (manto + capuz)
+          ctx.fillStyle = '#16213a';
+          ctx.beginPath();
+          ctx.moveTo(sx - 20, gy - 4);
+          ctx.lineTo(sx - 12, gy - 78);
+          ctx.lineTo(sx - 7, gy - 96);
+          ctx.lineTo(sx + 7, gy - 96);
+          ctx.lineTo(sx + 12, gy - 78);
+          ctx.lineTo(sx + 20, gy - 4);
+          ctx.closePath();
+          ctx.fill();
+          ctx.fillStyle = '#0f172a';
+          ctx.beginPath();
+          ctx.arc(sx, gy - 100, 9, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.strokeStyle = 'rgba(56,189,248,0.45)';
+          ctx.lineWidth = 1.5;
+          ctx.stroke();
+        }
+        // v3 — Estandartes dourados pendurados entre as colunas
+        for (let b = 0; b < 2; b++) {
+          const bx = 387 + b * 740 - camOffset * 0.85;
+          ctx.fillStyle = '#3b2f17';
+          ctx.fillRect(bx - 16, 40, 32, 92);
+          ctx.strokeStyle = 'rgba(250,204,21,0.55)';
+          ctx.lineWidth = 1.5;
+          ctx.strokeRect(bx - 16, 40, 32, 92);
+          ctx.strokeStyle = 'rgba(56,189,248,0.6)';
+          ctx.beginPath();
+          ctx.arc(bx, 78, 9, 0, Math.PI * 2);
+          ctx.stroke();
+          ctx.beginPath();
+          ctx.moveTo(bx - 14, 78);
+          ctx.lineTo(bx - 9, 78);
+          ctx.moveTo(bx + 9, 78);
+          ctx.lineTo(bx + 14, 78);
+          ctx.stroke();
+        }
+
+        // Faixas de luz refletida no piso sob as colunas
+        ctx.fillStyle = 'rgba(56, 189, 248, 0.07)';
+        for (let i = 0; i < 8; i++) {
+          const px2 = 110 + i * 185 - camOffset * 0.85;
+          ctx.fillRect(px2 - 32, gy + 6, 64, 10);
+        }
+
+        // Piso de Mármore Polido Reflexivo
+        const floorGrad = ctx.createLinearGradient(0, gy, 0, h);
+        floorGrad.addColorStop(0, '#1e293b');
+        floorGrad.addColorStop(0.25, '#0f172a');
+        floorGrad.addColorStop(1, '#03050a');
+        ctx.fillStyle = floorGrad;
+        ctx.fillRect(0, gy, w, h - gy);
+
+        // v3 — Juntas do piso de mármore
+        ctx.strokeStyle = 'rgba(148,163,184,0.18)';
+        ctx.lineWidth = 1;
+        for (let j = 0; j < 12; j++) {
+          const jx = j * 130 - (camOffset * 0.85 % 130);
+          ctx.beginPath();
+          ctx.moveTo(jx, gy + 8);
+          ctx.lineTo(jx, h);
+          ctx.stroke();
+        }
+
+      } else if (gameConfig.arena === 'volcano') {
+        // Céu Vulcânico de Lava
+        const vSky = ctx.createLinearGradient(0, 0, 0, gy);
+        vSky.addColorStop(0, '#120303');
+        vSky.addColorStop(0.45, '#450a0a');
+        vSky.addColorStop(0.85, '#9a3412');
+        vSky.addColorStop(1, '#ea580c');
+        ctx.fillStyle = vSky;
+        ctx.fillRect(0, 0, w, gy);
+
+        // Montanhas vulcânicas + cascatas de lava em parallax
+        ctx.fillStyle = '#1c0606';
+        ctx.beginPath();
+        ctx.moveTo(-100, gy);
+        ctx.lineTo(w * 0.2 - camOffset * 0.45, gy - 310);
+        ctx.lineTo(w * 0.5 - camOffset * 0.45, gy - 150);
+        ctx.lineTo(w * 0.8 - camOffset * 0.45, gy - 340);
+        ctx.lineTo(w + 100, gy);
+        ctx.closePath();
+        ctx.fill();
+
+        // Cascata de lava ao fundo
+        ctx.fillStyle = 'rgba(251, 146, 60, 0.55)';
+        ctx.fillRect(w * 0.2 - camOffset * 0.45 - 8, gy - 280, 16, 280);
+        ctx.fillRect(w * 0.8 - camOffset * 0.45 - 10, gy - 310, 20, 310);
+
+        // Plataforma de aço e rio de magma abaixo
+        const lavaGrad = ctx.createLinearGradient(0, gy + 24, 0, h);
+        lavaGrad.addColorStop(0, '#fef08a');
+        lavaGrad.addColorStop(0.25, '#f97316');
+        lavaGrad.addColorStop(0.7, '#dc2626');
+        lavaGrad.addColorStop(1, '#7f1d1d');
+        ctx.fillStyle = lavaGrad;
+        ctx.fillRect(0, gy + 24, w, h - gy);
+
+        // Rachaduras incandescentes na plataforma de aço
+        ctx.save();
+        ctx.strokeStyle = 'rgba(251, 146, 60, 0.85)';
+        ctx.shadowColor = '#f97316';
+        ctx.shadowBlur = 12;
+        ctx.lineWidth = 2;
+        for (let i = 0; i < 7; i++) {
+          const cx0 = 60 + i * 210 + ((i * 97) % 50);
+          ctx.beginPath();
+          ctx.moveTo(cx0, gy + 2);
+          ctx.lineTo(cx0 + 26, gy + 12);
+          ctx.lineTo(cx0 + 8, gy + 20);
+          ctx.lineTo(cx0 + 34, gy + 25);
+          ctx.stroke();
+        }
+        ctx.restore();
+
+        // Brilho do lago de lava no horizonte
+        const lakeGlow = ctx.createLinearGradient(0, gy - 60, 0, gy + 24);
+        lakeGlow.addColorStop(0, 'rgba(249, 115, 22, 0)');
+        lakeGlow.addColorStop(1, 'rgba(249, 115, 22, 0.35)');
+        ctx.fillStyle = lakeGlow;
+        ctx.fillRect(0, gy - 60, w, 84);
+
+        // v3 — Rochas vulcânicas em silhueta com borda incandescente
+        ctx.fillStyle = '#200808';
+        for (let r = 0; r < 5; r++) {
+          const rx = r * 300 + 60 - camOffset * 0.6;
+          ctx.beginPath();
+          ctx.moveTo(rx, gy);
+          ctx.lineTo(rx + 34, gy - 52 - (r % 3) * 22);
+          ctx.lineTo(rx + 72, gy - 18);
+          ctx.lineTo(rx + 110, gy);
+          ctx.closePath();
+          ctx.fill();
+          ctx.strokeStyle = 'rgba(251,146,60,0.5)';
+          ctx.lineWidth = 1.5;
+          ctx.beginPath();
+          ctx.moveTo(rx + 34, gy - 52 - (r % 3) * 22);
+          ctx.lineTo(rx + 72, gy - 18);
+          ctx.stroke();
+        }
+        // v3 — Cascatas de lava extras
+        ctx.fillStyle = 'rgba(251, 146, 60, 0.5)';
+        ctx.fillRect(w * 0.35 - camOffset * 0.45 - 6, gy - 190, 12, 190);
+        ctx.fillRect(w * 0.65 - camOffset * 0.45 - 6, gy - 230, 12, 230);
+        // v3 — Bolhas de magma pulsando no lago (só em qualidade média/alta)
+        if (state.quality.level >= 1) {
+          for (let b = 0; b < 6; b++) {
+            const bx = ((b * 271 + 90) % w);
+            const br = 4 + 3 * Math.sin(state.time * 2.2 + b * 1.7);
+            ctx.fillStyle = `rgba(254, 240, 138, ${0.35 + 0.25 * Math.sin(state.time * 2.2 + b)})`;
+            ctx.beginPath();
+            ctx.arc(bx, gy + 44, Math.max(2, br), 0, Math.PI * 2);
+            ctx.fill();
+          }
+        }
+        // v3 — Colunas de fumaça subindo das montanhas
+        for (let sm = 0; sm < 2; sm++) {
+          const smx = w * (0.2 + sm * 0.6) - camOffset * 0.45;
+          const smoke = ctx.createLinearGradient(0, gy - 300, 0, gy - 60);
+          smoke.addColorStop(0, 'rgba(100,116,139,0)');
+          smoke.addColorStop(1, 'rgba(100,116,139,0.22)');
+          ctx.fillStyle = smoke;
+          ctx.fillRect(smx - 14, gy - 300, 28, 240);
+        }
+
+        ctx.fillStyle = '#18181b';
+        ctx.fillRect(0, gy, w, 26);
+
+      } else if (gameConfig.arena === 'station') {
+        // Núcleo da Estação Imperial
+        ctx.fillStyle = '#060911';
+        ctx.fillRect(0, 0, w, gy);
+
+        // Feixe central do reator pulsante
+        const coreX = w * 0.5 - camOffset * 0.5;
+        const pulse = 0.75 + 0.25 * Math.sin(state.time * 5);
+        const coreGrad = ctx.createLinearGradient(coreX - 90, 0, coreX + 90, 0);
+        coreGrad.addColorStop(0, 'rgba(14, 165, 233, 0)');
+        coreGrad.addColorStop(0.5, `rgba(56, 189, 248, ${0.42 * pulse})`);
+        coreGrad.addColorStop(1, 'rgba(14, 165, 233, 0)');
+        ctx.fillStyle = coreGrad;
+        ctx.fillRect(coreX - 90, 0, 180, gy);
+
+        // Passarelas industriais em parallax
+        ctx.strokeStyle = '#1e293b';
+        ctx.lineWidth = 6;
+        for (let y = 140; y < gy; y += 130) {
+          ctx.beginPath();
+          ctx.moveTo(0, y);
+          ctx.lineTo(w, y);
+          ctx.stroke();
+        }
+
+        // Caças TIE patrulhando ao fundo + luz de navegação piscando
+        for (let t = 0; t < 5; t++) { // v3: esquadrão de 5 TIEs
+          const tx = ((state.time * (26 + t * 9) + t * 520) % (w + 240)) - 120 - camOffset * 0.3;
+          const ty = 90 + t * 62;
+          ctx.save();
+          ctx.translate(tx, ty);
+          ctx.fillStyle = '#0f172a';
+          ctx.strokeStyle = '#334155';
+          ctx.lineWidth = 2;
+          ctx.beginPath();
+          ctx.moveTo(-16, -9); ctx.lineTo(-6, -9); ctx.lineTo(-6, 9); ctx.lineTo(-16, 9);
+          ctx.closePath(); ctx.fill(); ctx.stroke();
+          ctx.beginPath();
+          ctx.moveTo(6, -9); ctx.lineTo(16, -9); ctx.lineTo(16, 9); ctx.lineTo(6, 9);
+          ctx.closePath(); ctx.fill(); ctx.stroke();
+          ctx.fillStyle = '#1e293b';
+          ctx.beginPath();
+          ctx.arc(0, 0, 6, 0, Math.PI * 2);
+          ctx.fill();
+          if (Math.sin(state.time * 6 + t * 2) > 0) {
+            ctx.fillStyle = '#ef4444';
+            ctx.beginPath();
+            ctx.arc(0, 0, 2.5, 0, Math.PI * 2);
+            ctx.fill();
+          }
+          ctx.restore();
+        }
+
+        // Anéis do reator pulsando ao redor do feixe central
+        ctx.save();
+        ctx.strokeStyle = `rgba(56, 189, 248, ${0.25 + 0.15 * Math.sin(state.time * 5)})`;
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.ellipse(coreX, gy - 190, 150, 46, 0, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.ellipse(coreX, gy - 190, 210, 64, 0, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.restore();
+
+        // Piso metálico reflexivo da passarela imperial
+        const deckGrad = ctx.createLinearGradient(0, gy, 0, h);
+        deckGrad.addColorStop(0, '#334155');
+        deckGrad.addColorStop(0.2, '#0f172a');
+        deckGrad.addColorStop(1, '#02040a');
+        // v3 — Painéis da parede com luzes piscando
+        ctx.strokeStyle = 'rgba(51,65,85,0.8)';
+        ctx.lineWidth = 1.5;
+        for (let px = 0; px < w; px += 150) {
+          ctx.beginPath();
+          ctx.moveTo(px - camOffset * 0.3, 0);
+          ctx.lineTo(px - camOffset * 0.3, gy - 40);
+          ctx.stroke();
+        }
+        for (let l = 0; l < 24; l++) {
+          const lx = (l * 173) % w - camOffset * 0.3;
+          const ly = 30 + (l % 5) * 26;
+          const on = Math.sin(state.time * 3 + l * 1.3) > -0.2;
+          ctx.fillStyle = on ? (l % 4 === 0 ? 'rgba(239,68,68,0.85)' : 'rgba(56,189,248,0.85)') : 'rgba(51,65,85,0.6)';
+          ctx.beginPath();
+          ctx.arc(lx, ly, 2.5, 0, Math.PI * 2);
+          ctx.fill();
+        }
+        // v3 — Vigia redonda com planeta ao fundo
+        const vwx = w * 0.16 - camOffset * 0.3;
+        const vwy = 120;
+        ctx.save();
+        ctx.strokeStyle = '#475569';
+        ctx.lineWidth = 5;
+        ctx.beginPath();
+        ctx.arc(vwx, vwy, 62, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.clip();
+        ctx.fillStyle = '#020617';
+        ctx.fillRect(vwx - 62, vwy - 62, 124, 124);
+        const pg = ctx.createRadialGradient(vwx + 18, vwy - 14, 4, vwx + 18, vwy - 14, 34);
+        pg.addColorStop(0, '#f59e0b');
+        pg.addColorStop(0.6, '#b45309');
+        pg.addColorStop(1, '#451a03');
+        ctx.fillStyle = pg;
+        ctx.beginPath();
+        ctx.arc(vwx + 18, vwy - 14, 30, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = 'rgba(226,232,240,0.9)';
+        for (let s = 0; s < 12; s++) {
+          ctx.fillRect(vwx - 55 + ((s * 37) % 110), vwy - 55 + ((s * 53) % 110), 1.6, 1.6);
+        }
+        ctx.restore();
+        // v3 — Destróier Estelar distante em silhueta
+        const dsx = w * 0.78 - camOffset * 0.2 + Math.sin(state.time * 0.05) * 8;
+        ctx.fillStyle = '#0b1220';
+        ctx.beginPath();
+        ctx.moveTo(dsx - 90, 70);
+        ctx.lineTo(dsx + 90, 70);
+        ctx.lineTo(dsx, 118);
+        ctx.closePath();
+        ctx.fill();
+        ctx.fillStyle = 'rgba(250,204,21,0.7)';
+        for (let dl = 0; dl < 6; dl++) {
+          ctx.fillRect(dsx - 60 + dl * 24, 78 + (dl % 2) * 8, 2, 2);
+        }
+        // v3 — Tubos horizontais no topo
+        ctx.fillStyle = '#1e293b';
+        ctx.fillRect(0, 8, w, 8);
+        ctx.fillRect(0, 22, w, 5);
+
+        ctx.fillStyle = deckGrad;
+        ctx.fillRect(0, gy, w, h - gy);
+
+        // v3 — Faixas de perigo no piso da passarela
+        ctx.save();
+        ctx.globalAlpha = 0.35;
+        for (let hz = 0; hz < 10; hz++) {
+          const hx = hz * 150 - (camOffset * 0.3 % 150);
+          ctx.fillStyle = hz % 2 === 0 ? '#f59e0b' : '#0f172a';
+          ctx.beginPath();
+          ctx.moveTo(hx, gy + 4);
+          ctx.lineTo(hx + 22, gy + 4);
+          ctx.lineTo(hx + 34, gy + 16);
+          ctx.lineTo(hx + 12, gy + 16);
+          ctx.closePath();
+          ctx.fill();
+        }
+        ctx.restore();
+      }
+
+      // Efeito de Eclipse Sombrio durante Suprema Sith
+      if (state.eclipseTimer > 0) {
+        ctx.fillStyle = `rgba(15, 2, 8, ${Math.min(0.68, state.eclipseTimer * 0.45)})`;
+        ctx.fillRect(0, 0, w, h);
+      }
+
+      // Linha brilhante do piso reflexivo
+      ctx.strokeStyle = gameConfig.arena === 'volcano' ? 'rgba(251, 146, 60, 0.75)' : 'rgba(56, 189, 248, 0.6)';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(0, gy);
+      ctx.lineTo(w, gy);
+      ctx.stroke();
+
+      // Partículas atmosféricas (Chuva de Faíscas no Templo / Brasas na Lava)
+      state.ambientParticles.forEach(ap => {
+        ctx.fillStyle = ap.color;
+        ctx.beginPath();
+        ctx.arc(ap.x, ap.y, ap.size, 0, Math.PI * 2);
+        ctx.fill();
+      });
+    }
+
+    // ============================================================================
+    // 8. PARTÍCULAS, PROJÉTEIS, RELÂMPAGOS E CÂMERA DINÂMICA
+    // ============================================================================
+    function spawnParticles(x, y, color, count = 12, speed = 200) {
+      for (let i = 0; i < count; i++) {
+        const ang = Math.random() * Math.PI * 2;
+        const spd = (0.25 + Math.random() * 0.75) * speed;
+        state.particles.push({
+          x,
+          y,
+          vx: Math.cos(ang) * spd,
+          vy: Math.sin(ang) * spd - 45,
+          life: 0.3 + Math.random() * 0.35,
+          maxLife: 0.65,
+          size: 2 + Math.random() * 3,
+          color
+        });
+      }
+    }
+
+    function addFloatingText(x, y, text, color = '#ffffff') {
+      state.floatingTexts.push({ x, y, text, color, life: 0.95, vy: -60 });
+    }
+
+    function triggerShake(intensity, duration) {
+      state.shakeIntensity = Math.max(state.shakeIntensity, intensity);
+      state.shakeTimer = Math.max(state.shakeTimer, duration);
+      // Onda de choque nos impactos pesados (meio do caminho entre os lutadores)
+      if (intensity >= 12 && player && opponent) {
+        const cx = (player.x + opponent.x) / 2;
+        const cy = Math.min(player.y, opponent.y) - 60;
+        spawnShockwave(cx, cy, intensity >= 14 ? '#fde047' : '#e2e8f0');
+      }
+    }
+
+    function spawnShockwave(x, y, color) {
+      state.shockwaves.push({ x, y, color, r: 8, life: 0.38, maxLife: 0.38 });
+    }
+
+    function updateEffects(dt, fighters) {
+      if (state.eclipseTimer > 0) state.eclipseTimer -= dt;
+
+      // Ondas de choque dos impactos pesados
+      for (let i = state.shockwaves.length - 1; i >= 0; i--) {
+        const s = state.shockwaves[i];
+        s.life -= dt;
+        s.r += 520 * dt;
+        if (s.life <= 0) state.shockwaves.splice(i, 1);
+      }
+
+      // Partículas de impacto
+      for (let i = state.particles.length - 1; i >= 0; i--) {
+        const p = state.particles[i];
+        p.life -= dt;
+        p.vy += 700 * dt;
+        p.x += p.vx * dt;
+        p.y += p.vy * dt;
+        if (p.y > state.groundY) {
+          p.y = state.groundY;
+          p.vy *= -0.4;
+        }
+        if (p.life <= 0) state.particles.splice(i, 1);
+      }
+
+      // Partículas atmosféricas da arena (Chuva de faíscas no Templo Jedi!)
+      // Teto menor no nível baixo de qualidade, para o celular não pesar
+      const ambientCap = state.quality.level >= 2 ? 55 : 30;
+      if (state.ambientParticles.length < ambientCap) {
+        const isTemple = gameConfig.arena === 'temple';
+        const isVolcano = gameConfig.arena === 'volcano';
+        state.ambientParticles.push({
+          x: Math.random() * state.worldWidth,
+          y: isVolcano ? state.groundY + 30 : -10,
+          vx: isTemple ? -45 - Math.random() * 35 : (Math.random() - 0.5) * 35,
+          vy: isTemple ? 85 + Math.random() * 75 : (isVolcano ? -(60 + Math.random() * 80) : 35 + Math.random() * 45),
+          size: 1.5 + Math.random() * 2.2,
+          color: isTemple
+            ? 'rgba(251, 191, 36, 0.65)'
+            : isVolcano
+            ? 'rgba(253, 186, 116, 0.7)'
+            : 'rgba(125, 211, 252, 0.45)'
+        });
+      }
+      for (let i = state.ambientParticles.length - 1; i >= 0; i--) {
+        const ap = state.ambientParticles[i];
+        ap.x += ap.vx * dt;
+        ap.y += ap.vy * dt;
+        if (ap.y > state.groundY + 40 || ap.y < -30 || ap.x < -30 || ap.x > state.worldWidth + 30) {
+          state.ambientParticles.splice(i, 1);
+        }
+      }
+
+      // Projéteis (Empurrão da Força, Sabre Bumerangue, Onda Suprema Jedi)
+      for (let i = state.projectiles.length - 1; i >= 0; i--) {
+        const proj = state.projectiles[i];
+        const target = fighters.find(f => f !== proj.owner);
+
+        if (proj.type === 'force_push') {
+          proj.life -= dt;
+          proj.x += proj.vx * dt;
+          proj.radius += 150 * dt;
+
+          // Cancela projéteis inimigos no caminho!
+          state.projectiles.forEach((other, oIdx) => {
+            if (oIdx !== i && other.owner !== proj.owner && Math.abs(other.x - proj.x) < proj.radius) {
+              other.life = 0;
+              spawnParticles(other.x, other.y, '#38bdf8', 18, 220);
+            }
+          });
+
+          if (!proj.hitDone && target && target.isAlive && Math.abs(target.x - proj.x) < proj.radius && Math.abs((target.y - 60) - proj.y) < 90) {
+            proj.hitDone = true;
+            target.receiveDamage(proj.damage, proj.owner, 680, -200, { stun: 0.65, heavy: true });
+            spawnParticles(target.x, target.y - 60, '#38bdf8', 25, 280);
+          }
+          if (proj.life <= 0) state.projectiles.splice(i, 1);
+
+        } else if (proj.type === 'light_wave') {
+          proj.life -= dt;
+          proj.x += proj.vx * dt;
+          if (!proj.hitDone && target && target.isAlive && Math.abs(target.x - proj.x) < 65 && Math.abs((target.y - 60) - proj.y) < 110) {
+            proj.hitDone = true;
+            target.receiveDamage(proj.damage, proj.owner, 520, -240, { unblockable: true, heavy: true });
+          }
+          if (proj.life <= 0) state.projectiles.splice(i, 1);
+
+        } else if (proj.type === 'saber_throw') {
+          proj.angle += 26 * dt;
+          if (!proj.returning) {
+            const step = proj.vx * dt;
+            proj.x += step;
+            proj.traveled += Math.abs(step);
+            if (!proj.hitOut && target && target.isAlive && Math.abs(target.x - proj.x) < 65 && Math.abs((target.y - 60) - proj.y) < 80) {
+              proj.hitOut = true;
+              target.receiveDamage(proj.damage, proj.owner, 220, -60);
+            }
+            if (proj.traveled >= proj.maxDist || proj.x < 40 || proj.x > state.worldWidth - 40) {
+              proj.returning = true;
+            }
+          } else {
+            const dx = proj.owner.x - proj.x;
+            const dy = (proj.owner.y - 64) - proj.y;
+            const dist = Math.hypot(dx, dy) || 1;
+            proj.x += (dx / dist) * 960 * dt;
+            proj.y += (dy / dist) * 960 * dt;
+            if (!proj.hitBack && target && target.isAlive && Math.abs(target.x - proj.x) < 65 && Math.abs((target.y - 60) - proj.y) < 80) {
+              proj.hitBack = true;
+              target.receiveDamage(proj.damage, proj.owner, -190, -60);
+            }
+            if (dist < 44 || !proj.owner.isAlive) {
+              proj.owner.saberThrown = false;
+              state.projectiles.splice(i, 1);
+            }
+          }
+        }
+      }
+
+      // Relâmpagos Sith
+      for (let i = state.lightningBolts.length - 1; i >= 0; i--) {
+        const bolt = state.lightningBolts[i];
+        bolt.timer -= dt;
+        bolt.tickTimer -= dt;
+        if (bolt.tickTimer <= 0 && bolt.target && bolt.target.isAlive) {
+          bolt.tickTimer = 0.14;
+          const dx = (bolt.target.x - bolt.owner.x) * bolt.owner.facing;
+          const dy = Math.abs(bolt.target.y - bolt.owner.y);
+          if (dx > 0 && dx <= bolt.range && dy < 120) {
+            bolt.target.receiveDamage(bolt.damagePerTick, bolt.owner, 125, 0, { stun: 0.24 });
+            spawnParticles(bolt.target.x, bolt.target.y - 60, '#c084fc', 8, 180);
+          }
+        }
+        if (bolt.timer <= 0) state.lightningBolts.splice(i, 1);
+      }
+
+      // Textos flutuantes
+      for (let i = state.floatingTexts.length - 1; i >= 0; i--) {
+        const ft = state.floatingTexts[i];
+        ft.life -= dt;
+        ft.y += ft.vy * dt;
+        if (ft.life <= 0) state.floatingTexts.splice(i, 1);
+      }
+    }
+
+    function renderEffects() {
+      // Ondas de choque dos impactos pesados
+      state.shockwaves.forEach(s => {
+        ctx.save();
+        ctx.globalAlpha = Math.max(0, s.life / s.maxLife);
+        ctx.strokeStyle = s.color;
+        ctx.shadowColor = s.color;
+        ctx.shadowBlur = 18;
+        ctx.lineWidth = 4;
+        ctx.beginPath();
+        ctx.arc(s.x, s.y, s.r, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.restore();
+      });
+
+      state.projectiles.forEach(proj => {
+        if (proj.type === 'force_push') {
+          ctx.save();
+          const a = Math.max(0, proj.life / proj.maxLife);
+          ctx.strokeStyle = `rgba(56, 189, 248, ${a})`;
+          ctx.shadowColor = '#38bdf8';
+          ctx.shadowBlur = 22;
+          ctx.lineWidth = 6.5;
+          const ang = proj.vx >= 0 ? 0 : Math.PI;
+          ctx.beginPath();
+          ctx.arc(proj.x, proj.y, proj.radius, ang - 0.85, ang + 0.85);
+          ctx.stroke();
+          ctx.restore();
+        } else if (proj.type === 'light_wave') {
+          ctx.save();
+          ctx.strokeStyle = '#fde047';
+          ctx.shadowColor = '#38bdf8';
+          ctx.shadowBlur = 24;
+          ctx.lineWidth = 8;
+          const ang = proj.vx >= 0 ? 0 : Math.PI;
+          ctx.beginPath();
+          ctx.arc(proj.x, proj.y, 75, ang - 0.95, ang + 0.95);
+          ctx.stroke();
+          ctx.restore();
+        } else if (proj.type === 'saber_throw') {
+          ctx.save();
+          ctx.translate(proj.x, proj.y);
+          ctx.rotate(proj.angle);
+          ctx.shadowColor = proj.saber.glow;
+          ctx.shadowBlur = 24;
+          ctx.strokeStyle = proj.saber.glow;
+          ctx.lineWidth = 8.5;
+          ctx.beginPath();
+          ctx.moveTo(-54, 0);
+          ctx.lineTo(54, 0);
+          ctx.stroke();
+          ctx.strokeStyle = proj.saber.core;
+          ctx.lineWidth = 3.5;
+          ctx.beginPath();
+          ctx.moveTo(-54, 0);
+          ctx.lineTo(54, 0);
+          ctx.stroke();
+          ctx.fillStyle = '#e2e8f0';
+          ctx.fillRect(-10, -3, 20, 6);
+          ctx.restore();
+        }
+      });
+
+      state.lightningBolts.forEach(bolt => {
+        const sx = bolt.owner.x + bolt.owner.facing * 26;
+        const sy = bolt.owner.y - 70;
+        const ex = bolt.target
+          ? Math.max(bolt.owner.x - bolt.range, Math.min(bolt.owner.x + bolt.range, bolt.target.x))
+          : sx + bolt.owner.facing * bolt.range;
+        const finalX = (ex - sx) * bolt.owner.facing > 0 ? ex : sx + bolt.owner.facing * bolt.range;
+        const finalY = bolt.target ? bolt.target.y - 62 : sy;
+
+        ctx.save();
+        ctx.shadowColor = '#a855f7';
+        ctx.shadowBlur = 20;
+        for (let b = 0; b < 3; b++) {
+          ctx.strokeStyle = b === 0 ? '#ffffff' : '#c084fc';
+          ctx.lineWidth = b === 0 ? 3 : 2;
+          ctx.beginPath();
+          ctx.moveTo(sx, sy);
+          for (let s = 1; s <= 9; s++) {
+            const t = s / 9;
+            ctx.lineTo(
+              sx + (finalX - sx) * t + (s < 9 ? (Math.random() - 0.5) * 26 : 0),
+              sy + (finalY - sy) * t + (s < 9 ? (Math.random() - 0.5) * 36 : 0)
+            );
+          }
+          ctx.stroke();
+        }
+        ctx.restore();
+      });
+
+      state.particles.forEach(p => {
+        ctx.save();
+        ctx.globalAlpha = Math.max(0, p.life / p.maxLife);
+        ctx.fillStyle = p.color;
+        ctx.shadowColor = p.color;
+        ctx.shadowBlur = 10;
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+      });
+
+      state.floatingTexts.forEach(ft => {
+        ctx.save();
+        ctx.globalAlpha = Math.min(1, ft.life * 1.4);
+        ctx.font = 'bold 16px Orbitron, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillStyle = '#020617';
+        ctx.fillText(ft.text, ft.x + 1.5, ft.y + 1.5);
+        ctx.fillStyle = ft.color;
+        ctx.fillText(ft.text, ft.x, ft.y);
+        ctx.restore();
+      });
+    }
+
+    // Atualiza Câmera Inteligente (Zoom suave e enquadramento dinâmico)
+    function updateCamera(dt) {
+      if (!player || !opponent || state.mode === 'menu') {
+        state.camera.x = state.worldWidth * 0.5;
+        state.camera.y = state.worldHeight * 0.5;
+        state.camera.zoom = 1.0;
+        return;
+      }
+
+      const midX = (player.x + opponent.x) * 0.5;
+      const midY = Math.min(player.y, opponent.y) - 85;
+      const dist = Math.abs(player.x - opponent.x);
+
+      // Zoom aproxima até 1.22x em combate curto e abre até 1.0x à distância
+      const targetZoom = Math.max(1.0, Math.min(1.22, 1.28 - dist / 1450));
+      const halfViewW = (state.worldWidth * 0.5) / targetZoom;
+      const clampedX = Math.max(halfViewW, Math.min(state.worldWidth - halfViewW, midX));
+      const targetY = Math.max(260, Math.min(375, midY + 125));
+
+      state.camera.x += (clampedX - state.camera.x) * Math.min(1, dt * 8);
+      state.camera.y += (targetY - state.camera.y) * Math.min(1, dt * 8);
+      state.camera.zoom += (targetZoom - state.camera.zoom) * Math.min(1, dt * 6);
+    }
+
+    // ============================================================================
+    // 9. FLUXO DO JOGO, HUD E CONTROLES
+    // ============================================================================
+    let player = null;
+    let opponent = null;
+    const input = { left: false, right: false, up: false };
+
+    const QUALITY_DPRS = [1, 1.25, 1.5, 2];
+
+    // Qualidade adaptativa (mesmo padrão do jogo da Arcanum Academy):
+    // a resolução baixa sozinha se o FPS cair e sobe de volta se sobrar fôlego.
+    function adaptQuality(rawDt) {
+      const q = state.quality;
+      const fps = 1 / Math.max(rawDt, 0.001);
+      q.fps = q.fps * 0.95 + fps * 0.05;
+      q.timer += rawDt;
+      if (q.cooldown > 0) q.cooldown -= rawDt;
+      if (q.timer < 1.5 || q.cooldown > 0) return;
+      q.timer = 0;
+      if (q.fps < 45 && q.level > 0) {
+        q.level--;
+        q.dpr = QUALITY_DPRS[q.level];
+        q.cooldown = 2;
+        resizeCanvas();
+      } else if (q.fps > 58 && q.level < 3) {
+        q.level++;
+        q.dpr = QUALITY_DPRS[q.level];
+        q.cooldown = 2;
+        resizeCanvas();
+      }
+    }
+
+    function resizeCanvas() {
+      const dpr = Math.min(window.devicePixelRatio || 1, state.quality.dpr);
+      const rect = canvas.getBoundingClientRect();
+      canvas.width = Math.max(1, Math.floor(rect.width * dpr));
+      canvas.height = Math.max(1, Math.floor(rect.height * dpr));
+
+      const aspect = rect.width / Math.max(1, rect.height);
+      state.worldHeight = 720;
+      state.worldWidth = Math.max(960, Math.min(1560, Math.round(720 * aspect)));
+      state.groundY = 600;
+    }
+
+    window.addEventListener('resize', resizeCanvas);
+
+    function startMatch(stageIdx = 0) {
+      state.stageIndex = stageIdx;
+      state.projectiles = [];
+      state.lightningBolts = [];
+      state.particles = [];
+      state.floatingTexts = [];
+      state.clash.active = false;
+      document.getElementById('clash-banner').classList.add('hidden');
+
+      if (stageIdx === 0) {
+        state.stats = { damageDealt: 0, maxCombo: 0, parries: 0 };
+      }
+
+      const isJedi = gameConfig.faction === 'jedi';
+      const prevHpRatio = player && stageIdx > 0 && gameConfig.gameMode === 'arcade'
+        ? Math.min(1, player.hp / player.maxHp + 0.45)
+        : 1.0;
+
+      player = new Fighter({
+        isPlayer: true,
+        name: isJedi ? 'Cavaleiro Jedi' : 'Lorde Sith',
+        faction: gameConfig.faction,
+        style: gameConfig.style,
+        saber: gameConfig.saber,
+        x: state.worldWidth * 0.28,
+        facing: 1
+      });
+      player.hp = Math.round(player.maxHp * prevHpRatio);
+      player.hpTrail = player.hp;
+
+      const roster = ARCADE_ROSTER[gameConfig.faction];
+      const template = roster[stageIdx % roster.length];
+      const diff = DIFFICULTY_CONFIG[gameConfig.difficulty];
+
+      opponent = new Fighter({
+        isPlayer: false,
+        name: gameConfig.gameMode === 'training' ? 'Droide / Mestre Treino' : template.name,
+        faction: template.faction,
+        style: template.style,
+        saber: template.saber,
+        hpMult: gameConfig.gameMode === 'training' ? 1.5 : template.hpMult * diff.hpMult,
+        dmgMult: template.dmgMult * diff.dmgMult,
+        aiSkill: template.aiSkill,
+        x: state.worldWidth * 0.72,
+        facing: -1
+      });
+
+      setupHUD();
+      state.mode = 'playing';
+
+      document.getElementById('start-screen').classList.add('hidden');
+      document.getElementById('end-overlay').classList.add('hidden');
+      document.getElementById('end-overlay').classList.remove('flex');
+      document.getElementById('battle-hud').classList.remove('hidden');
+      document.getElementById('battle-hud').classList.add('flex');
+
+      const trainBar = document.getElementById('training-toolbar');
+      if (gameConfig.gameMode === 'training') {
+        trainBar.classList.remove('hidden');
+        trainBar.classList.add('flex');
+      } else {
+        trainBar.classList.add('hidden');
+        trainBar.classList.remove('flex');
+      }
+
+      sound.playSaberIgnite(gameConfig.faction === 'sith');
+    }
+
+    function setupHUD() {
+      const p1Jedi = player.faction === 'jedi';
+      document.getElementById('hud-p1-badge').textContent = p1Jedi ? 'JEDI' : 'SITH';
+      document.getElementById('hud-p1-badge').className = p1Jedi
+        ? 'px-1.5 rounded text-[10px] font-bold uppercase bg-cyan-500/20 text-cyan-300 border border-cyan-500/40'
+        : 'px-1.5 rounded text-[10px] font-bold uppercase bg-red-500/20 text-red-300 border border-red-500/40';
+      document.getElementById('hud-p1-name').textContent = player.name;
+
+      const p2Jedi = opponent.faction === 'jedi';
+      document.getElementById('hud-p2-badge').textContent = p2Jedi ? 'JEDI' : 'SITH';
+      document.getElementById('hud-p2-badge').className = p2Jedi
+        ? 'px-1.5 rounded text-[10px] font-bold uppercase bg-cyan-500/20 text-cyan-300 border border-cyan-500/40'
+        : 'px-1.5 rounded text-[10px] font-bold uppercase bg-red-500/20 text-red-300 border border-red-500/40';
+      document.getElementById('hud-p2-name').textContent = opponent.name;
+
+      if (gameConfig.gameMode === 'training') {
+        document.getElementById('hud-mode-label').textContent = 'Treino';
+        document.getElementById('hud-stage-text').textContent = 'LIVRE';
+        document.getElementById('hud-diff-text').textContent = 'Regeneração';
+      } else {
+        document.getElementById('hud-mode-label').textContent = 'Arcade';
+        document.getElementById('hud-stage-text').textContent = `${state.stageIndex + 1} / 3`;
+        document.getElementById('hud-diff-text').textContent = DIFFICULTY_CONFIG[gameConfig.difficulty].label;
+      }
+
+      const powers = FORCE_POWERS[player.faction];
+      powers.forEach((pw, idx) => {
+        const i = idx + 1;
+        document.getElementById(`label-power-${i}`).textContent = pw.name;
+        document.getElementById(`cost-power-${i}`).textContent = pw.supreme
+          ? `100% [${pw.key}]`
+          : `${pw.cost} [${pw.key}]`;
+      });
+
+      updateTripoHUDPortraits();
+      updateComboHUD(0);
+    }
+
+    function updateHUD() {
+      if (!player || !opponent) return;
+
+      document.getElementById('hud-p1-hp-bar').style.width = `${Math.max(0, (player.hp / player.maxHp) * 100)}%`;
+      document.getElementById('hud-p1-hp-trail').style.width = `${Math.max(0, (player.hpTrail / player.maxHp) * 100)}%`;
+      document.getElementById('hud-p1-hp-text').textContent = `${player.hp}/${player.maxHp}`;
+      document.getElementById('hud-p1-stance-bar').style.width = `${(player.stance / player.maxStance) * 100}%`;
+      document.getElementById('hud-p1-force-bar').style.width = `${(player.force / player.maxForce) * 100}%`;
+
+      document.getElementById('hud-p2-hp-bar').style.width = `${Math.max(0, (opponent.hp / opponent.maxHp) * 100)}%`;
+      document.getElementById('hud-p2-hp-trail').style.width = `${Math.max(0, (opponent.hpTrail / opponent.maxHp) * 100)}%`;
+      document.getElementById('hud-p2-hp-text').textContent = `${opponent.hp}/${opponent.maxHp}`;
+      document.getElementById('hud-p2-stance-bar').style.width = `${(opponent.stance / opponent.maxStance) * 100}%`;
+      document.getElementById('hud-p2-force-bar').style.width = `${(opponent.force / opponent.maxForce) * 100}%`;
+
+      const powers = FORCE_POWERS[player.faction];
+      powers.forEach((pw, idx) => {
+        const btn = document.getElementById(`btn-power-${idx + 1}`);
+        if (player.force >= pw.cost) btn.classList.remove('opacity-45');
+        else btn.classList.add('opacity-45');
+      });
+
+      // Regeneração automática no Modo Treino Livre
+      if (gameConfig.gameMode === 'training') {
+        if (opponent.hp < opponent.maxHp * 0.25 && opponent.comboResetTimer <= 0) {
+          opponent.hp = opponent.maxHp;
+        }
+        if (player.hp < player.maxHp * 0.25 && player.comboResetTimer <= 0) {
+          player.hp = player.maxHp;
+        }
+      }
+    }
+
+    function updateComboHUD(count) {
+      const banner = document.getElementById('combo-banner');
+      if (count >= 2) {
+        const rank = getStyleRank(count);
+        document.getElementById('combo-count').textContent = `${count} HITS!`;
+        const letterEl = document.getElementById('combo-rank-letter');
+        letterEl.textContent = rank.letter;
+        letterEl.style.color = rank.color;
+        document.getElementById('combo-rank-title').textContent = rank.title;
+        banner.style.opacity = '1';
+      } else {
+        banner.style.opacity = '0';
+      }
+    }
+
+    function checkRoundEnd() {
+      if (state.mode !== 'playing' || gameConfig.gameMode === 'training') return;
+      if (player.isAlive && opponent.isAlive) return;
+
+      state.mode = 'round_over';
+      const won = player.isAlive;
+      const isFinal = state.stageIndex >= 2;
+      const maxRank = getStyleRank(state.stats.maxCombo);
+
+      document.getElementById('stat-damage').textContent = state.stats.damageDealt;
+      document.getElementById('stat-combo').textContent = `${maxRank.letter} (${state.stats.maxCombo}x)`;
+      document.getElementById('stat-parries').textContent = state.stats.parries;
+
+      const overlay = document.getElementById('end-overlay');
+      const title = document.getElementById('end-title');
+      const sub = document.getElementById('end-subtitle');
+      const desc = document.getElementById('end-desc');
+      const btnNext = document.getElementById('btn-next-stage');
+
+      if (won) {
+        sound.playSupreme(false);
+        if (!isFinal) {
+          sub.textContent = `Duelo ${state.stageIndex + 1} de 3 Concluído`;
+          title.textContent = 'VITÓRIA!';
+          title.className = 'font-display text-3xl sm:text-4xl font-black uppercase text-cyan-300 text-glow-blue mb-2';
+          desc.textContent = `Você superou ${opponent.name}! Avance para o próximo desafiante.`;
+          btnNext.classList.remove('hidden');
+        } else {
+          sub.textContent = 'Modo Arcade Conquistado!';
+          title.textContent = gameConfig.faction === 'jedi' ? 'MESTRE SUPREMO!' : 'LORDE DA GALÁXIA!';
+          title.className = 'font-display text-3xl sm:text-4xl font-black uppercase text-amber-300 text-glow-gold mb-2';
+          desc.textContent = `Todos os 3 oponentes derrotados no nível ${DIFFICULTY_CONFIG[gameConfig.difficulty].label}!`;
+          btnNext.classList.add('hidden');
+        }
+      } else {
+        sound.playSupreme(true);
+        sub.textContent = `Derrotado no Duelo ${state.stageIndex + 1} de 3`;
+        title.textContent = 'DERROTA!';
+        title.className = 'font-display text-3xl sm:text-4xl font-black uppercase text-rose-500 text-glow-red mb-2';
+        desc.textContent = `${opponent.name} prevaleceu. Use Parry [K] e técnicas aéreas [W+I] para virar o duelo!`;
+        btnNext.classList.add('hidden');
+      }
+
+      overlay.classList.remove('hidden');
+      overlay.classList.add('flex');
+    }
+
+    // ============================================================================
+    // 10. LOOP PRINCIPAL DE ANIMAÇÃO
+    // ============================================================================
+    let lastTime = 0;
+
+    function gameLoop(ts) {
+      const rawDt = (ts - lastTime) / 1000;
+      lastTime = ts;
+      // Passo em tempo real até 10 FPS (sem câmera lenta no celular)
+      let dt = Math.min(0.1, Math.max(0.001, rawDt || 0.016));
+
+      state.time += dt;
+      adaptQuality(rawDt);
+
+      if (state.slowMoTimer > 0) {
+        state.slowMoTimer -= dt;
+        dt *= 0.42;
+      }
+
+      if (state.mode === 'playing') {
+        if (state.hitstopTimer > 0) {
+          state.hitstopTimer -= rawDt;
+        } else if (state.clash.active) {
+          updateSaberClash(dt);
+          updateEffects(dt, [player, opponent]);
+        } else {
+          updateAI(opponent, player, dt);
+          player.update(dt, opponent, input);
+          opponent.update(dt, player, null);
+          updateEffects(dt, [player, opponent]);
+          updateHUD();
+          checkRoundEnd();
+        }
+      } else if (state.mode === 'menu') {
+        updateEffects(dt * 0.65, []);
+      }
+
+      updateCamera(dt);
+
+      // Transformação base do Canvas + Câmera Dinâmica + Screen Shake
+      const scaleX = canvas.width / state.worldWidth;
+      const scaleY = canvas.height / state.worldHeight;
+      ctx.setTransform(scaleX, 0, 0, scaleY, 0, 0);
+
+      ctx.save();
+      ctx.translate(state.worldWidth * 0.5, state.worldHeight * 0.5);
+      ctx.scale(state.camera.zoom, state.camera.zoom);
+      ctx.translate(-state.camera.x, -state.camera.y);
+
+      if (state.shakeTimer > 0) {
+        state.shakeTimer -= rawDt;
+        const sx = (Math.random() - 0.5) * state.shakeIntensity * 2;
+        const sy = (Math.random() - 0.5) * state.shakeIntensity * 2;
+        ctx.translate(sx, sy);
+        if (state.shakeTimer <= 0) state.shakeIntensity = 0;
+      }
+
+      renderArena();
+
+      if (state.mode === 'playing' || state.mode === 'paused' || state.mode === 'round_over') {
+        // Reflexos no piso polido
+        drawArticulatedFighter(player, opponent, true);
+        drawArticulatedFighter(opponent, player, true);
+
+        // Lutadores principais
+        drawArticulatedFighter(player, opponent, false);
+        drawArticulatedFighter(opponent, player, false);
+
+        renderEffects();
+        renderSaberLights();
+      }
+
+      ctx.restore();
+      requestAnimationFrame(gameLoop);
+    }
+
+    // ============================================================================
+    // 11. EVENTOS DE INTERFACE, TECLADO E BOTÕES VIRTUAIS
+    // ============================================================================
+    function renderSaberColorButtons() {
+      const container = document.getElementById('saber-color-options');
+      container.innerHTML = '';
+
+      SABER_CRYSTALS.forEach(saber => {
+        const selected = gameConfig.saber.id === saber.id;
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.title = saber.name;
+        btn.className = `flex flex-col items-center justify-center p-1.5 rounded-lg border transition cursor-pointer ${
+          selected ? 'border-white bg-slate-800 shadow' : 'border-slate-700 bg-slate-950/70 hover:border-slate-500'
+        }`;
+        btn.innerHTML = `
+          <span class="w-4 h-4 sm:w-5 sm:h-5 rounded-full border border-white/40"
+            style="background:${saber.swatch}; box-shadow: 0 0 10px ${saber.glow};"></span>
+          <span class="text-[9px] font-bold text-slate-300 mt-0.5 truncate w-full text-center">${saber.name.split(' ')[0]}</span>
+        `;
+        btn.addEventListener('click', () => {
+          sound.init();
+          gameConfig.saber = saber;
+          updateMenuPreview();
+        });
+        container.appendChild(btn);
+      });
+    }
+
+    function updateMenuPreview() {
+      renderSaberColorButtons();
+
+      const blade = document.getElementById('saber-preview-blade');
+      const nameEl = document.getElementById('selected-saber-name');
+      nameEl.textContent = gameConfig.saber.name;
+      nameEl.style.color = gameConfig.saber.glow;
+
+      blade.style.background = gameConfig.saber.core;
+      blade.style.border = gameConfig.saber.edge ? `1.5px solid ${gameConfig.saber.edge}` : 'none';
+      blade.style.boxShadow = `0 0 12px ${gameConfig.saber.glow}, 0 0 26px ${gameConfig.saber.glow}`;
+
+      const btnJedi = document.getElementById('select-jedi');
+      const btnSith = document.getElementById('select-sith');
+      const accent = document.getElementById('title-accent');
+      const topBar = document.getElementById('menu-top-accent');
+      const startBtn = document.getElementById('btn-start-game');
+
+      if (gameConfig.faction === 'jedi') {
+        btnJedi.classList.add('jedi-glow');
+        btnSith.classList.remove('sith-glow');
+        btnSith.classList.add('border-slate-700');
+        accent.className = 'text-cyan-400 text-glow-blue transition-colors duration-300';
+        topBar.className = 'absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-cyan-400 via-sky-300 to-blue-500';
+        startBtn.className = 'w-full sm:w-auto shrink-0 font-display font-bold text-sm sm:text-base tracking-wider uppercase px-7 py-2.5 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-slate-950 shadow-lg shadow-cyan-500/30 transition transform hover:scale-[1.02] active:scale-[0.98] cursor-pointer';
+      } else {
+        btnSith.classList.add('sith-glow');
+        btnJedi.classList.remove('jedi-glow');
+        btnJedi.classList.add('border-slate-700');
+        accent.className = 'text-red-500 text-glow-red transition-colors duration-300';
+        topBar.className = 'absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-red-600 via-rose-500 to-orange-500';
+        startBtn.className = 'w-full sm:w-auto shrink-0 font-display font-bold text-sm sm:text-base tracking-wider uppercase px-7 py-2.5 rounded-xl bg-gradient-to-r from-red-600 to-rose-700 hover:from-red-500 hover:to-rose-600 text-white shadow-lg shadow-red-600/35 transition transform hover:scale-[1.02] active:scale-[0.98] cursor-pointer';
+      }
+      updateTripoPreview();
+    }
+
+    document.getElementById('select-jedi').addEventListener('click', () => {
+      sound.init();
+      gameConfig.faction = 'jedi';
+      if (gameConfig.saber.id === 'crimson') gameConfig.saber = SABER_CRYSTALS[0];
+      updateMenuPreview();
+    });
+
+    document.getElementById('select-sith').addEventListener('click', () => {
+      sound.init();
+      gameConfig.faction = 'sith';
+      if (gameConfig.saber.id === 'blue') gameConfig.saber = SABER_CRYSTALS[5];
+      updateMenuPreview();
+    });
+
+    document.querySelectorAll('.style-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        sound.init();
+        gameConfig.style = btn.dataset.style;
+        document.querySelectorAll('.style-btn').forEach(b => {
+          b.classList.remove('border-cyan-400', 'bg-slate-800/90');
+          b.classList.add('border-slate-700', 'bg-slate-950/70');
+        });
+        btn.classList.remove('border-slate-700', 'bg-slate-950/70');
+        btn.classList.add('border-cyan-400', 'bg-slate-800/90');
+      });
+    });
+
+    document.querySelectorAll('.arena-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        sound.init();
+        gameConfig.arena = btn.dataset.arena;
+        document.querySelectorAll('.arena-btn').forEach(b => {
+          b.classList.remove('border-cyan-400', 'bg-slate-800/90');
+          b.classList.add('border-slate-700', 'bg-slate-950/60');
+        });
+        btn.classList.remove('border-slate-700', 'bg-slate-950/60');
+        btn.classList.add('border-cyan-400', 'bg-slate-800/90');
+      });
+    });
+
+    document.querySelectorAll('.mode-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        sound.init();
+        gameConfig.gameMode = btn.dataset.gamemode;
+        document.querySelectorAll('.mode-btn').forEach(b => {
+          b.classList.remove('border-cyan-400', 'bg-slate-800/90');
+          b.classList.add('border-slate-700', 'bg-slate-950/70');
+        });
+        btn.classList.remove('border-slate-700', 'bg-slate-950/70');
+        btn.classList.add('border-cyan-400', 'bg-slate-800/90');
+      });
+    });
+
+    document.querySelectorAll('.diff-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        sound.init();
+        gameConfig.difficulty = btn.dataset.diff;
+        document.querySelectorAll('.diff-btn').forEach(b => {
+          b.classList.remove('border-cyan-400', 'bg-slate-800');
+          b.classList.add('border-slate-700', 'bg-slate-950/70');
+        });
+        btn.classList.remove('border-slate-700', 'bg-slate-950/70');
+        btn.classList.add('border-cyan-400', 'bg-slate-800');
+      });
+    });
+
+    // Botões de Modo Treino Livre
+    document.querySelectorAll('.dummy-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        gameConfig.dummyBehavior = btn.dataset.dummy;
+        document.querySelectorAll('.dummy-btn').forEach(b => {
+          b.className = 'dummy-btn px-2 py-0.5 rounded bg-slate-800 text-slate-200 font-semibold cursor-pointer';
+        });
+        btn.className = 'dummy-btn px-2 py-0.5 rounded bg-cyan-500 text-slate-950 font-bold cursor-pointer';
+      });
+    });
+
+    document.getElementById('btn-refill-training').addEventListener('click', () => {
+      if (player) {
+        player.hp = player.maxHp;
+        player.force = player.maxForce;
+        player.stance = player.maxStance;
+      }
+      if (opponent) {
+        opponent.hp = opponent.maxHp;
+        opponent.force = opponent.maxForce;
+        opponent.stance = opponent.maxStance;
+      }
+    });
+
+    // Modal Lista de Golpes
+    let previousModeBeforeModal = 'menu';
+    document.getElementById('btn-open-movelist').addEventListener('click', () => {
+      sound.init();
+      previousModeBeforeModal = state.mode;
+      if (state.mode === 'playing') state.mode = 'paused';
+      const modal = document.getElementById('movelist-modal');
+      modal.classList.remove('hidden');
+      modal.classList.add('flex');
+    });
+
+    document.getElementById('btn-close-movelist').addEventListener('click', () => {
+      const modal = document.getElementById('movelist-modal');
+      modal.classList.add('hidden');
+      modal.classList.remove('flex');
+      if (previousModeBeforeModal === 'playing') state.mode = 'playing';
+    });
+
+    // Navegação Principal
+    document.getElementById('btn-start-game').addEventListener('click', () => {
+      sound.init();
+      startMatch(0);
+    });
+
+    document.getElementById('btn-next-stage').addEventListener('click', () => {
+      sound.init();
+      startMatch(state.stageIndex + 1);
+    });
+
+    document.getElementById('btn-play-again').addEventListener('click', () => {
+      sound.init();
+      startMatch(0);
+    });
+
+    function returnToMenu() {
+      state.mode = 'menu';
+      state.clash.active = false;
+      input.left = false;
+      input.right = false;
+      input.up = false;
+      document.getElementById('clash-banner').classList.add('hidden');
+      document.getElementById('battle-hud').classList.add('hidden');
+      document.getElementById('battle-hud').classList.remove('flex');
+      document.getElementById('end-overlay').classList.add('hidden');
+      document.getElementById('end-overlay').classList.remove('flex');
+      document.getElementById('start-screen').classList.remove('hidden');
+    }
+
+    document.getElementById('btn-back-menu').addEventListener('click', returnToMenu);
+    document.getElementById('btn-change-side').addEventListener('click', returnToMenu);
+
+    document.getElementById('btn-mute').addEventListener('click', () => {
+      sound.init();
+      const isMuted = sound.toggleMute();
+      document.getElementById('mute-icon').textContent = isMuted ? '🔇' : '🔊';
+      document.getElementById('mute-label').textContent = isMuted ? 'Mudo' : 'Som';
+    });
+
+    // Teclado
+    window.addEventListener('keydown', e => {
+      if (state.mode !== 'playing' || !player) return;
+      sound.init();
+
+      const code = e.code;
+
+      // Disputa rápida de Saber Clash!
+      if (state.clash.active) {
+        if (!e.repeat && (code === 'KeyJ' || code === 'KeyZ' || code === 'KeyI' || code === 'KeyX' || code === 'Space')) {
+          state.clash.balance = Math.min(1, state.clash.balance + 0.085);
+          spawnParticles(state.clash.x, state.clash.y, player.saber.glow, 8, 260);
+        }
+        return;
+      }
+
+      if (code === 'KeyA' || code === 'ArrowLeft') {
+        input.left = true;
+      } else if (code === 'KeyD' || code === 'ArrowRight') {
+        input.right = true;
+      } else if (code === 'KeyW' || code === 'ArrowUp' || code === 'Space') {
+        e.preventDefault();
+        input.up = true;
+        if (!e.repeat) player.jump();
+      } else if (code === 'ShiftLeft' || code === 'ShiftRight' || code === 'KeyL') {
+        e.preventDefault();
+        if (!e.repeat) player.dash();
+      } else if (code === 'KeyJ' || code === 'KeyZ') {
+        if (!e.repeat) player.attackLight(opponent);
+      } else if (code === 'KeyI' || code === 'KeyX') {
+        if (!e.repeat) player.attackHeavy(opponent, input.up);
+      } else if (code === 'KeyK' || code === 'KeyS' || code === 'ArrowDown') {
+        player.setBlocking(true);
+      } else if (code === 'KeyU' || code === 'Digit1') {
+        if (!e.repeat) player.useForcePower(1, opponent);
+      } else if (code === 'KeyO' || code === 'Digit2') {
+        if (!e.repeat) player.useForcePower(2, opponent);
+      } else if (code === 'KeyP' || code === 'Digit3') {
+        if (!e.repeat) player.useForcePower(3, opponent);
+      } else if (code === 'KeyH' || code === 'Digit4') {
+        if (!e.repeat) player.useForcePower(4, opponent);
+      }
+    });
+
+    window.addEventListener('keyup', e => {
+      const code = e.code;
+      if (code === 'KeyA' || code === 'ArrowLeft') input.left = false;
+      else if (code === 'KeyD' || code === 'ArrowRight') input.right = false;
+      else if (code === 'KeyW' || code === 'ArrowUp' || code === 'Space') input.up = false;
+      else if ((code === 'KeyK' || code === 'KeyS' || code === 'ArrowDown') && player) {
+        player.setBlocking(false);
+      }
+    });
+
+    // Botões Virtuais Touch/Mouse
+    document.querySelectorAll('.touch-btn').forEach(btn => {
+      const action = btn.dataset.action;
+
+      const onDown = e => {
+        e.preventDefault();
+        sound.init();
+        btn.classList.add('pressed');
+        if (state.mode !== 'playing' || !player) return;
+
+        if (state.clash.active) {
+          if (action === 'attack' || action === 'heavy') {
+            state.clash.balance = Math.min(1, state.clash.balance + 0.085);
+            spawnParticles(state.clash.x, state.clash.y, player.saber.glow, 8, 260);
+          }
+          return;
+        }
+
+        if (action === 'left') input.left = true;
+        else if (action === 'right') input.right = true;
+        else if (action === 'jump') player.jump();
+        else if (action === 'dash') player.dash();
+        else if (action === 'launcher') player.attackHeavy(opponent, true);
+        else if (action === 'attack') player.attackLight(opponent);
+        else if (action === 'heavy') player.attackHeavy(opponent, false);
+        else if (action === 'block') player.setBlocking(true);
+        else if (action === 'power1') player.useForcePower(1, opponent);
+        else if (action === 'power2') player.useForcePower(2, opponent);
+        else if (action === 'power3') player.useForcePower(3, opponent);
+        else if (action === 'power4') player.useForcePower(4, opponent);
+      };
+
+      const onUp = e => {
+        e.preventDefault();
+        btn.classList.remove('pressed');
+        if (action === 'left') input.left = false;
+        else if (action === 'right') input.right = false;
+        else if (action === 'block' && player) player.setBlocking(false);
+      };
+
+      btn.addEventListener('pointerdown', onDown);
+      btn.addEventListener('pointerup', onUp);
+      btn.addEventListener('pointerleave', onUp);
+      btn.addEventListener('pointercancel', onUp);
+    });
+
+    window.onload = () => {
+      resizeCanvas();
+      tripoLoadAssets();
+      updateMenuPreview();
+      requestAnimationFrame(gameLoop);
+    };
+  </script>
+</body>
+</html>
