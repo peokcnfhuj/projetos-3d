@@ -1,0 +1,1894 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>Arcanum Neon — Exploração Arcana</title>
+<style>
+/* ═══════════════════════════════════════════════════════════
+   ESTILOS GLOBAIS
+   ═══════════════════════════════════════════════════════════ */
+* { margin:0; padding:0; box-sizing:border-box; }
+body { overflow:hidden; background:#000; font-family:'Segoe UI',Arial,sans-serif; color:#fff; touch-action:none; }
+canvas { display:block; }
+
+/* ── TELA INICIAL ── */
+#tela-inicial {
+  position:fixed; inset:0; z-index:1000;
+  display:flex; flex-direction:column; align-items:center; justify-content:center;
+  background: radial-gradient(ellipse at center, #0a001a 0%, #000 70%);
+}
+#tela-inicial h1 {
+  font-size:clamp(1.8rem,6vw,3.5rem); text-align:center;
+  background: linear-gradient(90deg,#ff00ff,#00ffff,#ff00ff);
+  background-size:200%; -webkit-background-clip:text; -webkit-text-fill-color:transparent;
+  animation: brilhoTitulo 3s linear infinite;
+  text-shadow:0 0 40px rgba(255,0,255,.5);
+  margin-bottom:.3em;
+}
+#tela-inicial h2 {
+  font-size:clamp(.9rem,3vw,1.4rem); color:#aa88ff; margin-bottom:2em;
+  text-shadow:0 0 10px #aa88ff;
+}
+@keyframes brilhoTitulo { 0%{background-position:0% 50%} 100%{background-position:200% 50%} }
+.btn-menu {
+  display:block; width:220px; padding:14px 0; margin:8px auto;
+  font-size:1.1rem; font-weight:bold; border:2px solid #ff00ff;
+  border-radius:30px; background:rgba(255,0,255,.12); color:#ff88ff;
+  cursor:pointer; text-align:center; transition:all .25s;
+  text-shadow:0 0 8px #ff00ff; letter-spacing:1px;
+}
+.btn-menu:hover,.btn-menu:active { background:rgba(255,0,255,.35); color:#fff; box-shadow:0 0 25px #ff00ff; }
+
+/* ── TELA COMO JOGAR ── */
+#tela-como-jogar {
+  position:fixed; inset:0; z-index:1001; display:none;
+  flex-direction:column; align-items:center; justify-content:center;
+  background:rgba(0,0,0,.92); padding:20px;
+}
+#tela-como-jogar .caixa {
+  max-width:500px; width:90%; background:rgba(20,0,40,.95);
+  border:1px solid #ff00ff; border-radius:16px; padding:28px;
+  max-height:80vh; overflow-y:auto;
+}
+#tela-como-jogar h2 { color:#ff00ff; margin-bottom:16px; text-align:center; text-shadow:0 0 10px #ff00ff; }
+#tela-como-jogar p, #tela-como-jogar li { color:#ccaaff; font-size:.92rem; line-height:1.6; }
+#tela-como-jogar ul { list-style:none; padding-left:0; }
+#tela-como-jogar li::before { content:'✦ '; color:#00ffff; }
+
+/* ── TELA DE PAUSA ── */
+#tela-pausa {
+  position:fixed; inset:0; z-index:999; display:none;
+  flex-direction:column; align-items:center; justify-content:center;
+  background:rgba(0,0,0,.85);
+}
+#tela-pausa h2 { font-size:2rem; color:#ff00ff; margin-bottom:1em; text-shadow:0 0 20px #ff00ff; }
+
+/* ── HUD ── */
+#hud {
+  position:fixed; top:0; left:0; right:0; bottom:0;
+  pointer-events:none; z-index:100; display:none;
+}
+#hud * { pointer-events:auto; }
+
+/* Bússola */
+#bussola {
+  position:absolute; top:10px; left:50%; transform:translateX(-50%);
+  width:200px; height:36px; background:rgba(0,0,0,.55);
+  border:1px solid rgba(255,0,255,.4); border-radius:18px;
+  display:flex; align-items:center; justify-content:center;
+  font-size:.8rem; color:#ffaaff; text-shadow:0 0 6px #ff00ff;
+  overflow:hidden;
+}
+#bussola-seta {
+  width:0; height:0; border-left:6px solid transparent;
+  border-right:6px solid transparent; border-bottom:10px solid #00ffff;
+  position:absolute; top:2px; left:50%; transform:translateX(-50%);
+  filter:drop-shadow(0 0 4px #00ffff);
+}
+#bussola-texto { font-size:.75rem; }
+
+/* Minimapa */
+#minimapa {
+  position:absolute; top:10px; right:10px;
+  width:140px; height:140px; background:rgba(0,0,10,.7);
+  border:1px solid rgba(0,255,255,.4); border-radius:12px;
+  overflow:hidden;
+}
+#minimapa canvas { width:100%; height:100%; }
+
+/* Nome do lugar */
+#nome-lugar {
+  position:absolute; top:52px; left:50%; transform:translateX(-50%);
+  font-size:.85rem; color:#aaeeff; text-shadow:0 0 8px #0088ff;
+  background:rgba(0,0,0,.4); padding:2px 14px; border-radius:10px;
+  white-space:nowrap;
+}
+
+/* Contadores */
+#contadores {
+  position:absolute; top:160px; right:10px;
+  display:flex; flex-direction:column; gap:4px;
+  font-size:.72rem; color:#ccddff;
+}
+.contador {
+  background:rgba(0,0,0,.5); padding:3px 10px; border-radius:8px;
+  border:1px solid rgba(100,100,255,.25);
+  display:flex; align-items:center; gap:5px;
+}
+.contador .ico { font-size:.85rem; }
+
+/* Feitiço atual */
+#feitico-hud {
+  position:absolute; bottom:16px; left:50%; transform:translateX(-50%);
+  display:flex; align-items:center; gap:10px;
+  background:rgba(0,0,0,.55); padding:6px 18px; border-radius:20px;
+  border:1px solid rgba(255,0,255,.35);
+}
+#feitico-nome { font-size:.85rem; color:#ffaaff; text-shadow:0 0 6px #ff00ff; }
+#feitico-icone { font-size:1.2rem; }
+
+/* Botões de feitiço (touch) */
+#feitico-btns {
+  position:absolute; bottom:70px; left:50%; transform:translateX(-50%);
+  display:none; gap:6px; flex-wrap:wrap; justify-content:center; max-width:320px;
+}
+.feitico-btn {
+  width:40px; height:40px; border-radius:50%;
+  border:2px solid rgba(255,255,255,.4); background:rgba(0,0,0,.5);
+  color:#fff; font-size:.7rem; font-weight:bold; cursor:pointer;
+  display:flex; align-items:center; justify-content:center;
+  text-shadow:0 0 4px currentColor;
+}
+.feitico-btn.ativo { border-color:#ff00ff; box-shadow:0 0 12px #ff00ff; }
+
+/* Joystick virtual (touch) */
+#joystick-container {
+  position:absolute; bottom:30px; left:30px;
+  width:120px; height:120px; display:none;
+}
+#joystick-base {
+  width:120px; height:120px; border-radius:50%;
+  border:2px solid rgba(0,255,255,.35); background:rgba(0,0,0,.3);
+  position:relative;
+}
+#joystick-thumb {
+  width:46px; height:46px; border-radius:50%;
+  background:rgba(0,255,255,.4); border:2px solid #00ffff;
+  position:absolute; top:50%; left:50%;
+  transform:translate(-50%,-50%);
+  box-shadow:0 0 10px #00ffff;
+}
+
+/* Botões touch extras */
+#touch-btns {
+  position:absolute; bottom:30px; right:16px;
+  display:none; flex-direction:column; gap:8px;
+}
+.touch-btn {
+  width:52px; height:52px; border-radius:50%;
+  border:2px solid rgba(255,255,255,.35); background:rgba(0,0,0,.45);
+  color:#fff; font-size:.65rem; font-weight:bold; cursor:pointer;
+  display:flex; align-items:center; justify-content:center;
+  text-shadow:0 0 4px #fff;
+}
+
+/* Mensagem de coleta / lore */
+#msg-coleta {
+  position:absolute; top:40%; left:50%; transform:translate(-50%,-50%);
+  font-size:1.1rem; color:#ffdd44; text-shadow:0 0 15px #ffdd44;
+  background:rgba(0,0,0,.6); padding:10px 24px; border-radius:14px;
+  border:1px solid rgba(255,220,60,.4);
+  display:none; text-align:center; max-width:80%; line-height:1.5;
+  z-index:200;
+}
+
+/* Dica de interação */
+#dica-interacao {
+  position:absolute; bottom:120px; left:50%; transform:translateX(-50%);
+  font-size:.8rem; color:#00ffcc; text-shadow:0 0 8px #00ffcc;
+  display:none; white-space:nowrap;
+}
+
+/* Lore popup */
+#lore-popup {
+  position:fixed; inset:0; z-index:300; display:none;
+  align-items:center; justify-content:center; background:rgba(0,0,0,.85);
+}
+#lore-popup .caixa {
+  max-width:460px; width:85%; background:rgba(10,0,30,.95);
+  border:1px solid #00ffff; border-radius:16px; padding:28px;
+  text-align:center;
+}
+#lore-popup h3 { color:#00ffff; margin-bottom:12px; text-shadow:0 0 10px #00ffff; }
+#lore-popup p { color:#ccddff; font-size:.9rem; line-height:1.7; }
+#lore-popup .btn-menu { margin-top:18px; width:160px; border-color:#00ffff; color:#88ffff; }
+
+/* Responsivo */
+@media (max-width:600px) {
+  #minimapa { width:100px; height:100px; }
+  #bussola { width:160px; height:30px; }
+  #contadores { font-size:.65rem; }
+  #nome-lugar { font-size:.72rem; top:46px; }
+}
+</style>
+</head>
+<body>
+
+<!-- ═══════════════════ TELA INICIAL ═══════════════════ -->
+<div id="tela-inicial">
+  <h1>Arcanum Neon</h1>
+  <h2>Exploração Arcana</h2>
+  <button class="btn-menu" onclick="iniciarJogo()">✦ Explorar ✦</button>
+  <button class="btn-menu" onclick="mostrarComoJogar()">Como Jogar</button>
+</div>
+
+<!-- ═══════════════════ COMO JOGAR ═══════════════════ -->
+<div id="tela-como-jogar">
+  <div class="caixa">
+    <h2>Como Jogar</h2>
+    <p><b>Teclado + Mouse:</b></p>
+    <ul>
+      <li><b>WASD</b> — Mover</li>
+      <li><b>Mouse</b> — Olhar ao redor</li>
+      <li><b>Shift</b> — Correr</li>
+      <li><b>Espaço</b> — Pular</li>
+      <li><b>1–8</b> — Feitiços</li>
+      <li><b>E</b> — Interagir</li>
+      <li><b>T</b> — Teleporte entre ilhas</li>
+      <li><b>M</b> — Abrir/fechar mapa</li>
+      <li><b>C</b> — Trocar clima</li>
+      <li><b>Esc</b> — Pausar</li>
+    </ul>
+    <br>
+    <p><b>Celular (Touch):</b></p>
+    <ul>
+      <li>Joystick esquerdo — Mover</li>
+      <li>Arrastar na tela — Olhar</li>
+      <li>Botões na tela — Feitiços e interação</li>
+    </ul>
+    <br>
+    <p style="color:#ffaaff;">Explore o arquipélago flutuante, descubra feitiços, colete fragmentos de luz e cristais de lore. Sem missões obrigatórias — o jogo é o passeio! ✦</p>
+    <br>
+    <button class="btn-menu" onclick="fecharComoJogar()">Voltar</button>
+  </div>
+</div>
+
+<!-- ═══════════════════ TELA PAUSA ═══════════════════ -->
+<div id="tela-pausa">
+  <h2>⏸ Pausado</h2>
+  <button class="btn-menu" onclick="despausar()">Continuar</button>
+  <button class="btn-menu" onclick="mostrarComoJogar()">Como Jogar</button>
+</div>
+
+<!-- ═══════════════════ HUD ═══════════════════ -->
+<div id="hud">
+  <!-- Bússola -->
+  <div id="bussola">
+    <div id="bussola-seta"></div>
+    <span id="bussola-texto">N</span>
+  </div>
+  <!-- Nome do lugar -->
+  <div id="nome-lugar">Cidadela Neon</div>
+  <!-- Minimapa -->
+  <div id="minimapa"><canvas id="minimapa-canvas" width="140" height="140"></canvas></div>
+  <!-- Contadores -->
+  <div id="contadores">
+    <div class="contador"><span class="ico">💎</span> Fragmentos: <span id="cnt-frag">0</span>/30</div>
+    <div class="contador"><span class="ico">📖</span> Cristais: <span id="cnt-cris">0</span>/6</div>
+    <div class="contador"><span class="ico">🔮</span> Feitiços: <span id="cnt-feit">0</span>/8</div>
+  </div>
+  <!-- Feitiço atual -->
+  <div id="feitico-hud">
+    <span id="feitico-icone">✦</span>
+    <span id="feitico-nome">Nenhum feitiço</span>
+  </div>
+  <!-- Dica de interação -->
+  <div id="dica-interacao">[E] Interagir</div>
+  <!-- Mensagem de coleta -->
+  <div id="msg-coleta"></div>
+  <!-- Botões touch -->
+  <div id="joystick-container">
+    <div id="joystick-base"><div id="joystick-thumb"></div></div>
+  </div>
+  <div id="feitico-btns"></div>
+  <div id="touch-btns">
+    <button class="touch-btn" id="btn-pular">Pular</button>
+    <button class="touch-btn" id="btn-interagir">E</button>
+    <button class="touch-btn" id="btn-correr">Run</button>
+  </div>
+</div>
+
+<!-- ═══════════════════ LORE POPUP ═══════════════════ -->
+<div id="lore-popup">
+  <div class="caixa">
+    <h3 id="lore-titulo">Cristal de Lore</h3>
+    <p id="lore-texto"></p>
+    <button class="btn-menu" onclick="fecharLore()">Fechar</button>
+  </div>
+</div>
+
+<!-- ═══════════════════ THREE.JS ═══════════════════ -->
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js"></script>
+
+<script>
+/* ═══════════════════════════════════════════════════════════
+   ARCANUM NEON — EXPLORAÇÃO ARCANA  (v1 — Fase 1)
+   Jogo explorativo de magia, estética neon.
+   Um único arquivo HTML, Three.js r128 via CDN.
+   ═══════════════════════════════════════════════════════════ */
+
+// ── VARIÁVEIS GLOBAIS ──
+let renderer, scene, camera, clock;
+let jogador = { pos: new THREE.Vector3(0, 2, 0), vel: new THREE.Vector3(), noChao: false, correndo: false };
+let yaw = 0, pitch = 0;
+let pausado = false, jogoIniciado = false;
+let tempoJogo = 0, cicloDia = 0; // cicloDia: 0–1
+let climaAtual = 0; // 0=normal, 1=aurora, 2=chuva de luz, 3=estrelado
+const CLIMAS = ['Normal','Aurora Neon','Chuva de Luz','Céu Estrelado'];
+
+// Teclas
+const teclas = {};
+
+// Touch
+let isMobile = false;
+let joystickAtivo = false, joystickDX = 0, joystickDY = 0;
+let touchLookId = null, touchLookX = 0, touchLookY = 0;
+let touchCorrer = false;
+
+// Ilhas e mundo
+const ILHAS = [
+  { nome:'Cidadela Neon',      cor:0xff00ff, corHex:'#ff00ff', pos:new THREE.Vector3(0,0,0),     raio:28, corR:1,corG:0,corB:1 },
+  { nome:'Ilha do Prisma',     cor:0xff44cc, corHex:'#ff44cc', pos:new THREE.Vector3(80,0,0),    raio:20, corR:1,corG:.27,corB:.8 },
+  { nome:'Ilha das Runas',     cor:0x4488ff, corHex:'#4488ff', pos:new THREE.Vector3(-80,0,0),   raio:20, corR:.27,corG:.53,corB:1 },
+  { nome:'Ilha do Espelho',    cor:0x88ffff, corHex:'#88ffff', pos:new THREE.Vector3(0,0,80),    raio:20, corR:.53,corG:1,corB:1 },
+  { nome:'Ilha da Bruma',      cor:0x44ff88, corHex:'#44ff88', pos:new THREE.Vector3(0,0,-80),   raio:20, corR:.27,corG:1,corB:.53 },
+  { nome:'Ilha do Farol',      cor:0xffcc00, corHex:'#ffcc00', pos:new THREE.Vector3(60,0,60),   raio:18, corR:1,corG:.8,corB:0 },
+];
+
+// Feitiços
+const FEITICOS = [
+  { nome:'Luz',    cor:0xffffff, emoji:'☀️',  descoberto:false, ilha:'Cidadela Neon' },
+  { nome:'Fogo',   cor:0xff4400, emoji:'🔥', descoberto:false, ilha:'Ilha do Prisma' },
+  { nome:'Gelo',   cor:0x44ccff, emoji:'❄️',  descoberto:false, ilha:'Ilha das Runas' },
+  { nome:'Vento',  cor:0xaaffaa, emoji:'🌪️', descoberto:false, ilha:'Ilha do Espelho' },
+  { nome:'Raio',   cor:0xffff00, emoji:'⚡', descoberto:false, ilha:'Ilha da Bruma' },
+  { nome:'Terra',  cor:0x88aa44, emoji:'🌿', descoberto:false, ilha:'Ilha do Farol' },
+  { nome:'Água',   cor:0x0088ff, emoji:'💧', descoberto:false, ilha:'Ilha do Espelho' },
+  { nome:'Sombra', cor:0x8800aa, emoji:'🌑', descoberto:false, ilha:'Ilha da Bruma' },
+];
+let feiticoAtual = -1;
+
+// Colecionáveis
+let fragmentos = []; // {pos, coletado, mesh}
+let cristaisLore = []; // {pos, coletado, mesh, titulo, texto}
+let fragmentosColetados = 0;
+let cristaisColetados = 0;
+let feiticosDescobertosCnt = 0;
+
+// Objetos 3D
+let ilhasMeshes = [];
+let pontesMeshes = [];
+let fragmentosMeshes = [];
+let cristaisMeshes = [];
+let feiticoOrbsMeshes = [];
+let particulas = [];
+let estrelas;
+let nebulosaMesh;
+let planetasMeshes = [];
+let auroraParticulas = [];
+let chuvaLuzParticulas = [];
+let farolLuz;
+let cidadelaObjetos = [];
+
+// Referências DOM
+const $hud = document.getElementById('hud');
+const $bussola = document.getElementById('bussola-texto');
+const $nomeLugar = document.getElementById('nome-lugar');
+const $cntFrag = document.getElementById('cnt-frag');
+const $cntCris = document.getElementById('cnt-cris');
+const $cntFeit = document.getElementById('cnt-feit');
+const $feiticoNome = document.getElementById('feitico-nome');
+const $feiticoIcone = document.getElementById('feitico-icone');
+const $msgColeta = document.getElementById('msg-coleta');
+const $dicaInteracao = document.getElementById('dica-interacao');
+const $minimapCanvas = document.getElementById('minimapa-canvas');
+const minimapCtx = $minimapCanvas.getContext('2d');
+
+// ══════════════════════════════════════════════════════
+//  SALVAR / CARREGAR PROGRESSO (localStorage)
+// ══════════════════════════════════════════════════════
+const SAVE_KEY = 'arcanum_neon_save_v1';
+
+function salvarProgresso() {
+  const dados = {
+    fragmentosColetados: fragmentos.map(f => f.coletado),
+    cristaisColetados: cristaisLore.map(c => c.coletado),
+    feiticos: FEITICOS.map(f => f.descoberto),
+    posJogador: { x: jogador.pos.x, y: jogador.pos.y, z: jogador.pos.z },
+    yaw, pitch, climaAtual
+  };
+  try { localStorage.setItem(SAVE_KEY, JSON.stringify(dados)); } catch(e) {}
+}
+
+function carregarProgresso() {
+  try {
+    const raw = localStorage.getItem(SAVE_KEY);
+    if (!raw) return;
+    const d = JSON.parse(raw);
+    if (d.fragmentosColetados) {
+      d.fragmentosColetados.forEach((c, i) => {
+        if (c && fragmentos[i]) { fragmentos[i].coletado = true; fragmentosColetados++; }
+      });
+    }
+    if (d.cristaisColetados) {
+      d.cristaisColetados.forEach((c, i) => {
+        if (c && cristaisLore[i]) { cristaisLore[i].coletado = true; cristaisColetados++; }
+      });
+    }
+    if (d.feiticos) {
+      d.feiticos.forEach((desc, i) => {
+        if (desc && FEITICOS[i]) { FEITICOS[i].descoberto = true; feiticosDescobertosCnt++; }
+      });
+    }
+    if (d.posJogador) {
+      jogador.pos.set(d.posJogador.x, d.posJogador.y, d.posJogador.z);
+    }
+    if (d.yaw !== undefined) yaw = d.yaw;
+    if (d.pitch !== undefined) pitch = d.pitch;
+    if (d.climaAtual !== undefined) climaAtual = d.climaAtual;
+  } catch(e) {}
+}
+
+// ══════════════════════════════════════════════════════
+//  INICIALIZAÇÃO DO THREE.JS
+// ══════════════════════════════════════════════════════
+function initThree() {
+  renderer = new THREE.WebGLRenderer({ antialias: false, alpha: false });
+  renderer.setSize(window.innerWidth, window.innerHeight);
+  const dpr = Math.min(window.devicePixelRatio || 1, 1.5);
+  renderer.setPixelRatio(dpr);
+  renderer.setClearColor(0x000011);
+  renderer.toneMapping = THREE.ACESFilmicToneMapping;
+  renderer.toneMappingExposure = 1.2;
+  document.body.appendChild(renderer.domElement);
+
+  scene = new THREE.Scene();
+  scene.fog = new THREE.FogExp2(0x000011, 0.004);
+
+  camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.1, 500);
+  clock = new THREE.Clock();
+
+  // Iluminação ambiente
+  const ambientLight = new THREE.AmbientLight(0x221133, 0.6);
+  scene.add(ambientLight);
+
+  const dirLight = new THREE.DirectionalLight(0x8866ff, 0.4);
+  dirLight.position.set(50, 80, 30);
+  scene.add(dirLight);
+
+  window.addEventListener('resize', () => {
+    camera.aspect = window.innerWidth / window.innerHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(window.innerWidth, window.innerHeight);
+  });
+}
+
+// ══════════════════════════════════════════════════════
+//  CONSTRUÇÃO DO MUNDO
+// ══════════════════════════════════════════════════════
+
+// ── Material neon com emissão ──
+function matNeon(cor, emissiveIntensity = 0.8) {
+  return new THREE.MeshStandardMaterial({
+    color: cor, emissive: cor, emissiveIntensity,
+    metalness: 0.3, roughness: 0.5, transparent: true, opacity: 0.92
+  });
+}
+
+function matNeonBasic(cor, opacity = 0.7) {
+  return new THREE.MeshBasicMaterial({ color: cor, transparent: true, opacity });
+}
+
+// ── Criar uma ilha ──
+function criarIlha(info, indice) {
+  const grupo = new THREE.Group();
+  grupo.position.copy(info.pos);
+
+  // Base da ilha (cilindro irregular)
+  const geoBase = new THREE.CylinderGeometry(info.raio, info.raio * 0.7, 4, 24, 1);
+  // Deformar vértices para parecer orgânico
+  const posArr = geoBase.attributes.position.array;
+  for (let i = 0; i < posArr.length; i += 3) {
+    const dist = Math.sqrt(posArr[i] * posArr[i] + posArr[i + 2] * posArr[i + 2]);
+    if (dist > 2) {
+      posArr[i] += (Math.random() - 0.5) * 2.5;
+      posArr[i + 2] += (Math.random() - 0.5) * 2.5;
+    }
+  }
+  geoBase.computeVertexNormals();
+  const meshBase = new THREE.Mesh(geoBase, matNeon(info.cor, 0.3));
+  meshBase.position.y = -2;
+  grupo.add(meshBase);
+
+  // Superfície (plataforma)
+  const geoSup = new THREE.CylinderGeometry(info.raio, info.raio, 1, 24);
+  const meshSup = new THREE.Mesh(geoSup, new THREE.MeshStandardMaterial({
+    color: 0x111122, emissive: info.cor, emissiveIntensity: 0.1,
+    metalness: 0.6, roughness: 0.3
+  }));
+  meshSup.position.y = -0.5;
+  grupo.add(meshSup);
+
+  // Borda luminosa
+  const geoBorda = new THREE.TorusGeometry(info.raio, 0.15, 8, 48);
+  const meshBorda = new THREE.Mesh(geoBorda, matNeonBasic(info.cor, 0.6));
+  meshBorda.rotation.x = Math.PI / 2;
+  meshBorda.position.y = 0;
+  grupo.add(meshBorda);
+
+  // Detalhes específicos por ilha
+  if (indice === 0) criarCidadela(grupo, info);
+  else if (indice === 1) criarIlhaPrisma(grupo, info);
+  else if (indice === 2) criarIlhaRunas(grupo, info);
+  else if (indice === 3) criarIlhaEspelho(grupo, info);
+  else if (indice === 4) criarIlhaBruma(grupo, info);
+  else if (indice === 5) criarIlhaFarol(grupo, info);
+
+  // Ponto de luz central
+  const pointLight = new THREE.PointLight(info.cor, 1.5, info.raio * 2);
+  pointLight.position.y = 5;
+  grupo.add(pointLight);
+
+  scene.add(grupo);
+  ilhasMeshes.push(grupo);
+}
+
+// ── Cidadela Neon (ilha 0) ──
+function criarCidadela(grupo, info) {
+  // Torre central
+  const geoTorre = new THREE.CylinderGeometry(2, 3, 18, 8);
+  const meshTorre = new THREE.Mesh(geoTorre, matNeon(0xaa00ff, 0.5));
+  meshTorre.position.y = 9;
+  grupo.add(meshTorre);
+  cidadelaObjetos.push(meshTorre);
+
+  // Coroa da torre
+  const geoCoroa = new THREE.TorusGeometry(3.5, 0.3, 8, 16);
+  const meshCoroa = new THREE.Mesh(geoCoroa, matNeonBasic(0xff00ff, 0.9));
+  meshCoroa.rotation.x = Math.PI / 2;
+  meshCoroa.position.y = 18;
+  grupo.add(meshCoroa);
+
+  // 4 pilares
+  for (let i = 0; i < 4; i++) {
+    const ang = (i / 4) * Math.PI * 2;
+    const geoPilar = new THREE.CylinderGeometry(0.5, 0.5, 10, 6);
+    const meshPilar = new THREE.Mesh(geoPilar, matNeon(0x8800cc, 0.4));
+    meshPilar.position.set(Math.cos(ang) * 12, 5, Math.sin(ang) * 12);
+    grupo.add(meshPilar);
+
+    // Orbe no topo do pilar
+    const geoOrbe = new THREE.SphereGeometry(1, 12, 12);
+    const meshOrbe = new THREE.Mesh(geoOrbe, matNeonBasic(0xff44ff, 0.8));
+    meshOrbe.position.set(Math.cos(ang) * 12, 10.5, Math.sin(ang) * 12);
+    grupo.add(meshOrbe);
+  }
+
+  // Muros baixos
+  for (let i = 0; i < 8; i++) {
+    const ang = (i / 8) * Math.PI * 2;
+    const geoMuro = new THREE.BoxGeometry(6, 2, 0.5);
+    const meshMuro = new THREE.Mesh(geoMuro, matNeon(0x440066, 0.3));
+    meshMuro.position.set(Math.cos(ang) * 18, 1, Math.sin(ang) * 18);
+    meshMuro.rotation.y = ang + Math.PI / 2;
+    grupo.add(meshMuro);
+  }
+}
+
+// ── Ilha do Prisma (cristais rosa e violeta) ──
+function criarIlhaPrisma(grupo, info) {
+  for (let i = 0; i < 15; i++) {
+    const ang = Math.random() * Math.PI * 2;
+    const dist = Math.random() * (info.raio - 3);
+    const h = 2 + Math.random() * 6;
+    const geoCristal = new THREE.ConeGeometry(0.5 + Math.random() * 0.8, h, 5);
+    const cor = Math.random() > 0.5 ? 0xff44cc : 0xaa22ff;
+    const meshCristal = new THREE.Mesh(geoCristal, matNeon(cor, 0.6 + Math.random() * 0.4));
+    meshCristal.position.set(Math.cos(ang) * dist, h / 2, Math.sin(ang) * dist);
+    meshCristal.rotation.z = (Math.random() - 0.5) * 0.3;
+    grupo.add(meshCristal);
+  }
+}
+
+// ── Ilha das Runas (runas flutuantes azul) ──
+function criarIlhaRunas(grupo, info) {
+  for (let i = 0; i < 10; i++) {
+    const ang = Math.random() * Math.PI * 2;
+    const dist = 3 + Math.random() * (info.raio - 5);
+    const geoRuna = new THREE.TorusGeometry(1 + Math.random(), 0.15, 6, 8);
+    const meshRuna = new THREE.Mesh(geoRuna, matNeonBasic(0x4488ff, 0.7));
+    meshRuna.position.set(Math.cos(ang) * dist, 2 + Math.random() * 4, Math.sin(ang) * dist);
+    meshRuna.rotation.set(Math.random() * Math.PI, Math.random() * Math.PI, 0);
+    meshRuna.userData.flutuante = true;
+    meshRuna.userData.offset = Math.random() * Math.PI * 2;
+    grupo.add(meshRuna);
+  }
+  // Obelisco central
+  const geoOb = new THREE.BoxGeometry(2, 12, 2);
+  const meshOb = new THREE.Mesh(geoOb, matNeon(0x2244aa, 0.5));
+  meshOb.position.y = 6;
+  grupo.add(meshOb);
+}
+
+// ── Ilha do Espelho (espelhos e luz) ──
+function criarIlhaEspelho(grupo, info) {
+  for (let i = 0; i < 8; i++) {
+    const ang = (i / 8) * Math.PI * 2;
+    const dist = 6 + Math.random() * 8;
+    const geoEspelho = new THREE.PlaneGeometry(3, 5);
+    const meshEspelho = new THREE.Mesh(geoEspelho, new THREE.MeshStandardMaterial({
+      color: 0xffffff, emissive: 0x88ffff, emissiveIntensity: 0.4,
+      metalness: 1.0, roughness: 0.0, transparent: true, opacity: 0.6, side: THREE.DoubleSide
+    }));
+    meshEspelho.position.set(Math.cos(ang) * dist, 2.5, Math.sin(ang) * dist);
+    meshEspelho.rotation.y = ang;
+    grupo.add(meshEspelho);
+  }
+  // Prisma central
+  const geoPrisma = new THREE.OctahedronGeometry(3);
+  const meshPrisma = new THREE.Mesh(geoPrisma, matNeon(0x88ffff, 0.7));
+  meshPrisma.position.y = 5;
+  meshPrisma.userData.flutuante = true;
+  meshPrisma.userData.offset = 0;
+  grupo.add(meshPrisma);
+}
+
+// ── Ilha da Bruma (névoa e fadas-luz) ──
+function criarIlhaBruma(grupo, info) {
+  // Cogumelos gigantes
+  for (let i = 0; i < 8; i++) {
+    const ang = Math.random() * Math.PI * 2;
+    const dist = 3 + Math.random() * (info.raio - 5);
+    const gCaule = new THREE.CylinderGeometry(0.3, 0.4, 3 + Math.random() * 3, 6);
+    const mCaule = new THREE.Mesh(gCaule, matNeon(0x226644, 0.3));
+    const h = 1.5 + Math.random() * 1.5;
+    mCaule.position.set(Math.cos(ang) * dist, h, Math.sin(ang) * dist);
+    grupo.add(mCaule);
+    const gChapeu = new THREE.SphereGeometry(1.2 + Math.random(), 8, 6, 0, Math.PI * 2, 0, Math.PI / 2);
+    const mChapeu = new THREE.Mesh(gChapeu, matNeon(0x44ff88, 0.5));
+    mChapeu.position.set(Math.cos(ang) * dist, h * 2 + 0.5, Math.sin(ang) * dist);
+    grupo.add(mChapeu);
+  }
+  // Fadas-luz (pontos brilhantes)
+  for (let i = 0; i < 20; i++) {
+    const ang = Math.random() * Math.PI * 2;
+    const dist = Math.random() * info.raio;
+    const geoFada = new THREE.SphereGeometry(0.15, 6, 6);
+    const meshFada = new THREE.Mesh(geoFada, matNeonBasic(0x88ffaa, 1.0));
+    meshFada.position.set(Math.cos(ang) * dist, 1 + Math.random() * 5, Math.sin(ang) * dist);
+    meshFada.userData.fada = true;
+    meshFada.userData.offset = Math.random() * Math.PI * 2;
+    meshFada.userData.vel = 0.3 + Math.random() * 0.5;
+    meshFada.userData.raioOrb = 1 + Math.random() * 2;
+    grupo.add(meshFada);
+  }
+}
+
+// ── Ilha do Farol (farol arcano dourado) ──
+function criarIlhaFarol(grupo, info) {
+  // Torre do farol
+  const geoFarol = new THREE.CylinderGeometry(1.5, 2.5, 20, 8);
+  const meshFarol = new THREE.Mesh(geoFarol, matNeon(0xddaa00, 0.4));
+  meshFarol.position.y = 10;
+  grupo.add(meshFarol);
+
+  // Lente do farol
+  const geoLente = new THREE.SphereGeometry(2, 12, 12);
+  const meshLente = new THREE.Mesh(geoLente, matNeonBasic(0xffcc00, 0.9));
+  meshLente.position.y = 21;
+  grupo.add(meshLente);
+
+  // Luz do farol
+  farolLuz = new THREE.SpotLight(0xffcc00, 3, 100, Math.PI / 6, 0.5);
+  farolLuz.position.set(0, 21, 0);
+  farolLuz.target.position.set(30, 10, 0);
+  grupo.add(farolLuz);
+  grupo.add(farolLuz.target);
+
+  // Degraus em espiral
+  for (let i = 0; i < 12; i++) {
+    const ang = (i / 12) * Math.PI * 4;
+    const y = (i / 12) * 18 + 1;
+    const gDeg = new THREE.BoxGeometry(2, 0.3, 1);
+    const mDeg = new THREE.Mesh(gDeg, matNeon(0xaa8800, 0.3));
+    mDeg.position.set(Math.cos(ang) * 3, y, Math.sin(ang) * 3);
+    mDeg.rotation.y = ang;
+    grupo.add(mDeg);
+  }
+}
+
+// ── Pontes de luz entre ilhas ──
+function criarPontes() {
+  // Conexões: Cidadela → cada ilha satélite
+  const conexoes = [[0,1],[0,2],[0,3],[0,4],[0,5]];
+  conexoes.forEach(([a, b]) => {
+    const posA = ILHAS[a].pos.clone();
+    const posB = ILHAS[b].pos.clone();
+    posA.y = 0.3;
+    posB.y = 0.3;
+
+    const dir = posB.clone().sub(posA);
+    const dist = dir.length();
+    const mid = posA.clone().add(posB).multiplyScalar(0.5);
+    mid.y = 2; // Arco ligeiro
+
+    // Linha de pontes (segmentos)
+    const numSeg = Math.floor(dist / 3);
+    const corPonte = new THREE.Color(ILHAS[a].cor).lerp(new THREE.Color(ILHAS[b].cor), 0.5);
+
+    for (let i = 0; i <= numSeg; i++) {
+      const t = i / numSeg;
+      const p = new THREE.Vector3().lerpVectors(posA, posB, t);
+      p.y = 0.3 + Math.sin(t * Math.PI) * 3; // Arco
+
+      const geoSeg = new THREE.BoxGeometry(2.2, 0.15, 2.2);
+      const meshSeg = new THREE.Mesh(geoSeg, new THREE.MeshBasicMaterial({
+        color: corPonte, transparent: true, opacity: 0.35 + Math.sin(t * Math.PI) * 0.2
+      }));
+      meshSeg.position.copy(p);
+      scene.add(meshSeg);
+      pontesMeshes.push(meshSeg);
+    }
+
+    // Corrimão luminoso
+    const pontosCorrimao = [];
+    for (let i = 0; i <= 30; i++) {
+      const t = i / 30;
+      const p = new THREE.Vector3().lerpVectors(posA, posB, t);
+      p.y = 1.3 + Math.sin(t * Math.PI) * 3;
+      pontosCorrimao.push(p);
+    }
+    const curva = new THREE.CatmullRomCurve3(pontosCorrimao);
+    const geoTubo = new THREE.TubeGeometry(curva, 30, 0.08, 4, false);
+    const meshTubo = new THREE.Mesh(geoTubo, matNeonBasic(corPonte, 0.5));
+    scene.add(meshTubo);
+    pontesMeshes.push(meshTubo);
+  });
+}
+
+// ── Céu: estrelas, nebulosas, planetas ──
+function criarCeu() {
+  // Estrelas
+  const geoEstrelas = new THREE.BufferGeometry();
+  const numEstrelas = 2000;
+  const posEst = new Float32Array(numEstrelas * 3);
+  const corEst = new Float32Array(numEstrelas * 3);
+  for (let i = 0; i < numEstrelas; i++) {
+    const theta = Math.random() * Math.PI * 2;
+    const phi = Math.acos(2 * Math.random() - 1);
+    const r = 200 + Math.random() * 100;
+    posEst[i * 3] = r * Math.sin(phi) * Math.cos(theta);
+    posEst[i * 3 + 1] = r * Math.cos(phi);
+    posEst[i * 3 + 2] = r * Math.sin(phi) * Math.sin(theta);
+    const brilho = 0.5 + Math.random() * 0.5;
+    corEst[i * 3] = brilho;
+    corEst[i * 3 + 1] = brilho;
+    corEst[i * 3 + 2] = brilho + Math.random() * 0.3;
+  }
+  geoEstrelas.setAttribute('position', new THREE.BufferAttribute(posEst, 3));
+  geoEstrelas.setAttribute('color', new THREE.BufferAttribute(corEst, 3));
+  const matEst = new THREE.PointsMaterial({ size: 0.8, vertexColors: true, transparent: true, opacity: 0.8 });
+  estrelas = new THREE.Points(geoEstrelas, matEst);
+  scene.add(estrelas);
+
+  // Nebulosa (esfera transparente com textura procedural)
+  const geoNeb = new THREE.SphereGeometry(180, 24, 24);
+  const matNeb = new THREE.MeshBasicMaterial({
+    color: 0x220044, transparent: true, opacity: 0.15, side: THREE.BackSide
+  });
+  nebulosaMesh = new THREE.Mesh(geoNeb, matNeb);
+  scene.add(nebulosaMesh);
+
+  // Planetas
+  const planetasInfo = [
+    { cor: 0xff4488, raio: 5, pos: new THREE.Vector3(120, 100, 80) },
+    { cor: 0x44aaff, raio: 7, pos: new THREE.Vector3(-100, 120, -60) },
+    { cor: 0xffaa00, raio: 4, pos: new THREE.Vector3(80, 80, -120) },
+    { cor: 0x88ff44, raio: 6, pos: new THREE.Vector3(-80, 90, 100) },
+    { cor: 0xff00ff, raio: 3, pos: new THREE.Vector3(60, 140, 60) },
+    { cor: 0x00ffff, raio: 5, pos: new THREE.Vector3(-60, 110, -100) },
+  ];
+  planetasInfo.forEach(p => {
+    const geo = new THREE.SphereGeometry(p.raio, 16, 16);
+    const mesh = new THREE.Mesh(geo, matNeon(p.cor, 0.5));
+    mesh.position.copy(p.pos);
+    scene.add(mesh);
+    planetasMeshes.push(mesh);
+
+    // Anel ao redor de alguns planetas
+    if (Math.random() > 0.5) {
+      const geoAnel = new THREE.TorusGeometry(p.raio * 1.6, 0.3, 4, 24);
+      const meshAnel = new THREE.Mesh(geoAnel, matNeonBasic(p.cor, 0.4));
+      meshAnel.position.copy(p.pos);
+      meshAnel.rotation.x = Math.PI / 3;
+      scene.add(meshAnel);
+    }
+  });
+
+  // Mar de névoa luminosa abaixo
+  const geoNevoa = new THREE.PlaneGeometry(600, 600);
+  const matNevoa = new THREE.MeshBasicMaterial({
+    color: 0x110033, transparent: true, opacity: 0.5, side: THREE.DoubleSide
+  });
+  const meshNevoa = new THREE.Mesh(geoNevoa, matNevoa);
+  meshNevoa.rotation.x = -Math.PI / 2;
+  meshNevoa.position.y = -20;
+  scene.add(meshNevoa);
+}
+
+// ── Fragmentos de Luz (30) ──
+function criarFragmentos() {
+  const positions = [];
+  // Distribuir pelos ilhas: 5 por ilha (6 ilhas = 30)
+  ILHAS.forEach((ilha, idx) => {
+    for (let i = 0; i < 5; i++) {
+      const ang = (i / 5) * Math.PI * 2 + Math.random() * 0.5;
+      const dist = 3 + Math.random() * (ilha.raio - 5);
+      positions.push(new THREE.Vector3(
+        ilha.pos.x + Math.cos(ang) * dist,
+        1 + Math.random() * 3,
+        ilha.pos.z + Math.sin(ang) * dist
+      ));
+    }
+  });
+
+  positions.forEach((pos, i) => {
+    const geo = new THREE.OctahedronGeometry(0.4);
+    const mesh = new THREE.Mesh(geo, matNeonBasic(0xffdd44, 0.9));
+    mesh.position.copy(pos);
+    mesh.userData.idx = i;
+    mesh.userData.offset = Math.random() * Math.PI * 2;
+    scene.add(mesh);
+    fragmentosMeshes.push(mesh);
+    fragmentos.push({ pos: pos.clone(), coletado: false, mesh });
+
+    // Ponto de luz
+    const luz = new THREE.PointLight(0xffdd44, 0.5, 5);
+    luz.position.copy(pos);
+    scene.add(luz);
+  });
+}
+
+// ── Cristais de Lore (6) ──
+function criarCristaisLore() {
+  const loresTextos = [
+    {
+      titulo: 'A Origem do Arquipélago',
+      texto: 'Há milênios, o Arquipélago flutuava em harmonia sobre o Mar de Névoa. Diz a lenda que foi erguido por um feiticeiro ancestral que moldou a terra com pura energia neon, arrancando fragmentos do próprio tecido da realidade.',
+      pos: new THREE.Vector3(5, 2, 5)
+    },
+    {
+      titulo: 'O Segredo da Cidadela',
+      texto: 'A Cidadela Neon é o coração do Arquipélago. Em seu centro, a Grande Torre canaliza toda a magia das ilhas. Sem ela, as pontes de luz se apagariam e as ilhas se perderiam na névoa eterna.',
+      pos: new THREE.Vector3(80, 2, 5)
+    },
+    {
+      titulo: 'As Runas Esquecidas',
+      texto: 'Na Ilha das Runas, símbolos arcanos flutuam no ar — cada um um fragmento de um idioma perdido. Quem decifrar todas as runas, dizem, poderá ouvir a voz do próprio Arquipélago.',
+      pos: new THREE.Vector3(-75, 2, 5)
+    },
+    {
+      titulo: 'O Prisma Vivo',
+      texto: 'Os cristais da Ilha do Prisma não são pedras comuns. Cada um pulsa com vida própria, absorvendo e refratando a luz neon. Dizem que cantam juntos nas noites mais escuras, uma melodia que só os corações puros podem ouvir.',
+      pos: new THREE.Vector3(5, 2, 80)
+    },
+    {
+      titulo: 'O Farol dos Perdidos',
+      texto: 'O Farol Arcano guia viajantes de outros mundos. Sua luz dourada cruza as dimensões, chamando aqueles que procuram aventura. Muitos chegaram aqui atraídos por seu brilho — poucos quiseram partir.',
+      pos: new THREE.Vector3(60, 2, 65)
+    },
+    {
+      titulo: 'A Bruma Eterna',
+      texto: 'Abaixo de todas as ilhas estende-se a Bruma — um mar de névoa luminosa sem fundo. As fadas-luz da Ilha da Bruma são guardiãs antigas que impedem que a Bruma devore as terras flutuantes. Enquanto elas brilharem, o Arquipélago será seguro.',
+      pos: new THREE.Vector3(3, 2, -75)
+    },
+  ];
+
+  loresTextos.forEach((lore, i) => {
+    const geo = new THREE.OctahedronGeometry(0.8);
+    const mesh = new THREE.Mesh(geo, matNeon(0x00ffff, 0.9));
+    mesh.position.copy(lore.pos);
+    mesh.userData.idx = i;
+    mesh.userData.offset = Math.random() * Math.PI * 2;
+    scene.add(mesh);
+    cristaisMeshes.push(mesh);
+
+    // Anel ao redor
+    const geoAnel = new THREE.TorusGeometry(1.2, 0.08, 6, 16);
+    const meshAnel = new THREE.Mesh(geoAnel, matNeonBasic(0x00ffff, 0.5));
+    meshAnel.position.copy(lore.pos);
+    meshAnel.rotation.x = Math.PI / 2;
+    scene.add(meshAnel);
+
+    const luz = new THREE.PointLight(0x00ffff, 0.8, 8);
+    luz.position.copy(lore.pos);
+    scene.add(luz);
+
+    cristaisLore.push({ pos: lore.pos.clone(), coletado: false, mesh, anel: meshAnel, titulo: lore.titulo, texto: lore.texto });
+  });
+}
+
+// ── Orbes de feitiço (onde o jogador descobre cada feitiço) ──
+function criarFeiticoOrbes() {
+  const posicoes = [
+    new THREE.Vector3(0, 3, -8),     // Luz → Cidadela
+    new THREE.Vector3(78, 3, -6),    // Fogo → Prisma
+    new THREE.Vector3(-78, 3, -6),   // Gelo → Runas
+    new THREE.Vector3(6, 3, 78),     // Vento → Espelho
+    new THREE.Vector3(-6, 3, -78),   // Raio → Bruma
+    new THREE.Vector3(58, 3, 58),    // Terra → Farol
+    new THREE.Vector3(-6, 3, 76),    // Água → Espelho (outro canto)
+    new THREE.Vector3(6, 3, -76),    // Sombra → Bruma (outro canto)
+  ];
+
+  posicoes.forEach((pos, i) => {
+    const geo = new THREE.SphereGeometry(0.6, 12, 12);
+    const mesh = new THREE.Mesh(geo, matNeon(FEITICOS[i].cor, 1.0));
+    mesh.position.copy(pos);
+    mesh.userData.feiticoIdx = i;
+    mesh.userData.offset = Math.random() * Math.PI * 2;
+    scene.add(mesh);
+    feiticoOrbsMeshes.push(mesh);
+
+    // Halo
+    const geoHalo = new THREE.RingGeometry(0.9, 1.3, 16);
+    const meshHalo = new THREE.Mesh(geoHalo, new THREE.MeshBasicMaterial({
+      color: FEITICOS[i].cor, transparent: true, opacity: 0.4, side: THREE.DoubleSide
+    }));
+    meshHalo.position.copy(pos);
+    meshHalo.userData.halo = true;
+    meshHalo.userData.offset = Math.random() * Math.PI * 2;
+    scene.add(meshHalo);
+    feiticoOrbsMeshes.push(meshHalo);
+
+    const luz = new THREE.PointLight(FEITICOS[i].cor, 0.6, 6);
+    luz.position.copy(pos);
+    scene.add(luz);
+  });
+}
+
+// ══════════════════════════════════════════════════════
+//  EFEITOS DE FEITIÇO (8 feitiços com partículas)
+// ══════════════════════════════════════════════════════
+let feiticoParticulas = [];
+let feiticoAtivo = false;
+let feiticoTimer = 0;
+
+function lancarFeitico(idx) {
+  if (!FEITICOS[idx].descoberto) return;
+  feiticoAtual = idx;
+  feiticoAtivo = true;
+  feiticoTimer = 1.5; // duração do efeito
+
+  atualizarFeiticoHUD();
+
+  const frente = new THREE.Vector3(0, 0, -1);
+  frente.applyAxisAngle(new THREE.Vector3(0, 1, 0), yaw);
+  const origem = jogador.pos.clone().add(frente.clone().multiplyScalar(1.5));
+  origem.y += 1;
+
+  const cor = FEITICOS[idx].cor;
+
+  // Limpar partículas anteriores
+  feiticoParticulas.forEach(p => scene.remove(p.mesh));
+  feiticoParticulas = [];
+
+  // Gerar partículas específicas por feitiço
+  const numPart = 30;
+  for (let i = 0; i < numPart; i++) {
+    let geo, mat, vel;
+    const size = 0.1 + Math.random() * 0.2;
+
+    switch(idx) {
+      case 0: // Luz — raios dourados
+        geo = new THREE.SphereGeometry(size, 6, 6);
+        mat = matNeonBasic(0xffffaa, 0.9);
+        vel = frente.clone().multiplyScalar(8 + Math.random() * 4)
+          .add(new THREE.Vector3((Math.random()-.5)*3, Math.random()*2, (Math.random()-.5)*3));
+        break;
+      case 1: // Fogo — chamas
+        geo = new THREE.TetrahedronGeometry(size * 2);
+        mat = matNeonBasic(Math.random()>0.5?0xff4400:0xff8800, 0.9);
+        vel = frente.clone().multiplyScalar(6 + Math.random() * 3)
+          .add(new THREE.Vector3((Math.random()-.5)*4, 1+Math.random()*3, (Math.random()-.5)*4));
+        break;
+      case 2: // Gelo — cristais
+        geo = new THREE.OctahedronGeometry(size * 1.5);
+        mat = matNeonBasic(0x88ddff, 0.85);
+        vel = frente.clone().multiplyScalar(7 + Math.random() * 3)
+          .add(new THREE.Vector3((Math.random()-.5)*2, (Math.random()-.5)*2, (Math.random()-.5)*2));
+        break;
+      case 3: // Vento — espirais
+        geo = new THREE.RingGeometry(size, size*2, 6);
+        mat = new THREE.MeshBasicMaterial({color:0xaaffaa, transparent:true, opacity:0.6, side:THREE.DoubleSide});
+        vel = frente.clone().multiplyScalar(10 + Math.random() * 5)
+          .add(new THREE.Vector3((Math.random()-.5)*5, (Math.random()-.5)*3, (Math.random()-.5)*5));
+        break;
+      case 4: // Raio — faíscas
+        geo = new THREE.BoxGeometry(size*0.3, size*3, size*0.3);
+        mat = matNeonBasic(0xffff44, 1.0);
+        vel = frente.clone().multiplyScalar(12 + Math.random() * 6)
+          .add(new THREE.Vector3((Math.random()-.5)*6, (Math.random()-.5)*4, (Math.random()-.5)*6));
+        break;
+      case 5: // Terra — rochas
+        geo = new THREE.DodecahedronGeometry(size * 1.8);
+        mat = matNeon(0x88aa44, 0.7);
+        vel = frente.clone().multiplyScalar(5 + Math.random() * 3)
+          .add(new THREE.Vector3((Math.random()-.5)*3, 2+Math.random()*2, (Math.random()-.5)*3));
+        break;
+      case 6: // Água — gotas
+        geo = new THREE.SphereGeometry(size * 1.2, 8, 8);
+        mat = matNeonBasic(0x4488ff, 0.75);
+        vel = frente.clone().multiplyScalar(7 + Math.random() * 4)
+          .add(new THREE.Vector3((Math.random()-.5)*4, (Math.random()-.5)*2, (Math.random()-.5)*4));
+        break;
+      case 7: // Sombra — sombras
+        geo = new THREE.TetrahedronGeometry(size * 2);
+        mat = matNeonBasic(0x6600aa, 0.8);
+        vel = frente.clone().multiplyScalar(6 + Math.random() * 3)
+          .add(new THREE.Vector3((Math.random()-.5)*5, (Math.random()-.5)*3, (Math.random()-.5)*5));
+        break;
+    }
+
+    const mesh = new THREE.Mesh(geo, mat);
+    mesh.position.copy(origem).add(new THREE.Vector3((Math.random()-.5)*0.5, (Math.random()-.5)*0.5, (Math.random()-.5)*0.5));
+    scene.add(mesh);
+    feiticoParticulas.push({
+      mesh, vel,
+      vida: 0.8 + Math.random() * 0.7,
+      gravidade: idx === 5 ? -3 : (idx === 6 ? -1 : 0),
+      rotVel: (Math.random() - 0.5) * 5
+    });
+  }
+
+  // Luz temporária do feitiço
+  const luzFeitico = new THREE.PointLight(cor, 2, 15);
+  luzFeitico.position.copy(origem);
+  scene.add(luzFeitico);
+  setTimeout(() => scene.remove(luzFeitico), 1500);
+}
+
+function atualizarFeiticoParticulas(dt) {
+  for (let i = feiticoParticulas.length - 1; i >= 0; i--) {
+    const p = feiticoParticulas[i];
+    p.vida -= dt;
+    if (p.vida <= 0) {
+      scene.remove(p.mesh);
+      feiticoParticulas.splice(i, 1);
+      continue;
+    }
+    p.mesh.position.add(p.vel.clone().multiplyScalar(dt));
+    p.vel.y += p.gravidade * dt;
+    p.vel.multiplyScalar(0.97);
+    p.mesh.rotation.x += p.rotVel * dt;
+    p.mesh.rotation.y += p.rotVel * dt;
+    p.mesh.material.opacity = Math.min(1, p.vida * 2);
+    const s = Math.max(0.1, p.vida);
+    p.mesh.scale.setScalar(s);
+  }
+  if (feiticoAtivo) {
+    feiticoTimer -= dt;
+    if (feiticoTimer <= 0) feiticoAtivo = false;
+  }
+}
+
+// ══════════════════════════════════════════════════════
+//  CONTROLES TECLADO + MOUSE
+// ══════════════════════════════════════════════════════
+function setupControles() {
+  document.addEventListener('keydown', e => {
+    teclas[e.code] = true;
+    if (!jogoIniciado || pausado) return;
+
+    // Feitiços 1-8
+    if (e.code >= 'Digit1' && e.code <= 'Digit8') {
+      const idx = parseInt(e.code.replace('Digit', '')) - 1;
+      if (FEITICOS[idx].descoberto) lancarFeitico(idx);
+    }
+    if (e.code === 'KeyE') tentarInteragir();
+    if (e.code === 'KeyT') teleportarProximaIlha();
+    if (e.code === 'KeyC') trocarClima();
+    if (e.code === 'Escape') {
+      if (document.getElementById('lore-popup').style.display === 'flex') {
+        fecharLore();
+      } else {
+        togglePausa();
+      }
+    }
+  });
+  document.addEventListener('keyup', e => { teclas[e.code] = false; });
+
+  // Mouse para olhar
+  document.addEventListener('click', () => {
+    if (jogoIniciado && !pausado && !isMobile) {
+      renderer.domElement.requestPointerLock();
+    }
+  });
+  document.addEventListener('mousemove', e => {
+    if (document.pointerLockElement !== renderer.domElement) return;
+    if (pausado) return;
+    yaw -= e.movementX * 0.002;
+    pitch -= e.movementY * 0.002;
+    pitch = Math.max(-Math.PI / 2.2, Math.min(Math.PI / 2.2, pitch));
+  });
+
+  // Touch
+  setupTouch();
+}
+
+// ── Touch Controls ──
+function setupTouch() {
+  isMobile = ('ontouchstart' in window) || navigator.maxTouchPoints > 0;
+  if (isMobile) {
+    document.getElementById('joystick-container').style.display = 'block';
+    document.getElementById('feitico-btns').style.display = 'flex';
+    document.getElementById('touch-btns').style.display = 'flex';
+    criarBotoesFeiticoTouch();
+  }
+
+  const joystickBase = document.getElementById('joystick-base');
+  const joystickThumb = document.getElementById('joystick-thumb');
+  let joystickTouchId = null;
+  let joystickCenterX = 0, joystickCenterY = 0;
+
+  joystickBase.addEventListener('touchstart', e => {
+    e.preventDefault();
+    const t = e.changedTouches[0];
+    joystickTouchId = t.identifier;
+    const rect = joystickBase.getBoundingClientRect();
+    joystickCenterX = rect.left + rect.width / 2;
+    joystickCenterY = rect.top + rect.height / 2;
+    joystickAtivo = true;
+  }, { passive: false });
+
+  document.addEventListener('touchmove', e => {
+    for (let i = 0; i < e.changedTouches.length; i++) {
+      const t = e.changedTouches[i];
+      if (t.identifier === joystickTouchId) {
+        const dx = t.clientX - joystickCenterX;
+        const dy = t.clientY - joystickCenterY;
+        const max = 50;
+        const dist = Math.min(Math.sqrt(dx * dx + dy * dy), max);
+        const ang = Math.atan2(dy, dx);
+        joystickDX = (dist / max) * Math.cos(ang);
+        joystickDY = (dist / max) * Math.sin(ang);
+        joystickThumb.style.left = (60 + joystickDX * 37) + 'px';
+        joystickThumb.style.top = (60 + joystickDY * 37) + 'px';
+        joystickThumb.style.transform = 'translate(-50%,-50%)';
+      }
+      if (t.identifier === touchLookId) {
+        const dx = t.clientX - touchLookX;
+        const dy = t.clientY - touchLookY;
+        yaw -= dx * 0.004;
+        pitch -= dy * 0.004;
+        pitch = Math.max(-Math.PI / 2.2, Math.min(Math.PI / 2.2, pitch));
+        touchLookX = t.clientX;
+        touchLookY = t.clientY;
+      }
+    }
+  }, { passive: false });
+
+  document.addEventListener('touchend', e => {
+    for (let i = 0; i < e.changedTouches.length; i++) {
+      const t = e.changedTouches[i];
+      if (t.identifier === joystickTouchId) {
+        joystickAtivo = false;
+        joystickDX = 0;
+        joystickDY = 0;
+        joystickTouchId = null;
+        joystickThumb.style.left = '50%';
+        joystickThumb.style.top = '50%';
+        joystickThumb.style.transform = 'translate(-50%,-50%)';
+      }
+      if (t.identifier === touchLookId) {
+        touchLookId = null;
+      }
+    }
+  });
+
+  // Arrastar para olhar (toque em área livre)
+  renderer.domElement.addEventListener('touchstart', e => {
+    if (!jogoIniciado || pausado) return;
+    for (let i = 0; i < e.changedTouches.length; i++) {
+      const t = e.changedTouches[i];
+      // Se não é sobre o joystick ou botões, é olhar
+      if (t.clientX > window.innerWidth * 0.35 && touchLookId === null) {
+        touchLookId = t.identifier;
+        touchLookX = t.clientX;
+        touchLookY = t.clientY;
+      }
+    }
+  }, { passive: true });
+
+  // Botões touch
+  document.getElementById('btn-pular').addEventListener('touchstart', e => {
+    e.preventDefault();
+    if (jogador.noChao) jogador.vel.y = 7;
+  }, { passive: false });
+
+  document.getElementById('btn-interagir').addEventListener('touchstart', e => {
+    e.preventDefault();
+    tentarInteragir();
+  }, { passive: false });
+
+  document.getElementById('btn-correr').addEventListener('touchstart', e => {
+    e.preventDefault();
+    touchCorrer = true;
+  }, { passive: false });
+  document.getElementById('btn-correr').addEventListener('touchend', e => {
+    touchCorrer = false;
+  });
+}
+
+function criarBotoesFeiticoTouch() {
+  const container = document.getElementById('feitico-btns');
+  container.innerHTML = '';
+  FEITICOS.forEach((f, i) => {
+    const btn = document.createElement('button');
+    btn.className = 'feitico-btn';
+    btn.textContent = (i + 1);
+    btn.style.borderColor = f.descoberto ? '#' + f.cor.toString(16).padStart(6, '0') : '#333';
+    btn.style.opacity = f.descoberto ? '1' : '0.3';
+    btn.addEventListener('touchstart', e => {
+      e.preventDefault();
+      if (f.descoberto) lancarFeitico(i);
+    }, { passive: false });
+    container.appendChild(btn);
+  });
+}
+
+// ══════════════════════════════════════════════════════
+//  MOVIMENTO DO JOGADOR
+// ══════════════════════════════════════════════════════
+const GRAVIDADE = -15;
+const VEL_ANDAR = 6;
+const VEL_CORRER = 11;
+const VEL_PULO = 7;
+
+function atualizarMovimento(dt) {
+  if (pausado) return;
+
+  const correndo = teclas['ShiftLeft'] || teclas['ShiftRight'] || touchCorrer;
+  jogador.correndo = correndo;
+  const vel = correndo ? VEL_CORRER : VEL_ANDAR;
+
+  // Direção com base na rotação
+  const frente = new THREE.Vector3(-Math.sin(yaw), 0, -Math.cos(yaw));
+  const direita = new THREE.Vector3(Math.cos(yaw), 0, -Math.sin(yaw));
+
+  let moveX = 0, moveZ = 0;
+
+  // Teclado
+  if (teclas['KeyW'] || teclas['ArrowUp']) { moveX += frente.x; moveZ += frente.z; }
+  if (teclas['KeyS'] || teclas['ArrowDown']) { moveX -= frente.x; moveZ -= frente.z; }
+  if (teclas['KeyA'] || teclas['ArrowLeft']) { moveX -= direita.x; moveZ -= direita.z; }
+  if (teclas['KeyD'] || teclas['ArrowRight']) { moveX += direita.x; moveZ += direita.z; }
+
+  // Joystick touch
+  if (joystickAtivo) {
+    moveX += frente.x * (-joystickDY) + direita.x * joystickDX;
+    moveZ += frente.z * (-joystickDY) + direita.z * joystickDX;
+  }
+
+  // Normalizar
+  const len = Math.sqrt(moveX * moveX + moveZ * moveZ);
+  if (len > 0) {
+    moveX = (moveX / len) * vel;
+    moveZ = (moveZ / len) * vel;
+  }
+
+  jogador.pos.x += moveX * dt;
+  jogador.pos.z += moveZ * dt;
+
+  // Pulo (teclado)
+  if ((teclas['Space']) && jogador.noChao) {
+    jogador.vel.y = VEL_PULO;
+    jogador.noChao = false;
+  }
+
+  // Gravidade
+  jogador.vel.y += GRAVIDADE * dt;
+  jogador.pos.y += jogador.vel.y * dt;
+
+  // Colisão com chão das ilhas
+  jogador.noChao = false;
+  const px = jogador.pos.x, pz = jogador.pos.z;
+
+  // Checar cada ilha
+  for (const ilha of ILHAS) {
+    const dx = px - ilha.pos.x;
+    const dz = pz - ilha.pos.z;
+    const dist = Math.sqrt(dx * dx + dz * dz);
+    if (dist < ilha.raio) {
+      if (jogador.pos.y < 0.5) {
+        jogador.pos.y = 0.5;
+        jogador.vel.y = 0;
+        jogador.noChao = true;
+      }
+      break;
+    }
+  }
+
+  // Checar pontes (eixos entre ilhas)
+  const conexoes = [[0,1],[0,2],[0,3],[0,4],[0,5]];
+  for (const [a, b] of conexoes) {
+    const pa = ILHAS[a].pos, pb = ILHAS[b].pos;
+    const ax = pb.x - pa.x, az = pb.z - pa.z;
+    const len2 = ax * ax + az * az;
+    let t = ((px - pa.x) * ax + (pz - pa.z) * az) / len2;
+    t = Math.max(0, Math.min(1, t));
+    const cx = pa.x + t * ax, cz = pa.z + t * az;
+    const distPonte = Math.sqrt((px - cx) * (px - cx) + (pz - cz) * (pz - cz));
+    if (distPonte < 2) {
+      const pontaY = 0.3 + Math.sin(t * Math.PI) * 3;
+      if (jogador.pos.y < pontaY + 0.5) {
+        jogador.pos.y = pontaY + 0.5;
+        jogador.vel.y = 0;
+        jogador.noChao = true;
+      }
+    }
+  }
+
+  // Se caiu no vazio, respawnar
+  if (jogador.pos.y < -30) {
+    jogador.pos.set(0, 5, 0);
+    jogador.vel.set(0, 0, 0);
+  }
+
+  // Atualizar câmera
+  camera.position.copy(jogador.pos);
+  camera.position.y += 1.5; // Altura dos olhos
+  camera.rotation.order = 'YXZ';
+  camera.rotation.y = yaw;
+  camera.rotation.x = pitch;
+}
+
+// ══════════════════════════════════════════════════════
+//  INTERAÇÃO (tecla E)
+// ══════════════════════════════════════════════════════
+let objetoProximo = null;
+let tipoProximo = ''; // 'fragmento', 'cristal', 'feitico'
+
+function checarProximidade() {
+  objetoProximo = null;
+  tipoProximo = '';
+  $dicaInteracao.style.display = 'none';
+
+  const pp = jogador.pos;
+  let menorDist = 4; // Distância máxima de interação
+
+  // Fragmentos
+  fragmentos.forEach((f, i) => {
+    if (f.coletado) return;
+    const d = pp.distanceTo(f.pos);
+    if (d < menorDist) {
+      menorDist = d;
+      objetoProximo = i;
+      tipoProximo = 'fragmento';
+    }
+  });
+
+  // Cristais de Lore
+  cristaisLore.forEach((c, i) => {
+    if (c.coletado) return;
+    const d = pp.distanceTo(c.pos);
+    if (d < menorDist) {
+      menorDist = d;
+      objetoProximo = i;
+      tipoProximo = 'cristal';
+    }
+  });
+
+  // Orbes de feitiço
+  for (let i = 0; i < 8; i++) {
+    if (FEITICOS[i].descoberto) continue;
+    const mesh = feiticoOrbsMeshes[i * 2]; // cada feitiço tem 2 meshes (orbe + halo)
+    if (!mesh) continue;
+    const d = pp.distanceTo(mesh.position);
+    if (d < menorDist) {
+      menorDist = d;
+      objetoProximo = i;
+      tipoProximo = 'feitico';
+    }
+  }
+
+  if (tipoProximo) {
+    $dicaInteracao.style.display = 'block';
+    if (tipoProximo === 'fragmento') $dicaInteracao.textContent = isMobile ? 'Toque [E] — Coletar Fragmento' : '[E] Coletar Fragmento';
+    else if (tipoProximo === 'cristal') $dicaInteracao.textContent = isMobile ? 'Toque [E] — Ler Cristal de Lore' : '[E] Ler Cristal de Lore';
+    else if (tipoProximo === 'feitico') $dicaInteracao.textContent = isMobile ? 'Toque [E] — Aprender Feitiço' : '[E] Aprender Feitiço';
+  }
+}
+
+function tentarInteragir() {
+  if (!tipoProximo || objetoProximo === null) return;
+
+  if (tipoProximo === 'fragmento') {
+    const f = fragmentos[objetoProximo];
+    if (f.coletado) return;
+    f.coletado = true;
+    fragmentosColetados++;
+    scene.remove(f.mesh);
+    mostrarMensagem('✦ Fragmento de Luz coletado! (' + fragmentosColetados + '/30)');
+    atualizarContadores();
+    salvarProgresso();
+  }
+  else if (tipoProximo === 'cristal') {
+    const c = cristaisLore[objetoProximo];
+    if (!c.coletado) {
+      c.coletado = true;
+      cristaisColetados++;
+      atualizarContadores();
+      salvarProgresso();
+    }
+    // Mostrar lore popup
+    document.getElementById('lore-titulo').textContent = c.titulo;
+    document.getElementById('lore-texto').textContent = c.texto;
+    document.getElementById('lore-popup').style.display = 'flex';
+  }
+  else if (tipoProximo === 'feitico') {
+    const f = FEITICOS[objetoProximo];
+    if (f.descoberto) return;
+    f.descoberto = true;
+    feiticosDescobertosCnt++;
+    feiticoAtual = objetoProximo;
+    // Remover orbe do mundo (esconder)
+    const meshOrbe = feiticoOrbsMeshes[objetoProximo * 2];
+    const meshHalo = feiticoOrbsMeshes[objetoProximo * 2 + 1];
+    if (meshOrbe) meshOrbe.visible = false;
+    if (meshHalo) meshHalo.visible = false;
+    mostrarMensagem('🔮 Feitiço "' + f.nome + '" descoberto! Tecla ' + (objetoProximo + 1));
+    atualizarContadores();
+    atualizarFeiticoHUD();
+    if (isMobile) criarBotoesFeiticoTouch();
+    salvarProgresso();
+  }
+}
+
+// ══════════════════════════════════════════════════════
+//  TELEPORTE ENTRE ILHAS (tecla T)
+// ══════════════════════════════════════════════════════
+let teleporteIdx = 0;
+
+function teleportarProximaIlha() {
+  teleporteIdx = (teleporteIdx + 1) % ILHAS.length;
+  const ilha = ILHAS[teleporteIdx];
+  jogador.pos.set(ilha.pos.x, 3, ilha.pos.z + 3);
+  jogador.vel.set(0, 0, 0);
+  mostrarMensagem('⚡ Teleportado para: ' + ilha.nome);
+
+  // Efeito visual de teleporte
+  const geo = new THREE.SphereGeometry(2, 16, 16);
+  const mat = matNeonBasic(ilha.cor, 0.6);
+  const mesh = new THREE.Mesh(geo, mat);
+  mesh.position.copy(jogador.pos);
+  scene.add(mesh);
+  setTimeout(() => scene.remove(mesh), 500);
+}
+
+// ══════════════════════════════════════════════════════
+//  CICLO DIA/NOITE + CLIMA
+// ══════════════════════════════════════════════════════
+function atualizarCiclo(dt) {
+  tempoJogo += dt;
+  cicloDia = (tempoJogo % 120) / 120; // Ciclo de 2 minutos
+
+  // Ajustar cor do céu baseado no ciclo
+  const noite = Math.sin(cicloDia * Math.PI * 2);
+  const fatorNoite = noite * 0.5 + 0.5; // 0 = dia, 1 = noite
+  const r = 0.0 + (1 - fatorNoite) * 0.03;
+  const g = 0.0 + (1 - fatorNoite) * 0.01;
+  const b = 0.07 + (1 - fatorNoite) * 0.08;
+  renderer.setClearColor(new THREE.Color(r, g, b));
+
+  // Nebulosa pulsa
+  if (nebulosaMesh) {
+    nebulosaMesh.material.opacity = 0.1 + fatorNoite * 0.1;
+    const corNeb = climaAtual === 1 ? 0x440044 : (climaAtual === 3 ? 0x000022 : 0x220044);
+    nebulosaMesh.material.color.set(corNeb);
+  }
+
+  // Estrelas mais brilhantes à noite
+  if (estrelas) {
+    estrelas.material.opacity = 0.3 + fatorNoite * 0.7;
+    if (climaAtual === 3) estrelas.material.opacity = 1.0; // Céu estrelado
+  }
+
+  // Rotação suave do farol
+  if (farolLuz) {
+    const angFarol = tempoJogo * 0.5;
+    farolLuz.target.position.set(
+      ILHAS[5].pos.x + Math.cos(angFarol) * 50,
+      10,
+      ILHAS[5].pos.z + Math.sin(angFarol) * 50
+    );
+  }
+
+  // Partículas de aurora (clima 1)
+  atualizarParticulasClima(dt);
+
+  // Nevoeiro mais denso ou mais suave
+  scene.fog.density = climaAtual === 2 ? 0.006 : 0.004;
+}
+
+let climaParticulas = [];
+
+function trocarClima() {
+  climaAtual = (climaAtual + 1) % CLIMAS.length;
+  mostrarMensagem('🌤️ Clima: ' + CLIMAS[climaAtual]);
+
+  // Limpar partículas de clima anteriores
+  climaParticulas.forEach(p => scene.remove(p.mesh));
+  climaParticulas = [];
+
+  if (climaAtual === 1) criarAurora();
+  if (climaAtual === 2) criarChuvaLuz();
+
+  salvarProgresso();
+}
+
+function criarAurora() {
+  for (let i = 0; i < 50; i++) {
+    const geo = new THREE.PlaneGeometry(8 + Math.random() * 15, 1 + Math.random() * 3);
+    const cores = [0xff00ff, 0x00ffff, 0x88ff44, 0xff44aa];
+    const cor = cores[Math.floor(Math.random() * cores.length)];
+    const mat = new THREE.MeshBasicMaterial({ color: cor, transparent: true, opacity: 0.15, side: THREE.DoubleSide });
+    const mesh = new THREE.Mesh(geo, mat);
+    mesh.position.set((Math.random() - 0.5) * 200, 60 + Math.random() * 40, (Math.random() - 0.5) * 200);
+    mesh.rotation.x = Math.PI / 2 - 0.2 + Math.random() * 0.4;
+    mesh.userData.offset = Math.random() * Math.PI * 2;
+    scene.add(mesh);
+    climaParticulas.push({ mesh, tipo: 'aurora' });
+  }
+}
+
+function criarChuvaLuz() {
+  for (let i = 0; i < 100; i++) {
+    const geo = new THREE.BoxGeometry(0.05, 1 + Math.random() * 2, 0.05);
+    const cor = [0xffdd44, 0xff88ff, 0x88ddff, 0xaaffaa][Math.floor(Math.random() * 4)];
+    const mat = new THREE.MeshBasicMaterial({ color: cor, transparent: true, opacity: 0.5 });
+    const mesh = new THREE.Mesh(geo, mat);
+    mesh.position.set(
+      jogador.pos.x + (Math.random() - 0.5) * 60,
+      20 + Math.random() * 30,
+      jogador.pos.z + (Math.random() - 0.5) * 60
+    );
+    scene.add(mesh);
+    climaParticulas.push({ mesh, tipo: 'chuva', velY: -5 - Math.random() * 8 });
+  }
+}
+
+function atualizarParticulasClima(dt) {
+  climaParticulas.forEach(p => {
+    if (p.tipo === 'aurora') {
+      p.mesh.material.opacity = 0.1 + Math.sin(tempoJogo + p.mesh.userData.offset) * 0.08;
+      p.mesh.position.x += Math.sin(tempoJogo * 0.3 + p.mesh.userData.offset) * dt * 2;
+    }
+    if (p.tipo === 'chuva') {
+      p.mesh.position.y += p.velY * dt;
+      if (p.mesh.position.y < -5) {
+        p.mesh.position.y = 25 + Math.random() * 20;
+        p.mesh.position.x = jogador.pos.x + (Math.random() - 0.5) * 60;
+        p.mesh.position.z = jogador.pos.z + (Math.random() - 0.5) * 60;
+      }
+    }
+  });
+}
+
+// ══════════════════════════════════════════════════════
+//  HUD: BÚSSOLA, MINIMAPA, CONTADORES
+// ══════════════════════════════════════════════════════
+function atualizarHUD() {
+  // Bússola
+  const angGraus = ((yaw * 180 / Math.PI) % 360 + 360) % 360;
+  let direcao = 'N';
+  if (angGraus >= 337.5 || angGraus < 22.5) direcao = 'N';
+  else if (angGraus < 67.5) direcao = 'NE';
+  else if (angGraus < 112.5) direcao = 'L';
+  else if (angGraus < 157.5) direcao = 'SE';
+  else if (angGraus < 202.5) direcao = 'S';
+  else if (angGraus < 247.5) direcao = 'SO';
+  else if (angGraus < 292.5) direcao = 'O';
+  else direcao = 'NO';
+  $bussola.textContent = direcao + ' ' + Math.floor(angGraus) + '°';
+
+  // Nome do lugar
+  let lugarAtual = 'Arquipélago';
+  const pp = jogador.pos;
+  for (const ilha of ILHAS) {
+    const dx = pp.x - ilha.pos.x;
+    const dz = pp.z - ilha.pos.z;
+    if (Math.sqrt(dx * dx + dz * dz) < ilha.raio + 3) {
+      lugarAtual = ilha.nome;
+      break;
+    }
+  }
+  $nomeLugar.textContent = lugarAtual;
+
+  // Minimapa
+  desenharMinimapa();
+}
+
+function desenharMinimapa() {
+  const w = 140, h = 140;
+  minimapCtx.clearRect(0, 0, w, h);
+  minimapCtx.fillStyle = 'rgba(0,0,20,0.8)';
+  minimapCtx.fillRect(0, 0, w, h);
+
+  const escala = 0.6;
+  const cx = w / 2, cy = h / 2;
+
+  // Desenhar ilhas
+  ILHAS.forEach(ilha => {
+    const x = cx + (ilha.pos.x - jogador.pos.x) * escala;
+    const y = cy + (ilha.pos.z - jogador.pos.z) * escala;
+    if (x < -20 || x > w + 20 || y < -20 || y > h + 20) return;
+    minimapCtx.beginPath();
+    minimapCtx.arc(x, y, ilha.raio * escala * 0.4, 0, Math.PI * 2);
+    minimapCtx.fillStyle = ilha.corHex + '44';
+    minimapCtx.fill();
+    minimapCtx.strokeStyle = ilha.corHex;
+    minimapCtx.lineWidth = 1;
+    minimapCtx.stroke();
+  });
+
+  // Pontes
+  const conexoes = [[0,1],[0,2],[0,3],[0,4],[0,5]];
+  minimapCtx.strokeStyle = 'rgba(255,0,255,0.3)';
+  minimapCtx.lineWidth = 1;
+  conexoes.forEach(([a, b]) => {
+    const ax = cx + (ILHAS[a].pos.x - jogador.pos.x) * escala;
+    const ay = cy + (ILHAS[a].pos.z - jogador.pos.z) * escala;
+    const bx = cx + (ILHAS[b].pos.x - jogador.pos.x) * escala;
+    const by = cy + (ILHAS[b].pos.z - jogador.pos.z) * escala;
+    minimapCtx.beginPath();
+    minimapCtx.moveTo(ax, ay);
+    minimapCtx.lineTo(bx, by);
+    minimapCtx.stroke();
+  });
+
+  // Jogador (centro)
+  minimapCtx.beginPath();
+  minimapCtx.arc(cx, cy, 3, 0, Math.PI * 2);
+  minimapCtx.fillStyle = '#ffffff';
+  minimapCtx.fill();
+
+  // Seta de direção do jogador
+  const dirX = -Math.sin(yaw) * 8;
+  const dirY = -Math.cos(yaw) * 8;
+  minimapCtx.beginPath();
+  minimapCtx.moveTo(cx, cy);
+  minimapCtx.lineTo(cx + dirX, cy + dirY);
+  minimapCtx.strokeStyle = '#00ffff';
+  minimapCtx.lineWidth = 2;
+  minimapCtx.stroke();
+}
+
+function atualizarContadores() {
+  $cntFrag.textContent = fragmentosColetados;
+  $cntCris.textContent = cristaisColetados;
+  $cntFeit.textContent = feiticosDescobertosCnt;
+}
+
+function atualizarFeiticoHUD() {
+  if (feiticoAtual >= 0 && FEITICOS[feiticoAtual].descoberto) {
+    $feiticoNome.textContent = FEITICOS[feiticoAtual].nome + ' (' + (feiticoAtual + 1) + ')';
+    $feiticoIcone.textContent = FEITICOS[feiticoAtual].emoji;
+  } else {
+    $feiticoNome.textContent = 'Nenhum feitiço';
+    $feiticoIcone.textContent = '✦';
+  }
+}
+
+// ══════════════════════════════════════════════════════
+//  MENSAGENS NA TELA
+// ══════════════════════════════════════════════════════
+let msgTimer = null;
+
+function mostrarMensagem(texto, duracao = 3000) {
+  $msgColeta.textContent = texto;
+  $msgColeta.style.display = 'block';
+  if (msgTimer) clearTimeout(msgTimer);
+  msgTimer = setTimeout(() => { $msgColeta.style.display = 'none'; }, duracao);
+}
+
+// ══════════════════════════════════════════════════════
+//  ANIMAÇÕES DE OBJETOS DO MUNDO
+// ══════════════════════════════════════════════════════
+function animarObjetos(dt) {
+  const t = tempoJogo;
+
+  // Fragmentos flutuam e giram
+  fragmentosMeshes.forEach((mesh, i) => {
+    if (fragmentos[i] && fragmentos[i].coletado) return;
+    mesh.position.y = fragmentos[i].pos.y + Math.sin(t * 2 + mesh.userData.offset) * 0.5;
+    mesh.rotation.y += dt * 1.5;
+    mesh.rotation.x += dt * 0.5;
+  });
+
+  // Cristais de Lore flutuam e pulsam
+  cristaisMeshes.forEach((mesh, i) => {
+    if (cristaisLore[i] && cristaisLore[i].coletado) {
+      mesh.material.opacity = 0.3;
+    }
+    mesh.position.y = cristaisLore[i].pos.y + Math.sin(t * 1.5 + mesh.userData.offset) * 0.6;
+    mesh.rotation.y += dt * 1;
+    const scale = 1 + Math.sin(t * 3 + mesh.userData.offset) * 0.1;
+    mesh.scale.setScalar(scale);
+    // Anel
+    if (cristaisLore[i].anel) {
+      cristaisLore[i].anel.position.y = mesh.position.y;
+      cristaisLore[i].anel.rotation.z += dt * 2;
+    }
+  });
+
+  // Orbes de feitiço pulsam
+  feiticoOrbsMeshes.forEach((mesh) => {
+    if (!mesh.visible) return;
+    if (mesh.userData.halo) {
+      mesh.rotation.x += dt * 2;
+      mesh.rotation.y += dt;
+      mesh.material.opacity = 0.3 + Math.sin(t * 3 + (mesh.userData.offset || 0)) * 0.15;
+    } else if (mesh.userData.feiticoIdx !== undefined) {
+      mesh.position.y = 3 + Math.sin(t * 2 + mesh.userData.offset) * 0.5;
+      mesh.rotation.y += dt * 2;
+    }
+  });
+
+  // Objetos flutuantes nas ilhas
+  ilhasMeshes.forEach(grupo => {
+    grupo.traverse(child => {
+      if (child.userData.flutuante) {
+        child.position.y += Math.sin(t * 1.5 + child.userData.offset) * 0.003;
+        child.rotation.y += dt * 0.5;
+      }
+      if (child.userData.fada) {
+        const off = child.userData.offset;
+        const rv = child.userData.raioOrb;
+        const v = child.userData.vel;
+        child.position.x += Math.sin(t * v + off) * dt * rv;
+        child.position.z += Math.cos(t * v * 0.7 + off) * dt * rv;
+        child.position.y += Math.sin(t * v * 1.3 + off) * dt * 0.5;
+        child.material.opacity = 0.6 + Math.sin(t * 4 + off) * 0.4;
+      }
+    });
+  });
+
+  // Torre da cidadela gira suavemente
+  if (cidadelaObjetos.length > 0) {
+    cidadelaObjetos[0].rotation.y += dt * 0.1;
+  }
+
+  // Pontes pulsam
+  pontesMeshes.forEach((mesh, i) => {
+    if (mesh.material && mesh.material.opacity !== undefined) {
+      mesh.material.opacity = 0.3 + Math.sin(t * 2 + i * 0.3) * 0.1;
+    }
+  });
+
+  // Planetas giram
+  planetasMeshes.forEach((mesh, i) => {
+    mesh.rotation.y += dt * 0.05 * (i + 1) * 0.3;
+  });
+}
+
+// ══════════════════════════════════════════════════════
+//  MENU / PAUSA / LORE
+// ══════════════════════════════════════════════════════
+function mostrarComoJogar() {
+  document.getElementById('tela-como-jogar').style.display = 'flex';
+}
+function fecharComoJogar() {
+  document.getElementById('tela-como-jogar').style.display = 'none';
+}
+function fecharLore() {
+  document.getElementById('lore-popup').style.display = 'none';
+}
+function togglePausa() {
+  pausado = !pausado;
+  document.getElementById('tela-pausa').style.display = pausado ? 'flex' : 'none';
+  if (!pausado && !isMobile) renderer.domElement.requestPointerLock();
+}
+function despausar() {
+  pausado = false;
+  document.getElementById('tela-pausa').style.display = 'none';
+  if (!isMobile) renderer.domElement.requestPointerLock();
+}
+
+// ══════════════════════════════════════════════════════
+//  INICIAR O JOGO
+// ══════════════════════════════════════════════════════
+function iniciarJogo() {
+  document.getElementById('tela-inicial').style.display = 'none';
+  $hud.style.display = 'block';
+  jogoIniciado = true;
+
+  // Inicializar tudo
+  initThree();
+  setupControles();
+
+  // Construir o mundo
+  ILHAS.forEach((ilha, i) => criarIlha(ilha, i));
+  criarPontes();
+  criarCeu();
+  criarFragmentos();
+  criarCristaisLore();
+  criarFeiticoOrbes();
+
+  // Carregar progresso salvo
+  carregarProgresso();
+
+  // Atualizar visuais com base no progresso carregado
+  fragmentos.forEach((f, i) => {
+    if (f.coletado && f.mesh) f.mesh.visible = false;
+  });
+  cristaisLore.forEach((c, i) => {
+    if (c.coletado && c.mesh) c.mesh.material.opacity = 0.3;
+  });
+  FEITICOS.forEach((f, i) => {
+    if (f.descoberto) {
+      const meshOrbe = feiticoOrbsMeshes[i * 2];
+      const meshHalo = feiticoOrbsMeshes[i * 2 + 1];
+      if (meshOrbe) meshOrbe.visible = false;
+      if (meshHalo) meshHalo.visible = false;
+    }
+  });
+  if (isMobile) criarBotoesFeiticoTouch();
+
+  atualizarContadores();
+  atualizarFeiticoHUD();
+
+  // Se clima carregado, aplicar
+  if (climaAtual === 1) criarAurora();
+  if (climaAtual === 2) criarChuvaLuz();
+
+  // Foco
+  if (!isMobile) renderer.domElement.requestPointerLock();
+
+  // Autoasalvar a cada 30s
+  setInterval(salvarProgresso, 30000);
+
+  // Loop principal
+  loopPrincipal();
+}
+
+// ══════════════════════════════════════════════════════
+//  LOOP PRINCIPAL
+// ══════════════════════════════════════════════════════
+function loopPrincipal() {
+  requestAnimationFrame(loopPrincipal);
+
+  const dt = Math.min(clock.getDelta(), 0.05); // Clamp para evitar saltos
+
+  if (!pausado && jogoIniciado) {
+    atualizarMovimento(dt);
+    atualizarCiclo(dt);
+    animarObjetos(dt);
+    atualizarFeiticoParticulas(dt);
+    checarProximidade();
+    atualizarHUD();
+  }
+
+  renderer.render(scene, camera);
+}
+
+// Expor funções para os botões HTML
+window.iniciarJogo = iniciarJogo;
+window.mostrarComoJogar = mostrarComoJogar;
+window.fecharComoJogar = fecharComoJogar;
+window.fecharLore = fecharLore;
+window.despausar = despausar;
+</script>
+</body>
+</html>
