@@ -1927,14 +1927,15 @@
                     hasCrown: true,
                     walkCycle: 0,
                     walkAnimFrame: 0,
-                    stepSoundGate: 0
+                    stepSoundGate: 0,
+                    lastSafeX: 2300
                 };
 
                 this.fallenCrown = null; // { x, y, vx, vy }
                 this.cameraX = this.player.x - this.W / 2;
                 this.shakeTime = 0;
                 this.shakeIntensity = 0;
-                this.banner = { text: '', subtext: '', timer: 0, color: '#fbbf24' };
+                this.banner = { text: '', subtext: '', timer: 0, maxTimer: 4.0, color: '#fbbf24' };
 
                 // Sanctuary at center
                 this.sanctuary = { x: 2300, tribute: 0 };
@@ -1973,6 +1974,98 @@
                     { id: 'east', name: 'Portal Oriental', x: 4400, sealed: false, cost: 10 }
                 ];
 
+                // Jumpable Road Obstacles (balanced density, clear safety zones near Sanctuary, Altars, Circles, Portals & Boss Arena)
+                this.obstacles = [
+                    // West road
+                    { type: 'rock', x: 1925, w: 22, h: 15, variant: 0 },
+                    { type: 'pit', x: 1745, w: 36, h: 24 },
+                    { type: 'thorns', x: 1435, w: 28, h: 14, variant: 0 },
+                    { type: 'pit', x: 1110, w: 38, h: 24 },
+                    { type: 'rock', x: 815, w: 24, h: 16, variant: 1 },
+                    { type: 'thorns', x: 555, w: 26, h: 14, variant: 1 },
+                    // East road
+                    { type: 'rock', x: 2675, w: 22, h: 15, variant: 1 },
+                    { type: 'pit', x: 2855, w: 36, h: 24 },
+                    { type: 'thorns', x: 3155, w: 28, h: 14, variant: 0 },
+                    { type: 'pit', x: 3485, w: 38, h: 24 },
+                    { type: 'rock', x: 3765, w: 24, h: 16, variant: 0 }
+                ];
+
+                // Shadow Critters (small hand-painted shadow bats & crawlers along the path)
+                this.critters = [
+                    {
+                        type: 'bat',
+                        x: 1810,
+                        y: this.groundY - 22,
+                        baseY: this.groundY - 22,
+                        vx: 0,
+                        facing: 1,
+                        hp: 2,
+                        maxHp: 2,
+                        speed: 44,
+                        phase: 0.4,
+                        knockVx: 0,
+                        freezeTimer: 0,
+                        hitFlash: 0,
+                        dashHit: false
+                    },
+                    {
+                        type: 'crawler',
+                        x: 2790,
+                        y: this.groundY,
+                        baseY: this.groundY,
+                        vx: 0,
+                        facing: -1,
+                        hp: 2,
+                        maxHp: 2,
+                        speed: 38,
+                        phase: 1.7,
+                        knockVx: 0,
+                        freezeTimer: 0,
+                        hitFlash: 0,
+                        dashHit: false
+                    }
+                ];
+                this.critterSpawnTimer = 5.0;
+
+                // Ambient Flying Sky Witches (purely atmospheric, crossing the sky left<->right)
+                this.skyWitches = [
+                    {
+                        x: -24,
+                        y: 46,
+                        baseY: 46,
+                        dir: 1,
+                        speed: 34,
+                        scale: 0.62,
+                        phase: 0.5
+                    }
+                ];
+                this.skyWitchTimer = 7.5;
+
+                // Far-East Boss: Grande Bruxa Abissal (staff + shadow wings, hand-painted, zero neon)
+                this.boss = {
+                    name: 'Grande Bruxa Abissal',
+                    active: false,
+                    defeated: false,
+                    x: 4145,
+                    y: this.groundY - 22,
+                    baseY: this.groundY - 22,
+                    vx: 0,
+                    facing: -1,
+                    hp: 18,
+                    maxHp: 18,
+                    state: 'dormant', // dormant | hover | telegraph_cast | cast | telegraph_charge | charge | recover
+                    stateTimer: 0,
+                    patternIdx: 0,
+                    hitFlash: 0,
+                    hurtCd: 0,
+                    wingPhase: 0,
+                    arenaMinX: 3985,
+                    arenaMaxX: 4345,
+                    dashHit: false
+                };
+                this.bossProjectiles = [];
+
                 this.acolytes = [];
                 this.shadows = [];
                 this.essences = [];
@@ -1981,9 +2074,11 @@
                 this.floatingTexts = [];
                 this.shockwaves = [];
 
-                // Scatter 28 glowing Essence Orbs evenly along the realm
+                // Scatter 28 glowing Essence Orbs evenly along the realm (avoiding pits)
                 for (let i = 0; i < 28; i++) {
-                    const ex = 340 + (i / 27) * (this.worldWidth - 680) + (Math.random() * 60 - 30);
+                    let ex = 340 + (i / 27) * (this.worldWidth - 680) + (Math.random() * 60 - 30);
+                    const overPit = this.obstacles.find((ob) => ob.type === 'pit' && Math.abs(ex - ob.x) < ob.w * 0.7);
+                    if (overPit) ex = overPit.x + overPit.w * 0.85;
                     this.spawnEssence(ex, this.groundY - 14 - Math.random() * 14, 1, 0, 0);
                 }
 
@@ -2964,7 +3059,530 @@
                     gctx.fill();
                 }
 
-                return { brushGrain, clouds, trees, bushes, ruinTowers, groundTile };
+                // 6. HAND-PAINTED OBSTACLES, SHADOW CRITTERS, AMBIENT SKY WITCHES & GRANDE BRUXA ABISSAL BOSS (2x gouache + ink, ZERO neon)
+                // 6a. Mossy Granite Boulders (2 variants, 56x40 -> 28x20 virtual)
+                const rocks = [];
+                for (let v = 0; v < 2; v++) {
+                    const rc = document.createElement('canvas');
+                    rc.width = 56;
+                    rc.height = 40;
+                    const rctx = rc.getContext('2d');
+                    rctx.lineJoin = 'round';
+                    rctx.lineCap = 'round';
+
+                    // Back smaller stone
+                    rctx.fillStyle = '#3a3748';
+                    rctx.strokeStyle = '#140c16';
+                    rctx.lineWidth = 2.6;
+                    rctx.beginPath();
+                    if (v === 0) {
+                        rctx.moveTo(6, 36);
+                        rctx.quadraticCurveTo(4, 22, 16, 17);
+                        rctx.quadraticCurveTo(28, 13, 33, 24);
+                        rctx.lineTo(34, 36);
+                    } else {
+                        rctx.moveTo(22, 36);
+                        rctx.quadraticCurveTo(25, 18, 39, 15);
+                        rctx.quadraticCurveTo(50, 16, 51, 36);
+                    }
+                    rctx.closePath();
+                    rctx.fill();
+                    rctx.stroke();
+
+                    // Main sculpted granite boulder
+                    const rGrad = rctx.createLinearGradient(12, 8, 44, 36);
+                    rGrad.addColorStop(0, '#7c7585');
+                    rGrad.addColorStop(0.55, '#534e61');
+                    rGrad.addColorStop(1, '#312c3c');
+                    rctx.fillStyle = rGrad;
+                    rctx.beginPath();
+                    if (v === 0) {
+                        rctx.moveTo(12, 36);
+                        rctx.quadraticCurveTo(11, 16, 25, 9);
+                        rctx.quadraticCurveTo(42, 7, 48, 22);
+                        rctx.quadraticCurveTo(51, 31, 47, 36);
+                    } else {
+                        rctx.moveTo(6, 36);
+                        rctx.quadraticCurveTo(7, 15, 22, 10);
+                        rctx.quadraticCurveTo(37, 8, 43, 23);
+                        rctx.quadraticCurveTo(45, 32, 41, 36);
+                    }
+                    rctx.closePath();
+                    rctx.fill();
+                    rctx.stroke();
+
+                    // Moonlit rim highlight & crack brushwork
+                    rctx.strokeStyle = '#9e97a8';
+                    rctx.lineWidth = 2;
+                    rctx.beginPath();
+                    rctx.moveTo(v === 0 ? 19 : 14, 15);
+                    rctx.quadraticCurveTo(v === 0 ? 29 : 24, 10, v === 0 ? 39 : 34, 14);
+                    rctx.stroke();
+
+                    rctx.strokeStyle = '#241e2e';
+                    rctx.lineWidth = 1.6;
+                    rctx.beginPath();
+                    rctx.moveTo(28, 17);
+                    rctx.lineTo(25, 24);
+                    rctx.lineTo(31, 29);
+                    rctx.stroke();
+
+                    // Muted dark moss patch
+                    rctx.fillStyle = '#2d4c49';
+                    rctx.beginPath();
+                    rctx.ellipse(v === 0 ? 22 : 30, 14, 8, 3.6, v === 0 ? -0.22 : 0.2, 0, Math.PI * 2);
+                    rctx.fill();
+                    rctx.strokeStyle = '#140c16';
+                    rctx.lineWidth = 1.4;
+                    rctx.stroke();
+
+                    rocks.push(rc);
+                }
+
+                // 6b. Tangled Thorn Bushes (2 variants, 64x36 -> 32x18 virtual)
+                const thorns = [];
+                for (let v = 0; v < 2; v++) {
+                    const tc = document.createElement('canvas');
+                    tc.width = 64;
+                    tc.height = 36;
+                    const tctx = tc.getContext('2d');
+                    tctx.lineJoin = 'round';
+                    tctx.lineCap = 'round';
+
+                    // Dark plum-bramble mass
+                    tctx.fillStyle = '#291a24';
+                    tctx.strokeStyle = '#120810';
+                    tctx.lineWidth = 2.4;
+                    const puffs = v === 0
+                        ? [[16, 26, 11], [30, 20, 13], [45, 25, 11], [24, 28, 9], [38, 28, 9]]
+                        : [[15, 25, 10], [27, 18, 12], [41, 21, 12], [50, 27, 9], [32, 28, 10]];
+                    for (const [px, py, pr] of puffs) {
+                        tctx.beginPath();
+                        tctx.arc(px, py, pr, 0, Math.PI * 2);
+                        tctx.fill();
+                        tctx.stroke();
+                    }
+
+                    // Tangled twisted thorny vines
+                    tctx.strokeStyle = '#533542';
+                    tctx.lineWidth = 2.6;
+                    tctx.beginPath();
+                    tctx.moveTo(8, 32);
+                    tctx.bezierCurveTo(18, 12, 34, 28, 48, 14);
+                    tctx.moveTo(14, 18);
+                    tctx.bezierCurveTo(28, 8, 40, 26, 56, 30);
+                    tctx.stroke();
+
+                    // Sharp pale bone thorns (unmistakably readable hazard!)
+                    const spikes = v === 0
+                        ? [[11, 20, -5, -6], [21, 12, -2, -7], [32, 10, 1, -8], [43, 14, 5, -6], [52, 22, 6, -4], [27, 22, -3, -5], [39, 21, 4, -5]]
+                        : [[10, 22, -5, -5], [19, 13, -3, -7], [30, 9, 0, -8], [41, 12, 4, -7], [51, 20, 6, -5], [24, 23, -2, -5], [36, 20, 3, -5]];
+                    for (const [sx, sy, dx, dy] of spikes) {
+                        tctx.fillStyle = '#c8b8a6';
+                        tctx.strokeStyle = '#120810';
+                        tctx.lineWidth = 1.6;
+                        tctx.beginPath();
+                        tctx.moveTo(sx - 2.2, sy + 1.5);
+                        tctx.lineTo(sx + dx, sy + dy);
+                        tctx.lineTo(sx + 2.2, sy + 1.5);
+                        tctx.closePath();
+                        tctx.fill();
+                        tctx.stroke();
+                    }
+                    thorns.push(tc);
+                }
+
+                // 6c. Shadow Critter — Painted Shadow Bat (2 wing frames, 48x36 -> 24x18 virtual, facing right)
+                const critterBat = [];
+                for (let f = 0; f < 2; f++) {
+                    const bc = document.createElement('canvas');
+                    bc.width = 48;
+                    bc.height = 36;
+                    const bctx = bc.getContext('2d');
+                    bctx.lineJoin = 'round';
+                    bctx.lineCap = 'round';
+                    const wingUp = f === 0;
+
+                    // Wings
+                    bctx.fillStyle = '#241c34';
+                    bctx.strokeStyle = '#0f0814';
+                    bctx.lineWidth = 2.2;
+                    // Back wing
+                    bctx.beginPath();
+                    bctx.moveTo(22, 18);
+                    bctx.quadraticCurveTo(13, wingUp ? 4 : 26, 4, wingUp ? 10 : 30);
+                    bctx.quadraticCurveTo(11, wingUp ? 16 : 24, 14, wingUp ? 20 : 22);
+                    bctx.quadraticCurveTo(18, 22, 22, 20);
+                    bctx.closePath();
+                    bctx.fill();
+                    bctx.stroke();
+
+                    // Front wing
+                    bctx.fillStyle = '#33264a';
+                    bctx.beginPath();
+                    bctx.moveTo(25, 18);
+                    bctx.quadraticCurveTo(35, wingUp ? 3 : 27, 44, wingUp ? 9 : 31);
+                    bctx.quadraticCurveTo(37, wingUp ? 17 : 25, 33, 21);
+                    bctx.quadraticCurveTo(29, 23, 25, 20);
+                    bctx.closePath();
+                    bctx.fill();
+                    bctx.stroke();
+
+                    // Round furry body + pointed ears
+                    bctx.fillStyle = '#1d1629';
+                    bctx.beginPath();
+                    bctx.ellipse(24, 19, 8.5, 7, 0, 0, Math.PI * 2);
+                    bctx.fill();
+                    bctx.stroke();
+
+                    bctx.beginPath();
+                    bctx.moveTo(19, 14);
+                    bctx.lineTo(17, 7);
+                    bctx.lineTo(23, 12);
+                    bctx.moveTo(25, 12);
+                    bctx.lineTo(30, 7);
+                    bctx.lineTo(29, 14);
+                    bctx.fill();
+                    bctx.stroke();
+
+                    // Matte amber eyes (zero glow!)
+                    bctx.fillStyle = '#d99b43';
+                    bctx.beginPath();
+                    bctx.arc(27, 18, 1.8, 0, Math.PI * 2);
+                    bctx.arc(22.5, 18.2, 1.5, 0, Math.PI * 2);
+                    bctx.fill();
+
+                    critterBat.push(bc);
+                }
+
+                // 6d. Shadow Critter — Scuttling Shadow Imp/Crawler (2 frames, 44x32 -> 22x16 virtual, facing right)
+                const critterCrawler = [];
+                for (let f = 0; f < 2; f++) {
+                    const cc = document.createElement('canvas');
+                    cc.width = 44;
+                    cc.height = 32;
+                    const cctx = cc.getContext('2d');
+                    cctx.lineJoin = 'round';
+                    cctx.lineCap = 'round';
+                    const step = f === 0 ? 3 : -3;
+
+                    // Legs
+                    cctx.strokeStyle = '#120a18';
+                    cctx.lineWidth = 3.2;
+                    cctx.beginPath();
+                    cctx.moveTo(15, 23);
+                    cctx.lineTo(11 + step, 30);
+                    cctx.moveTo(21, 24);
+                    cctx.lineTo(20 - step, 30);
+                    cctx.moveTo(28, 23);
+                    cctx.lineTo(31 + step, 30);
+                    cctx.stroke();
+
+                    // Hunched dark plum body with spiny dorsal tuft
+                    cctx.fillStyle = '#251c33';
+                    cctx.strokeStyle = '#0f0814';
+                    cctx.lineWidth = 2.4;
+                    cctx.beginPath();
+                    cctx.moveTo(8, 24);
+                    cctx.quadraticCurveTo(10, 10, 22, 10);
+                    cctx.quadraticCurveTo(34, 10, 36, 22);
+                    cctx.quadraticCurveTo(22, 27, 8, 24);
+                    cctx.closePath();
+                    cctx.fill();
+                    cctx.stroke();
+
+                    // Tiny curved horn & tail
+                    cctx.beginPath();
+                    cctx.moveTo(29, 12);
+                    cctx.lineTo(35, 6);
+                    cctx.lineTo(33, 15);
+                    cctx.fill();
+                    cctx.stroke();
+
+                    // Matte amber eye & tiny fang
+                    cctx.fillStyle = '#d99b43';
+                    cctx.beginPath();
+                    cctx.arc(30, 17, 1.9, 0, Math.PI * 2);
+                    cctx.fill();
+                    cctx.fillStyle = '#d4c8b8';
+                    cctx.beginPath();
+                    cctx.moveTo(31, 21);
+                    cctx.lineTo(33, 24);
+                    cctx.lineTo(34.5, 21);
+                    cctx.fill();
+
+                    critterCrawler.push(cc);
+                }
+
+                // 6e. Ambient Flying Sky Witch on Broomstick (2 subtle cloak-flutter frames, 56x36 -> 28x18 virtual, facing right)
+                const skyWitch = [];
+                for (let f = 0; f < 2; f++) {
+                    const wc = document.createElement('canvas');
+                    wc.width = 56;
+                    wc.height = 36;
+                    const wctx = wc.getContext('2d');
+                    wctx.lineJoin = 'round';
+                    wctx.lineCap = 'round';
+                    const flutter = f === 0 ? 0 : 2.5;
+
+                    // Wooden broomstick shaft
+                    wctx.strokeStyle = '#5c3d28';
+                    wctx.lineWidth = 2.6;
+                    wctx.beginPath();
+                    wctx.moveTo(12, 26);
+                    wctx.lineTo(48, 21);
+                    wctx.stroke();
+
+                    // Straw broom tail (left side)
+                    wctx.fillStyle = '#8b6d46';
+                    wctx.strokeStyle = '#181122';
+                    wctx.lineWidth = 1.6;
+                    wctx.beginPath();
+                    wctx.moveTo(15, 25);
+                    wctx.lineTo(3, 21 + flutter * 0.4);
+                    wctx.lineTo(5, 30 + flutter * 0.3);
+                    wctx.closePath();
+                    wctx.fill();
+                    wctx.stroke();
+
+                    // Fluttering muted burgundy scarf
+                    wctx.fillStyle = '#6e2c3e';
+                    wctx.beginPath();
+                    wctx.moveTo(27, 16);
+                    wctx.quadraticCurveTo(17, 14 + flutter, 10, 18 - flutter * 0.6);
+                    wctx.quadraticCurveTo(18, 20 + flutter * 0.4, 27, 19);
+                    wctx.closePath();
+                    wctx.fill();
+
+                    // Witch silhouette cloak + pointed hat
+                    wctx.fillStyle = '#181328';
+                    wctx.strokeStyle = '#0c0814';
+                    wctx.lineWidth = 1.6;
+                    // Cloak body
+                    wctx.beginPath();
+                    wctx.moveTo(24, 25);
+                    wctx.quadraticCurveTo(25, 16, 31, 14);
+                    wctx.quadraticCurveTo(36, 17, 36, 24);
+                    wctx.closePath();
+                    wctx.fill();
+                    wctx.stroke();
+                    // Head
+                    wctx.beginPath();
+                    wctx.arc(32, 13, 3.6, 0, Math.PI * 2);
+                    wctx.fill();
+                    // Pointed witch hat (brim + crooked tip)
+                    wctx.beginPath();
+                    wctx.moveTo(24, 11);
+                    wctx.lineTo(40, 10);
+                    wctx.lineTo(34, 9);
+                    wctx.lineTo(29, 2);
+                    wctx.lineTo(27, 10);
+                    wctx.closePath();
+                    wctx.fill();
+                    wctx.stroke();
+
+                    skyWitch.push(wc);
+                }
+
+                // 6f. BOSS — Grande Bruxa Abissal com Cajado e Asas Sombrias (2 wing-flap frames, 144x152 -> 72x76 virtual, facing left by default!)
+                const bossWitch = [];
+                for (let f = 0; f < 2; f++) {
+                    const bc = document.createElement('canvas');
+                    bc.width = 144;
+                    bc.height = 152;
+                    const bctx = bc.getContext('2d');
+                    bctx.lineJoin = 'round';
+                    bctx.lineCap = 'round';
+                    const wingSpread = f === 0 ? 0 : 12;
+
+                    // Large dark feathered shadow wings behind her
+                    bctx.fillStyle = '#181124';
+                    bctx.strokeStyle = '#0c0610';
+                    bctx.lineWidth = 3;
+                    // Right (back) wing
+                    bctx.beginPath();
+                    bctx.moveTo(78, 62);
+                    bctx.quadraticCurveTo(116, 22 + wingSpread, 138, 42 + wingSpread);
+                    bctx.quadraticCurveTo(126, 62 + wingSpread * 0.6, 132, 80 + wingSpread * 0.5);
+                    bctx.quadraticCurveTo(114, 78, 118, 96);
+                    bctx.quadraticCurveTo(96, 86, 80, 88);
+                    bctx.closePath();
+                    bctx.fill();
+                    bctx.stroke();
+
+                    // Left (rear-side) wing
+                    bctx.fillStyle = '#241936';
+                    bctx.beginPath();
+                    bctx.moveTo(64, 62);
+                    bctx.quadraticCurveTo(32, 24 + wingSpread, 12, 46 + wingSpread);
+                    bctx.quadraticCurveTo(22, 65 + wingSpread * 0.6, 18, 82 + wingSpread * 0.5);
+                    bctx.quadraticCurveTo(38, 79, 44, 94);
+                    bctx.quadraticCurveTo(56, 86, 64, 86);
+                    bctx.closePath();
+                    bctx.fill();
+                    bctx.stroke();
+
+                    // Wing feather ribs
+                    bctx.strokeStyle = '#3c2b54';
+                    bctx.lineWidth = 1.8;
+                    bctx.beginPath();
+                    bctx.moveTo(82, 66);
+                    bctx.quadraticCurveTo(108, 48 + wingSpread * 0.7, 130, 50 + wingSpread);
+                    bctx.moveTo(82, 72);
+                    bctx.quadraticCurveTo(104, 64 + wingSpread * 0.5, 124, 72 + wingSpread * 0.5);
+                    bctx.moveTo(60, 66);
+                    bctx.quadraticCurveTo(38, 50 + wingSpread * 0.7, 20, 54 + wingSpread);
+                    bctx.stroke();
+
+                    // Towering tattered gothic witch robes (deep obsidian plum + muted burgundy lining)
+                    const robeGrad = bctx.createLinearGradient(52, 46, 94, 146);
+                    robeGrad.addColorStop(0, '#3a1a32');
+                    robeGrad.addColorStop(0.45, '#251328');
+                    robeGrad.addColorStop(1, '#140b18');
+                    bctx.fillStyle = robeGrad;
+                    bctx.strokeStyle = '#0c0610';
+                    bctx.lineWidth = 3;
+                    bctx.beginPath();
+                    bctx.moveTo(58, 54);
+                    bctx.quadraticCurveTo(46, 98, 40, 138);
+                    bctx.lineTo(54, 130);
+                    bctx.lineTo(62, 144);
+                    bctx.lineTo(74, 132);
+                    bctx.lineTo(86, 145);
+                    bctx.lineTo(94, 132);
+                    bctx.lineTo(104, 140);
+                    bctx.quadraticCurveTo(98, 96, 84, 54);
+                    bctx.closePath();
+                    bctx.fill();
+                    bctx.stroke();
+
+                    // Muted crimson waist sash & mantle drape
+                    bctx.fillStyle = '#6c2233';
+                    bctx.beginPath();
+                    bctx.moveTo(56, 62);
+                    bctx.quadraticCurveTo(71, 74, 86, 62);
+                    bctx.lineTo(90, 82);
+                    bctx.quadraticCurveTo(71, 90, 52, 82);
+                    bctx.closePath();
+                    bctx.fill();
+                    bctx.stroke();
+
+                    // Antique gold clasp
+                    bctx.fillStyle = '#c28a38';
+                    bctx.beginPath();
+                    bctx.arc(71, 68, 4.2, 0, Math.PI * 2);
+                    bctx.fill();
+                    bctx.strokeStyle = '#120810';
+                    bctx.lineWidth = 1.6;
+                    bctx.stroke();
+
+                    // Pale shadowed face under hood/hat
+                    bctx.fillStyle = '#33293c';
+                    bctx.beginPath();
+                    bctx.ellipse(69, 44, 10, 11, 0, 0, Math.PI * 2);
+                    bctx.fill();
+                    bctx.strokeStyle = '#0c0610';
+                    bctx.lineWidth = 2.4;
+                    bctx.stroke();
+
+                    // Matte amber eyes (sharp, dignified, zero neon)
+                    bctx.fillStyle = '#d99b43';
+                    bctx.beginPath();
+                    bctx.ellipse(64, 44, 2.6, 1.5, -0.15, 0, Math.PI * 2);
+                    bctx.ellipse(72, 44, 2.2, 1.4, 0.15, 0, Math.PI * 2);
+                    bctx.fill();
+
+                    // Wide gothic crooked witch hat with twin antique-bronze horn ornaments
+                    bctx.fillStyle = '#1d1226';
+                    bctx.strokeStyle = '#0c0610';
+                    bctx.lineWidth = 2.8;
+                    // Brim
+                    bctx.beginPath();
+                    bctx.ellipse(70, 35, 25, 6.5, -0.06, 0, Math.PI * 2);
+                    bctx.fill();
+                    bctx.stroke();
+                    // Tall crooked cone
+                    bctx.beginPath();
+                    bctx.moveTo(54, 34);
+                    bctx.quadraticCurveTo(64, 14, 84, 6);
+                    bctx.quadraticCurveTo(78, 22, 84, 34);
+                    bctx.closePath();
+                    bctx.fill();
+                    bctx.stroke();
+                    // Hat band
+                    bctx.strokeStyle = '#9b3042';
+                    bctx.lineWidth = 3.2;
+                    bctx.beginPath();
+                    bctx.moveTo(56, 33);
+                    bctx.quadraticCurveTo(70, 36, 83, 32);
+                    bctx.stroke();
+
+                    // Gnarled Twisted Wooden Staff held forward (left side) with matte antique amber crystal
+                    bctx.strokeStyle = '#5a3c28';
+                    bctx.lineWidth = 4.6;
+                    bctx.beginPath();
+                    bctx.moveTo(34, 134);
+                    bctx.quadraticCurveTo(38, 92, 32, 44);
+                    bctx.quadraticCurveTo(27, 28, 38, 22);
+                    bctx.stroke();
+                    bctx.strokeStyle = '#140c14';
+                    bctx.lineWidth = 1.6;
+                    bctx.stroke();
+                    // Crooked staff prongs
+                    bctx.strokeStyle = '#5a3c28';
+                    bctx.lineWidth = 3;
+                    bctx.beginPath();
+                    bctx.moveTo(32, 44);
+                    bctx.quadraticCurveTo(22, 34, 27, 22);
+                    bctx.stroke();
+                    // Matte amber crystal seated in staff crook (ZERO neon glow!)
+                    bctx.fillStyle = '#c28a38';
+                    bctx.strokeStyle = '#140c14';
+                    bctx.lineWidth = 2;
+                    bctx.beginPath();
+                    bctx.moveTo(33, 21);
+                    bctx.lineTo(39, 31);
+                    bctx.lineTo(33, 40);
+                    bctx.lineTo(27, 31);
+                    bctx.closePath();
+                    bctx.fill();
+                    bctx.stroke();
+                    bctx.fillStyle = '#e5c17b';
+                    bctx.beginPath();
+                    bctx.moveTo(33, 24);
+                    bctx.lineTo(36, 30);
+                    bctx.lineTo(33, 33);
+                    bctx.closePath();
+                    bctx.fill();
+
+                    // Forearm holding staff
+                    bctx.strokeStyle = '#251328';
+                    bctx.lineWidth = 6;
+                    bctx.beginPath();
+                    bctx.moveTo(56, 66);
+                    bctx.lineTo(36, 74);
+                    bctx.stroke();
+                    bctx.strokeStyle = '#0c0610';
+                    bctx.lineWidth = 2;
+                    bctx.stroke();
+
+                    bossWitch.push(bc);
+                }
+
+                return {
+                    brushGrain,
+                    clouds,
+                    trees,
+                    bushes,
+                    ruinTowers,
+                    groundTile,
+                    rocks,
+                    thorns,
+                    critterBat,
+                    critterCrawler,
+                    skyWitch,
+                    bossWitch
+                };
             }
 
             loadPaimonTripoSprites() {
@@ -3360,10 +3978,10 @@
                 this.sound.playPower(p.daemonIdx);
 
                 if (p.daemonIdx === 0) {
-                    // REI PAIMON: Aura do Ocidente — magnet pull + acolyte fervor + shadow pushback
+                    // REI PAIMON: Aura do Ocidente — magnet pull + acolyte fervor + shadow/critter/boss strike
                     p.fervorTimer = 6.0;
-                    this.shockwaves.push({ x: p.x, y: p.y - 18, r: 10, maxR: 150, color: '#fbbf24', life: 0.6, maxLife: 0.6 });
-                    this.spawnBurst(p.x, p.y - 18, '#fde047', 24);
+                    this.shockwaves.push({ x: p.x, y: p.y - 18, r: 10, maxR: 155, color: '#d4af37', life: 0.55, maxLife: 0.55 });
+                    this.spawnBurst(p.x, p.y - 18, '#d4af37', 18);
                     for (const e of this.essences) {
                         if (Math.abs(e.x - p.x) < 340) {
                             e.magnetized = true;
@@ -3371,21 +3989,42 @@
                     }
                     for (const s of this.shadows) {
                         const dx = s.x - p.x;
-                        if (Math.abs(dx) < 145) {
+                        if (Math.abs(dx) < 150) {
                             s.knockVx = (dx >= 0 ? 1 : -1) * 150;
                         }
                     }
-                    this.addFloatingText(p.x, p.y - 46, 'Aura do Ocidente!', '#fde047');
+                    for (let i = this.critters.length - 1; i >= 0; i--) {
+                        const c = this.critters[i];
+                        const dx = c.x - p.x;
+                        if (Math.abs(dx) < 168) {
+                            this.damageCritter(c, 3, dx >= 0 ? 1 : -1);
+                        }
+                    }
+                    if (this.boss && !this.boss.defeated && Math.abs(this.boss.x - p.x) < 178) {
+                        this.damageBoss(3, this.boss.x >= p.x ? 1 : -1);
+                    }
+                    this.addFloatingText(p.x, p.y - 46, 'Aura do Ocidente!', '#e5c17b');
                 } else if (p.daemonIdx === 1) {
-                    // PRÍNCIPE STOLAS: Visão das Estrelas — freeze/slow shadows + conjure hidden essence
+                    // PRÍNCIPE STOLAS: Visão das Estrelas — freeze/slow shadows + critters/boss + conjure hidden essence
                     this.shockwaves.push({ x: p.x, y: p.y - 20, r: 12, maxR: 190, color: '#818cf8', life: 0.7, maxLife: 0.7 });
-                    this.spawnBurst(p.x, p.y - 22, '#a5b4fc', 26);
+                    this.spawnBurst(p.x, p.y - 22, '#a5b4fc', 22);
                     for (const s of this.shadows) {
                         if (Math.abs(s.x - p.x) < 220) {
                             s.freezeTimer = 4.0;
                             s.hp -= 1;
                             this.spawnBurst(s.x, this.groundY - 16, '#818cf8', 8);
                         }
+                    }
+                    for (let i = this.critters.length - 1; i >= 0; i--) {
+                        const c = this.critters[i];
+                        const dx = c.x - p.x;
+                        if (Math.abs(dx) < 220) {
+                            c.freezeTimer = 3.0;
+                            this.damageCritter(c, 3, dx >= 0 ? 1 : -1);
+                        }
+                    }
+                    if (this.boss && !this.boss.defeated && Math.abs(this.boss.x - p.x) < 225) {
+                        this.damageBoss(3, this.boss.x >= p.x ? 1 : -1);
                     }
                     // Reveal 2 astral essences
                     this.spawnEssence(clamp(p.x + p.facing * 42, 120, this.worldWidth - 120), this.groundY - 26, 1, p.facing * 22, -65);
@@ -3397,22 +4036,99 @@
                     p.vx = p.facing * 390;
                     p.invulnTimer = Math.max(p.invulnTimer, 0.42);
                     this.triggerShake(0.2, 2.5);
-                    this.spawnBurst(p.x, p.y - 18, '#ef4444', 22);
+                    this.spawnBurst(p.x, p.y - 18, '#a3333d', 18);
                     this.projectiles.push({
                         x: p.x + p.facing * 20,
                         y: p.y - 18,
                         vx: p.facing * 290,
                         vy: 0,
-                        radius: 7,
-                        color: '#ef4444',
+                        radius: 6,
+                        color: '#a3333d',
                         damage: 3,
                         pierce: 4,
                         life: 0.9,
                         hitSet: new Set()
                     });
-                    this.addFloatingText(p.x, p.y - 48, 'Investida Carmesim!', '#fca5a5');
+                    this.addFloatingText(p.x, p.y - 48, 'Investida Carmesim!', '#e5a3a8');
                 }
                 this.syncHUD(true);
+            }
+
+            getPitAt(x) {
+                if (!this.obstacles) return null;
+                for (const ob of this.obstacles) {
+                    if (ob.type === 'pit' && Math.abs(x - ob.x) < ob.w * 0.5 - 6) {
+                        return ob;
+                    }
+                }
+                return null;
+            }
+
+            damageCritter(c, dmg, knockDir = 1) {
+                if (!c || c.hp <= 0) return;
+                c.hp -= dmg;
+                c.knockVx = knockDir * 135;
+                c.hitFlash = 0.16;
+                this.sound.playHit();
+                this.spawnBurst(c.x, c.y - 10, '#3a2c4a', 7);
+                if (c.hp <= 0) {
+                    const idx = this.critters.indexOf(c);
+                    if (idx !== -1) this.critters.splice(idx, 1);
+                    this.stats.shadowsBanished++;
+                    this.spawnBurst(c.x, c.y - 10, '#c28a38', 9);
+                    const dropVal = Math.random() < 0.35 ? 2 : 1;
+                    for (let k = 0; k < dropVal; k++) {
+                        this.spawnEssence(c.x, Math.min(c.y - 12, this.groundY - 14), 1, (k === 0 ? -1 : 1) * 28, -75 - Math.random() * 25);
+                    }
+                    this.addFloatingText(c.x, c.y - 24, `+${dropVal} Essência`, '#e5c17b');
+                }
+            }
+
+            damageBoss(dmg, knockDir = 1) {
+                const b = this.boss;
+                if (!b || b.defeated) return;
+                if (!b.active) {
+                    b.active = true;
+                    b.state = 'hover';
+                    b.stateTimer = 1.2;
+                }
+                b.hp = Math.max(0, b.hp - dmg);
+                b.hitFlash = 0.18;
+                b.x = clamp(b.x + knockDir * 14, b.arenaMinX, b.arenaMaxX);
+                this.sound.playHit();
+                this.triggerShake(0.18, 2.6);
+                this.spawnBurst(b.x, b.y - 16, '#8b2d3b', 10);
+                this.addFloatingText(b.x, b.y - 46, `-${dmg}`, '#e5c17b');
+
+                if (b.hp <= 0) {
+                    b.defeated = true;
+                    b.active = false;
+                    b.state = 'defeated';
+                    this.bossProjectiles = [];
+                    this.stats.shadowsBanished += 5;
+                    this.sound.playAwaken();
+                    this.triggerShake(0.45, 4.2);
+                    this.spawnBurst(b.x, b.y - 22, '#2d1c38', 22);
+                    this.spawnBurst(b.x, b.y - 22, '#c28a38', 20);
+                    // Scatter 15 collectible Astral Essences cleanly on arena ground
+                    for (let k = 0; k < 15; k++) {
+                        const spread = ((k - 7) / 7) * 95 + (Math.random() * 14 - 7);
+                        this.spawnEssence(
+                            clamp(b.x + spread * 0.45, b.arenaMinX + 20, b.arenaMaxX - 20),
+                            this.groundY - 26,
+                            1,
+                            spread * 1.1,
+                            -95 - Math.random() * 55
+                        );
+                    }
+                    this.showBanner(
+                        'VITÓRIA · GRANDE BRUXA ABISSAL DERROTADA!',
+                        'Recompensa: +15 Essências Astrais · A exploração livre continua',
+                        '#d4af37',
+                        6.5
+                    );
+                    this.syncHUD(true);
+                }
             }
 
             checkVictory() {
@@ -3474,8 +4190,8 @@
                 this.floatingTexts.push({ x, y, text, color, life: 1.35, maxLife: 1.35 });
             }
 
-            showBanner(text, subtext, color = '#fbbf24') {
-                this.banner = { text, subtext, color, timer: 4.0, maxTimer: 4.0 };
+            showBanner(text, subtext, color = '#fbbf24', duration = 4.0) {
+                this.banner = { text, subtext, color, timer: duration, maxTimer: duration };
             }
 
             triggerShake(duration, intensity) {
@@ -3561,11 +4277,24 @@
                             s.dashHit = true;
                             s.knockVx = p.facing * 160;
                             this.sound.playHit();
-                            this.spawnBurst(s.x, this.groundY - 16, '#ef4444', 10);
+                            this.spawnBurst(s.x, this.groundY - 16, '#a3333d', 10);
                         }
+                    }
+                    for (let i = this.critters.length - 1; i >= 0; i--) {
+                        const c = this.critters[i];
+                        if (Math.abs(c.x - p.x) < 30 && !c.dashHit) {
+                            c.dashHit = true;
+                            this.damageCritter(c, 3, p.facing);
+                        }
+                    }
+                    if (this.boss && !this.boss.defeated && !this.boss.dashHit && Math.abs(this.boss.x - p.x) < 38) {
+                        this.boss.dashHit = true;
+                        this.damageBoss(3, p.facing);
                     }
                 } else {
                     for (const s of this.shadows) s.dashHit = false;
+                    for (const c of this.critters) c.dashHit = false;
+                    if (this.boss) this.boss.dashHit = false;
                     // Smooth acceleration / deceleration
                     if (moveDir !== 0) {
                         const diff = targetSpeed - p.vx;
@@ -3592,16 +4321,50 @@
                 // Apply horizontal displacement & world clamping
                 p.x = clamp(p.x + p.vx * dt, 64, this.worldWidth - 64);
 
-                // Vertical Jump Physics (W / ArrowUp / Touch Jump button) with gravity & clean ground landing
+                // Vertical Jump Physics + Pit Chasm Fall & Safe Recovery
+                const activePit = this.getPitAt(p.x);
+                if (p.onGround && !activePit) {
+                    p.lastSafeX = p.x;
+                }
+
                 if (p.jumpBuffer > 0) p.jumpBuffer = Math.max(0, p.jumpBuffer - dt);
                 if (p.onGround && p.jumpBuffer > 0) {
                     this.tryExecuteJump();
                 }
+
+                // Stepping over an open pit while grounded begins a chasm fall
+                if (p.onGround && activePit) {
+                    p.onGround = false;
+                    p.vy = Math.max(p.vy, 45);
+                }
+
                 if (!p.onGround || p.vy !== 0) {
                     const gravity = p.daemonIdx === 1 ? 560 : 680;
                     p.vy += gravity * dt;
                     p.y += p.vy * dt;
-                    if (p.y >= this.groundY) {
+
+                    if (activePit && p.y >= this.groundY) {
+                        // Falling inside a pit chasm — smooth recovery at depth +28
+                        if (p.y >= this.groundY + 28) {
+                            this.sound.playHit();
+                            this.triggerShake(0.24, 3.0);
+                            if (p.invulnTimer <= 0 && p.essence > 0) {
+                                p.essence -= 1;
+                                this.addFloatingText(activePit.x, this.groundY - 26, '-1 Essência (Fenda)', '#e5a3a8');
+                            } else if (p.invulnTimer <= 0) {
+                                this.addFloatingText(activePit.x, this.groundY - 26, 'Cuidado com a Fenda!', '#e5a3a8');
+                            }
+                            const returnSide = p.lastSafeX <= activePit.x ? -1 : 1;
+                            p.x = clamp(activePit.x + returnSide * (activePit.w * 0.5 + 22), 72, this.worldWidth - 72);
+                            p.y = this.groundY;
+                            p.vx = 0;
+                            p.vy = 0;
+                            p.onGround = true;
+                            p.invulnTimer = Math.max(p.invulnTimer, 1.15);
+                            this.spawnBurst(p.x, this.groundY - 4, '#785038', 8);
+                            this.syncHUD(true);
+                        }
+                    } else if (!activePit && p.y >= this.groundY) {
                         const impactVy = p.vy;
                         p.y = this.groundY;
                         p.vy = 0;
@@ -3626,6 +4389,31 @@
                     }
                 } else {
                     p.y = this.groundY;
+                }
+
+                // Jumpable Road Obstacles (Rocks & Thorn Bushes): clean jump clears them; touching knocks back & costs 1 Essence
+                const playerHeightAboveGround = Math.max(0, this.groundY - p.y);
+                for (const ob of this.obstacles) {
+                    if (ob.type === 'pit') continue;
+                    const halfSpan = ob.w * 0.5 + 5;
+                    if (Math.abs(p.x - ob.x) < halfSpan && playerHeightAboveGround < ob.h - 3) {
+                        const pushDir = p.x < ob.x ? -1 : 1;
+                        p.x = clamp(ob.x + pushDir * (halfSpan + 3), 68, this.worldWidth - 68);
+                        p.vx = pushDir * 95;
+                        if (p.invulnTimer <= 0 && p.dashTimer <= 0) {
+                            p.invulnTimer = 0.95;
+                            this.sound.playHit();
+                            this.triggerShake(0.22, 2.8);
+                            this.spawnBurst(ob.x, this.groundY - 8, ob.type === 'thorns' ? '#6e3444' : '#7c7585', 8);
+                            if (p.essence > 0) {
+                                p.essence -= 1;
+                                this.addFloatingText(p.x, p.y - 42, '-1 Essência', '#e5a3a8');
+                            } else {
+                                this.addFloatingText(p.x, p.y - 42, ob.type === 'thorns' ? 'Espinhos!' : 'Pedra!', '#e5a3a8');
+                            }
+                            this.syncHUD(true);
+                        }
+                    }
                 }
 
                 // Walk cycle, 8-frame Paimon animation speed & rhythmic hoofbeat / wing sound
@@ -3907,7 +4695,7 @@
                         a.facing = a.side;
                     }
 
-                    // Find closest shadow within range
+                    // Find closest shadow or critter within range
                     let closest = null;
                     let minDist = 215;
                     for (const s of this.shadows) {
@@ -3915,6 +4703,13 @@
                         if (dist < minDist) {
                             minDist = dist;
                             closest = s;
+                        }
+                    }
+                    for (const c of this.critters) {
+                        const dist = Math.abs(c.x - a.x);
+                        if (dist < minDist) {
+                            minDist = dist;
+                            closest = c;
                         }
                     }
 
@@ -3930,7 +4725,7 @@
                             vx: dir * 225,
                             vy: -16,
                             radius: 3,
-                            color: fervorMult < 1 ? '#fde047' : '#a5b4fc',
+                            color: fervorMult < 1 ? '#d4af37' : '#a5b4fc',
                             damage: 1,
                             pierce: 1,
                             life: 1.2,
@@ -3939,7 +4734,7 @@
                     }
                 }
 
-                // 9. Projectiles update & collisions
+                // 9. Projectiles update & collisions (Shadows + Critters + Boss)
                 for (let i = this.projectiles.length - 1; i >= 0; i--) {
                     const pr = this.projectiles[i];
                     pr.life -= dt;
@@ -3965,8 +4760,37 @@
                             }
                         }
                     }
+                    if (!destroyed) {
+                        for (let j = this.critters.length - 1; j >= 0; j--) {
+                            const c = this.critters[j];
+                            if (pr.hitSet.has(c)) continue;
+                            if (Math.abs(pr.x - c.x) < 16 && Math.abs(pr.y - (c.y - 8)) < 18) {
+                                pr.hitSet.add(c);
+                                pr.pierce--;
+                                this.damageCritter(c, pr.damage, Math.sign(pr.vx) || 1);
+                                if (pr.pierce <= 0) {
+                                    destroyed = true;
+                                    break;
+                                }
+                            }
+                        }
+                    }
+                    if (!destroyed && this.boss && !this.boss.defeated && !pr.hitSet.has(this.boss)) {
+                        if (Math.abs(pr.x - this.boss.x) < 28 && Math.abs(pr.y - (this.boss.y - 12)) < 34) {
+                            pr.hitSet.add(this.boss);
+                            pr.pierce--;
+                            this.damageBoss(pr.damage, Math.sign(pr.vx) || 1);
+                            if (pr.pierce <= 0) destroyed = true;
+                        }
+                    }
                     if (destroyed) this.projectiles.splice(i, 1);
                 }
+
+                // 9b. Shadow Critters (bats & crawlers), Ambient Sky Witches & Far-East Boss
+                const isGallopingFast = (wantsGallop && Math.abs(p.vx) > 95) || Math.abs(p.vx) > 125;
+                this.updateCritters(dt, isGallopingFast);
+                this.updateSkyWitches(dt);
+                this.updateBoss(dt, isGallopingFast);
 
                 // 10. Particles, Shockwaves, Floating Texts & Summon Glows
                 for (const sc of this.summonCircles) {
@@ -3994,6 +4818,347 @@
                 if (this.hudSyncTimer >= 0.065) {
                     this.hudSyncTimer = 0;
                     this.syncHUD(false);
+                }
+            }
+
+            updateCritters(dt, isGallopingFast) {
+                const p = this.player;
+
+                // Periodic road spawning ahead of the player (disabled during active boss fight or inside Sanctuary safe core)
+                this.critterSpawnTimer -= dt;
+                if (this.critterSpawnTimer <= 0) {
+                    this.critterSpawnTimer = 5.5 + Math.random() * 3.5;
+                    const inBossFight = this.boss && this.boss.active && !this.boss.defeated;
+                    if (!inBossFight && this.critters.length < 4) {
+                        const aheadDir = p.facing || (Math.random() < 0.5 ? -1 : 1);
+                        let sx = clamp(p.x + aheadDir * (215 + Math.random() * 90), 340, 3820);
+                        // Keep immediate sanctuary safe & away from pits
+                        if (Math.abs(sx - this.sanctuary.x) < 120) {
+                            sx = sx < this.sanctuary.x ? this.sanctuary.x - 165 : this.sanctuary.x + 165;
+                        }
+                        const isBat = Math.random() < 0.58;
+                        this.critters.push({
+                            type: isBat ? 'bat' : 'crawler',
+                            x: sx,
+                            y: isBat ? this.groundY - 22 : this.groundY,
+                            baseY: isBat ? this.groundY - 22 : this.groundY,
+                            vx: 0,
+                            facing: sx > p.x ? -1 : 1,
+                            hp: 2,
+                            maxHp: 2,
+                            speed: isBat ? (42 + Math.random() * 14) : (36 + Math.random() * 10),
+                            phase: Math.random() * Math.PI * 2,
+                            knockVx: 0,
+                            freezeTimer: 0,
+                            hitFlash: 0,
+                            dashHit: false
+                        });
+                    }
+                }
+
+                for (let i = this.critters.length - 1; i >= 0; i--) {
+                    const c = this.critters[i];
+                    c.phase += dt * (c.type === 'bat' ? 7.2 : 5.4);
+                    if (c.hitFlash > 0) c.hitFlash = Math.max(0, c.hitFlash - dt);
+                    if (c.freezeTimer > 0) c.freezeTimer = Math.max(0, c.freezeTimer - dt);
+
+                    // Despawn far-away critters so active ones stay relevant near player
+                    if (Math.abs(c.x - p.x) > 780) {
+                        this.critters.splice(i, 1);
+                        continue;
+                    }
+
+                    const dx = p.x - c.x;
+                    const distX = Math.abs(dx);
+                    const moveMult = c.freezeTimer > 0 ? 0.25 : 1.0;
+
+                    if (Math.abs(c.knockVx) > 4) {
+                        c.x = clamp(c.x + c.knockVx * dt, 100, this.worldWidth - 100);
+                        c.knockVx *= Math.pow(0.025, dt);
+                    } else if (distX < 340) {
+                        c.facing = dx >= 0 ? 1 : -1;
+                        c.x = clamp(c.x + c.facing * c.speed * moveMult * dt, 100, this.worldWidth - 100);
+                    } else {
+                        c.x = clamp(c.x + c.facing * (c.speed * 0.45) * moveMult * dt, 100, this.worldWidth - 100);
+                    }
+
+                    if (c.type === 'bat') {
+                        // Gentle swoop toward player height when close
+                        const targetY = distX < 130 ? this.groundY - 16 : c.baseY;
+                        c.y = lerp(c.y, targetY + Math.sin(c.phase) * 5.5, clamp(dt * 4.5, 0, 1));
+                    } else {
+                        c.y = this.groundY;
+                    }
+
+                    // Collision with Player
+                    const playerCenterY = p.y - 16;
+                    const critterCenterY = c.type === 'bat' ? c.y - 6 : c.y - 8;
+                    if (Math.abs(c.x - p.x) < 20 && Math.abs(critterCenterY - playerCenterY) < 20) {
+                        if (isGallopingFast || p.dashTimer > 0) {
+                            // Galloping over / trampling defeats the critter cleanly!
+                            this.damageCritter(c, 99, p.facing || 1);
+                            this.triggerShake(0.12, 1.8);
+                            continue;
+                        } else if (p.invulnTimer <= 0) {
+                            p.invulnTimer = 0.95;
+                            const pushDir = p.x < c.x ? -1 : 1;
+                            p.vx = pushDir * 105;
+                            c.knockVx = -pushDir * 130;
+                            this.sound.playHit();
+                            this.triggerShake(0.22, 2.8);
+                            if (p.essence > 0) {
+                                p.essence -= 1;
+                                this.addFloatingText(p.x, p.y - 42, '-1 Essência', '#e5a3a8');
+                            } else {
+                                this.addFloatingText(p.x, p.y - 42, 'Recue ou Galope!', '#e5a3a8');
+                            }
+                            this.syncHUD(true);
+                        }
+                    }
+                }
+            }
+
+            updateSkyWitches(dt) {
+                this.skyWitchTimer -= dt;
+                if (this.skyWitchTimer <= 0) {
+                    this.skyWitchTimer = 6.5 + Math.random() * 6.0;
+                    if (this.skyWitches.length < 3) {
+                        const dir = Math.random() < 0.5 ? 1 : -1;
+                        const y = 26 + Math.random() * 62;
+                        this.skyWitches.push({
+                            x: dir === 1 ? -32 : this.W + 32,
+                            y,
+                            baseY: y,
+                            dir,
+                            speed: 24 + Math.random() * 26,
+                            scale: 0.44 + Math.random() * 0.28,
+                            phase: Math.random() * Math.PI * 2
+                        });
+                    }
+                }
+
+                for (let i = this.skyWitches.length - 1; i >= 0; i--) {
+                    const w = this.skyWitches[i];
+                    w.phase += dt * 3.8;
+                    w.x += w.dir * w.speed * dt;
+                    w.y = w.baseY + Math.sin(w.phase) * 3.2;
+                    if (w.x < -64 || w.x > this.W + 64) {
+                        this.skyWitches.splice(i, 1);
+                    }
+                }
+            }
+
+            updateBoss(dt, isGallopingFast) {
+                const b = this.boss;
+                const p = this.player;
+                if (!b || b.defeated) return;
+
+                b.wingPhase += dt * (b.state === 'charge' ? 11.5 : 4.8);
+                if (b.hitFlash > 0) b.hitFlash = Math.max(0, b.hitFlash - dt);
+                if (b.hurtCd > 0) b.hurtCd = Math.max(0, b.hurtCd - dt);
+
+                // Awaken Grande Bruxa Abissal when player nears the far-east arena
+                if (!b.active) {
+                    b.y = b.baseY + Math.sin(b.wingPhase * 0.65) * 4;
+                    if (p.x >= 3840) {
+                        b.active = true;
+                        b.state = 'hover';
+                        b.stateTimer = 1.45;
+                        this.sound.playNightBell();
+                        this.showBanner(
+                            'GRANDE BRUXA ABISSAL',
+                            'Desvie das investidas e ataque com Poder [Espaço] ou Galope!',
+                            '#c9a24b',
+                            4.5
+                        );
+                    }
+                    return;
+                }
+
+                // Pause aggression if player retreats far away west, resume when back
+                if (p.x < 3680) {
+                    b.y = lerp(b.y, b.baseY + Math.sin(b.wingPhase * 0.7) * 4, clamp(dt * 3, 0, 1));
+                    return;
+                }
+
+                b.stateTimer -= dt;
+                const enraged = b.hp <= b.maxHp * 0.5;
+
+                if (b.state === 'hover') {
+                    b.facing = p.x >= b.x ? 1 : -1;
+                    const desiredX = clamp(p.x - b.facing * 120, b.arenaMinX, b.arenaMaxX);
+                    const moveDiff = desiredX - b.x;
+                    b.x = clamp(b.x + clamp(moveDiff, -68, 68) * dt, b.arenaMinX, b.arenaMaxX);
+                    b.y = lerp(b.y, b.baseY + Math.sin(b.wingPhase * 0.9) * 5, clamp(dt * 4, 0, 1));
+
+                    if (b.stateTimer <= 0) {
+                        if (b.patternIdx % 2 === 0) {
+                            b.state = 'telegraph_cast';
+                            b.stateTimer = enraged ? 0.55 : 0.68;
+                        } else {
+                            b.state = 'telegraph_charge';
+                            b.stateTimer = enraged ? 0.62 : 0.74;
+                        }
+                        b.patternIdx++;
+                    }
+                } else if (b.state === 'telegraph_cast') {
+                    b.facing = p.x >= b.x ? 1 : -1;
+                    b.y = lerp(b.y, b.baseY - 7, clamp(dt * 6, 0, 1));
+                    if (Math.random() < dt * 14) {
+                        this.particles.push({
+                            x: b.x + b.facing * 20 + (Math.random() * 10 - 5),
+                            y: b.y - 26 + (Math.random() * 10 - 5),
+                            vx: (Math.random() - 0.5) * 14,
+                            vy: -14 - Math.random() * 12,
+                            color: '#c28a38',
+                            size: 1.5,
+                            life: 0.32,
+                            maxLife: 0.32,
+                            gravity: 0
+                        });
+                    }
+                    if (b.stateTimer <= 0) {
+                        b.state = 'cast';
+                        b.stateTimer = 0.35;
+                        this.sound.playShoot();
+                        const dir = b.facing;
+                        // Low shadow bolt (cleanly jumpable!)
+                        this.bossProjectiles.push({
+                            x: b.x + dir * 20,
+                            y: this.groundY - 14,
+                            vx: dir * (enraged ? 185 : 155),
+                            vy: 0,
+                            radius: 5.2,
+                            life: 2.6
+                        });
+                        // Second arc bolt (always at slight higher arc, and 3rd when enraged)
+                        this.bossProjectiles.push({
+                            x: b.x + dir * 18,
+                            y: b.y - 20,
+                            vx: dir * (enraged ? 155 : 132),
+                            vy: -36,
+                            gravity: 52,
+                            radius: 4.5,
+                            life: 2.6
+                        });
+                        if (enraged) {
+                            this.bossProjectiles.push({
+                                x: b.x + dir * 16,
+                                y: b.y - 28,
+                                vx: dir * 118,
+                                vy: -58,
+                                gravity: 64,
+                                radius: 4.2,
+                                life: 2.8
+                            });
+                        }
+                    }
+                } else if (b.state === 'cast') {
+                    b.y = lerp(b.y, b.baseY, clamp(dt * 5, 0, 1));
+                    if (b.stateTimer <= 0) {
+                        b.state = 'hover';
+                        b.stateTimer = enraged ? 1.25 : 1.65;
+                    }
+                } else if (b.state === 'telegraph_charge') {
+                    b.facing = p.x >= b.x ? 1 : -1;
+                    b.y = lerp(b.y, this.groundY - 14, clamp(dt * 6, 0, 1));
+                    // Subtle earth-dust telegraph (no neon!)
+                    if (Math.random() < dt * 16) {
+                        this.particles.push({
+                            x: b.x - b.facing * 12 + (Math.random() * 14 - 7),
+                            y: this.groundY - 2,
+                            vx: -b.facing * (28 + Math.random() * 25),
+                            vy: -16 - Math.random() * 16,
+                            color: '#6e4e42',
+                            size: 2,
+                            life: 0.36,
+                            maxLife: 0.36,
+                            gravity: 65
+                        });
+                    }
+                    if (b.stateTimer <= 0) {
+                        b.state = 'charge';
+                        b.stateTimer = 0.92;
+                        b.vx = b.facing * (enraged ? 235 : 198);
+                        this.sound.playStep(0, true);
+                    }
+                } else if (b.state === 'charge') {
+                    b.x += b.vx * dt;
+                    b.y = this.groundY - 14 + Math.sin(b.wingPhase) * 2.5;
+                    if (b.x <= b.arenaMinX || b.x >= b.arenaMaxX) {
+                        b.x = clamp(b.x, b.arenaMinX, b.arenaMaxX);
+                        b.stateTimer = 0;
+                    }
+                    if (b.stateTimer <= 0) {
+                        b.vx = 0;
+                        b.state = 'recover';
+                        b.stateTimer = enraged ? 1.15 : 1.5;
+                    }
+                } else if (b.state === 'recover') {
+                    b.y = lerp(b.y, this.groundY - 18, clamp(dt * 4, 0, 1));
+                    if (b.stateTimer <= 0) {
+                        b.state = 'hover';
+                        b.stateTimer = enraged ? 1.1 : 1.45;
+                    }
+                }
+
+                // Boss <-> Player collision
+                const dx = p.x - b.x;
+                const playerHeightAboveGround = Math.max(0, this.groundY - p.y);
+                if (Math.abs(dx) < 28 && playerHeightAboveGround < 34) {
+                    if (b.state !== 'charge' && isGallopingFast && b.hurtCd <= 0) {
+                        // Gallop strike damages the boss during non-charge windows & bounces player cleanly back!
+                        b.hurtCd = 0.72;
+                        this.damageBoss(2, p.facing || 1);
+                        p.vx = -(p.facing || 1) * 125;
+                        p.invulnTimer = Math.max(p.invulnTimer, 0.45);
+                    } else if (p.invulnTimer <= 0 && p.dashTimer <= 0) {
+                        p.invulnTimer = 1.15;
+                        const pushDir = dx >= 0 ? 1 : -1;
+                        p.vx = pushDir * 140;
+                        this.sound.playHit();
+                        this.triggerShake(0.28, 3.6);
+                        if (p.essence > 0) {
+                            const loss = Math.min(p.essence, b.state === 'charge' ? 2 : 1);
+                            p.essence -= loss;
+                            this.addFloatingText(p.x, p.y - 44, `-${loss} Essência`, '#e5a3a8');
+                        } else {
+                            this.addFloatingText(p.x, p.y - 44, 'Investida da Bruxa!', '#e5a3a8');
+                        }
+                        this.syncHUD(true);
+                    }
+                }
+
+                // Update Boss Projectiles
+                for (let i = this.bossProjectiles.length - 1; i >= 0; i--) {
+                    const bp = this.bossProjectiles[i];
+                    bp.life -= dt;
+                    bp.x += bp.vx * dt;
+                    if (bp.gravity) bp.vy += bp.gravity * dt;
+                    bp.y += bp.vy * dt;
+
+                    if (bp.life <= 0 || bp.y >= this.groundY + 2 || bp.x < b.arenaMinX - 180 || bp.x > this.worldWidth - 40) {
+                        this.spawnBurst(bp.x, Math.min(bp.y, this.groundY - 4), '#4c2138', 5);
+                        this.bossProjectiles.splice(i, 1);
+                        continue;
+                    }
+
+                    // Hit Player (jump cleanly vaults over low bolts!)
+                    if (p.invulnTimer <= 0 && p.dashTimer <= 0 && Math.abs(bp.x - p.x) < 16 && Math.abs(bp.y - (p.y - 16)) < 17) {
+                        p.invulnTimer = 1.05;
+                        p.vx = Math.sign(bp.vx || 1) * 105;
+                        this.sound.playHit();
+                        this.triggerShake(0.24, 3.0);
+                        this.spawnBurst(bp.x, bp.y, '#8b2d3b', 8);
+                        if (p.essence > 0) {
+                            p.essence -= 1;
+                            this.addFloatingText(p.x, p.y - 42, '-1 Essência', '#e5a3a8');
+                        } else {
+                            this.addFloatingText(p.x, p.y - 42, 'Feitiço Abissal!', '#e5a3a8');
+                        }
+                        this.bossProjectiles.splice(i, 1);
+                        this.syncHUD(true);
+                    }
                 }
             }
 
@@ -4592,6 +5757,24 @@
                     ctx.restore();
                 }
 
+                // 4b. Ambient Flying Sky Witches on Broomsticks (purely atmospheric silhouette across sky)
+                if (pa && pa.skyWitch && this.skyWitches && this.skyWitches.length > 0) {
+                    ctx.save();
+                    ctx.imageSmoothingEnabled = true;
+                    ctx.globalAlpha = lerp(0.82, 0.94, nightBlend);
+                    for (const w of this.skyWitches) {
+                        const sprite = pa.skyWitch[Math.floor(w.phase) % 2];
+                        const ww = 28 * w.scale;
+                        const wh = 18 * w.scale;
+                        ctx.save();
+                        ctx.translate(w.x, w.y);
+                        if (w.dir < 0) ctx.scale(-1, 1);
+                        ctx.drawImage(sprite, -ww / 2, -wh / 2, ww, wh);
+                        ctx.restore();
+                    }
+                    ctx.restore();
+                }
+
                 // 5. Layer 1: Sculpted Painterly Alpine Mountains (organic curves + lit/shadowed slopes, NO flat triangles!)
                 const farOff = camX * 0.06;
                 const mtnBaseColor = lerpColor('#24274c', '#121330', atm.darkAlpha);
@@ -4933,6 +6116,54 @@
                     ctx.restore();
                 }
 
+                // 1b. Jumpable Chasms / Ground Pits carved cleanly through the terracotta path
+                if (this.obstacles) {
+                    for (const ob of this.obstacles) {
+                        if (ob.type !== 'pit') continue;
+                        if (ob.x + ob.w < viewLeft || ob.x - ob.w > viewRight) continue;
+                        const left = Math.round(ob.x - ob.w / 2);
+                        const right = Math.round(ob.x + ob.w / 2);
+
+                        // Deep abyssal chasm opening down to water
+                        const pitGrad = ctx.createLinearGradient(0, this.groundY - 5, 0, this.waterY);
+                        pitGrad.addColorStop(0, '#070917');
+                        pitGrad.addColorStop(0.65, '#0b0e22');
+                        pitGrad.addColorStop(1, '#111630');
+                        ctx.fillStyle = pitGrad;
+                        ctx.fillRect(left, this.groundY - 5, ob.w, this.waterY - (this.groundY - 5));
+
+                        // Hand-inked jagged earth-cliff edges framing both sides of the pit
+                        ctx.fillStyle = '#5c3425';
+                        ctx.strokeStyle = '#180d14';
+                        ctx.lineWidth = 1.4;
+                        // Left cliff lip
+                        ctx.beginPath();
+                        ctx.moveTo(left - 3, this.groundY - 3);
+                        ctx.lineTo(left + 3, this.groundY - 2);
+                        ctx.lineTo(left + 1, this.groundY + 12);
+                        ctx.lineTo(left + 4, this.groundY + 23);
+                        ctx.lineTo(left - 3, this.groundY + 23);
+                        ctx.closePath();
+                        ctx.fill();
+                        ctx.stroke();
+                        // Right cliff lip
+                        ctx.beginPath();
+                        ctx.moveTo(right + 3, this.groundY - 3);
+                        ctx.lineTo(right - 3, this.groundY - 2);
+                        ctx.lineTo(right - 1, this.groundY + 12);
+                        ctx.lineTo(right - 4, this.groundY + 23);
+                        ctx.lineTo(right + 3, this.groundY + 23);
+                        ctx.closePath();
+                        ctx.fill();
+                        ctx.stroke();
+
+                        // Subtle terracotta lip cap on both sides so edge is super clear
+                        ctx.fillStyle = '#c86a3a';
+                        ctx.fillRect(left - 4, this.groundY - 3, 6, 3);
+                        ctx.fillRect(right - 2, this.groundY - 3, 6, 3);
+                    }
+                }
+
                 // 2. WORLD LANDMARK 1: Runic Ruined Pillars (pilar-sprite.png) — seamlessly rooted in terrain!
                 if (this.worldArt && this.worldArt.pilar) {
                     for (let idx = 0; idx < this.landmarks.runicPillars.length; idx++) {
@@ -5167,13 +6398,123 @@
                     ctx.restore();
                 }
 
+                // Road Obstacles: Mossy Boulders & Thorn Bushes (grounded naturally with contact shadow)
+                if (this.obstacles && this.paintedAssets) {
+                    ctx.save();
+                    ctx.imageSmoothingEnabled = true;
+                    for (const ob of this.obstacles) {
+                        if (ob.type === 'pit') continue;
+                        if (ob.x < viewLeft || ob.x > viewRight) continue;
+                        // Soft contact shadow on earth
+                        ctx.fillStyle = 'rgba(12, 8, 16, 0.42)';
+                        ctx.beginPath();
+                        ctx.ellipse(ob.x, this.groundY + 1, ob.w * 0.56, 3, 0, 0, Math.PI * 2);
+                        ctx.fill();
+
+                        if (ob.type === 'rock' && this.paintedAssets.rocks) {
+                            const sp = this.paintedAssets.rocks[ob.variant % this.paintedAssets.rocks.length];
+                            ctx.drawImage(sp, ob.x - 14, this.groundY - 19, 28, 20);
+                        } else if (ob.type === 'thorns' && this.paintedAssets.thorns) {
+                            const sp = this.paintedAssets.thorns[ob.variant % this.paintedAssets.thorns.length];
+                            ctx.drawImage(sp, ob.x - 16, this.groundY - 17, 32, 18);
+                        }
+                    }
+                    ctx.restore();
+                }
+
+                // Shadow Critters (hand-painted shadow bats & crawlers — zero neon)
+                if (this.critters && this.paintedAssets) {
+                    ctx.save();
+                    ctx.imageSmoothingEnabled = true;
+                    for (const c of this.critters) {
+                        if (c.x < viewLeft || c.x > viewRight) continue;
+                        const isBat = c.type === 'bat';
+                        const set = isBat ? this.paintedAssets.critterBat : this.paintedAssets.critterCrawler;
+                        if (!set) continue;
+                        const frame = set[Math.floor(c.phase) % 2];
+                        const cw = isBat ? 24 : 22;
+                        const ch = isBat ? 18 : 16;
+
+                        // Ground contact shadow
+                        ctx.fillStyle = isBat ? 'rgba(10, 7, 16, 0.24)' : 'rgba(10, 7, 16, 0.38)';
+                        ctx.beginPath();
+                        ctx.ellipse(c.x, this.groundY + 1, isBat ? 8 : 10, 2.5, 0, 0, Math.PI * 2);
+                        ctx.fill();
+
+                        ctx.save();
+                        ctx.translate(Math.round(c.x), Math.round(isBat ? c.y - ch * 0.5 : this.groundY - ch + 1));
+                        if (c.facing < 0) ctx.scale(-1, 1);
+                        if (c.hitFlash > 0) ctx.globalAlpha = 0.65;
+                        ctx.drawImage(frame, -cw / 2, 0, cw, ch);
+                        ctx.restore();
+                    }
+                    ctx.restore();
+                }
+
+                // Far-East Boss: Grande Bruxa Abissal (hand-painted staff + dark shadow wings, ZERO neon)
+                if (this.boss && !this.boss.defeated && this.paintedAssets && this.paintedAssets.bossWitch) {
+                    const b = this.boss;
+                    if (b.x >= viewLeft - 40 && b.x <= viewRight + 40) {
+                        const frame = this.paintedAssets.bossWitch[Math.floor(b.wingPhase) % 2];
+                        const bw = 72;
+                        const bh = 76;
+
+                        ctx.save();
+                        ctx.imageSmoothingEnabled = true;
+
+                        // Grounded shadow beneath hovering witch
+                        ctx.fillStyle = 'rgba(10, 6, 16, 0.42)';
+                        ctx.beginPath();
+                        ctx.ellipse(b.x, this.groundY + 2, 22, 4.5, 0, 0, Math.PI * 2);
+                        ctx.fill();
+
+                        ctx.save();
+                        ctx.translate(Math.round(b.x), Math.round(b.y - bh * 0.52));
+                        // Sprite faces left by default; flip horizontally when facing right
+                        if (b.facing > 0) ctx.scale(-1, 1);
+                        if (b.state === 'charge') ctx.rotate(-0.14);
+                        if (b.state === 'telegraph_cast') ctx.translate(0, -3);
+                        if (b.hitFlash > 0) ctx.globalAlpha = 0.68;
+                        ctx.drawImage(frame, -bw / 2, 0, bw, bh);
+
+                        // Subtle non-neon matte amber crystal glint during cast telegraph
+                        if (b.state === 'telegraph_cast') {
+                            ctx.fillStyle = 'rgba(217, 155, 67, 0.72)';
+                            ctx.beginPath();
+                            ctx.arc(-19, 15, 3.8 + Math.sin(this.elapsed * 22) * 1.1, 0, Math.PI * 2);
+                            ctx.fill();
+                        }
+                        ctx.restore();
+                        ctx.restore();
+                    }
+                }
+
+                // Boss Dark-Ink & Muted-Crimson Projectiles (ZERO neon!)
+                if (this.bossProjectiles && this.bossProjectiles.length > 0) {
+                    for (const bp of this.bossProjectiles) {
+                        if (bp.x < viewLeft || bp.x > viewRight) continue;
+                        ctx.fillStyle = '#1b1024';
+                        ctx.beginPath();
+                        ctx.arc(bp.x, bp.y, bp.radius + 1.4, 0, Math.PI * 2);
+                        ctx.fill();
+                        ctx.fillStyle = '#8b2d3b';
+                        ctx.beginPath();
+                        ctx.arc(bp.x, bp.y, bp.radius, 0, Math.PI * 2);
+                        ctx.fill();
+                        ctx.fillStyle = '#d99b43';
+                        ctx.beginPath();
+                        ctx.arc(bp.x - 1, bp.y - 1, bp.radius * 0.42, 0, Math.PI * 2);
+                        ctx.fill();
+                    }
+                }
+
                 // Projectiles
                 for (const pr of this.projectiles) {
                     ctx.fillStyle = pr.color;
                     ctx.beginPath();
                     ctx.arc(pr.x, pr.y, pr.radius, 0, Math.PI * 2);
                     ctx.fill();
-                    ctx.fillStyle = '#ffffff';
+                    ctx.fillStyle = '#f8f2e4';
                     ctx.fillRect(Math.round(pr.x) - 1, Math.round(pr.y) - 1, 2, 2);
                 }
             }
@@ -5485,18 +6826,53 @@
                 }
                 ctx.globalAlpha = 1;
 
+                // Boss Health Bar (refined dark slate + antique gold border + matte crimson fill, ZERO neon)
+                if (this.state === 'PLAYING' && this.boss && this.boss.active && !this.boss.defeated && this.player.x >= 3680) {
+                    const b = this.boss;
+                    const barW = 192;
+                    const barH = 7;
+                    const bx = Math.round(this.W / 2 - barW / 2);
+                    const by = 40;
+                    const ratio = clamp(b.hp / b.maxHp, 0, 1);
+
+                    ctx.save();
+                    ctx.fillStyle = 'rgba(12, 16, 32, 0.86)';
+                    ctx.fillRect(bx - 6, by - 13, barW + 12, 25);
+                    ctx.strokeStyle = '#b89438';
+                    ctx.lineWidth = 1;
+                    ctx.strokeRect(bx - 5.5, by - 12.5, barW + 11, 24);
+
+                    ctx.font = '700 8px "Cinzel", Georgia, serif';
+                    ctx.fillStyle = '#f1e6d2';
+                    ctx.textAlign = 'left';
+                    ctx.fillText('GRANDE BRUXA ABISSAL', bx, by - 3);
+                    ctx.font = '600 8px "Plus Jakarta Sans", sans-serif';
+                    ctx.fillStyle = '#d9c5a0';
+                    ctx.textAlign = 'right';
+                    ctx.fillText(`${Math.ceil(b.hp)}/${b.maxHp}`, bx + barW, by - 3);
+
+                    // Track & matte crimson fill
+                    ctx.fillStyle = '#1b1626';
+                    ctx.fillRect(bx, by, barW, barH);
+                    ctx.fillStyle = '#9b2c36';
+                    ctx.fillRect(bx, by, Math.round(barW * ratio), barH);
+                    ctx.fillStyle = '#c4525c';
+                    ctx.fillRect(bx, by, Math.round(barW * ratio), 2);
+                    ctx.restore();
+                }
+
                 // Subtle Cinematic Event Banner
                 if (this.banner.timer > 0) {
                     const alpha = Math.min(1, this.banner.timer / 0.6, (this.banner.maxTimer - this.banner.timer + 0.01) / 0.35);
                     ctx.save();
                     ctx.globalAlpha = clamp(alpha, 0, 1);
-                    ctx.fillStyle = 'rgba(4, 7, 16, 0.74)';
-                    ctx.fillRect(this.W / 2 - 145, 58, 290, 34);
+                    ctx.fillStyle = 'rgba(4, 7, 16, 0.78)';
+                    ctx.fillRect(this.W / 2 - 155, 58, 310, 34);
                     ctx.fillStyle = this.banner.color;
-                    ctx.fillRect(this.W / 2 - 145, 58, 290, 1);
-                    ctx.fillRect(this.W / 2 - 145, 91, 290, 1);
+                    ctx.fillRect(this.W / 2 - 155, 58, 310, 1);
+                    ctx.fillRect(this.W / 2 - 155, 91, 310, 1);
                     ctx.textAlign = 'center';
-                    ctx.font = '700 11px "Cinzel", Georgia, serif';
+                    ctx.font = '700 10.5px "Cinzel", Georgia, serif';
                     ctx.fillText(this.banner.text, this.W / 2, 73);
                     ctx.fillStyle = '#cbd5e1';
                     ctx.font = '500 8.5px "Plus Jakarta Sans", sans-serif';
@@ -5539,10 +6915,23 @@
                     ctx.fillRect(mapX(pt.x) - 2, 3, 4, 10);
                 }
 
-                // Shadows dots (visible at night)
+                // Boss marker (crimson diamond at far east while undefeated)
+                if (this.boss && !this.boss.defeated) {
+                    const bx = mapX(this.boss.x);
+                    ctx.fillStyle = '#b83242';
+                    ctx.fillRect(bx - 1, 4, 3, 7);
+                    ctx.fillStyle = '#e5c17b';
+                    ctx.fillRect(bx, 6, 1, 3);
+                }
+
+                // Shadows & Critters dots
                 ctx.fillStyle = '#ef4444';
                 for (const s of this.shadows) {
                     ctx.fillRect(mapX(s.x), 11, 2, 2);
+                }
+                ctx.fillStyle = '#9b4d5a';
+                for (const c of this.critters) {
+                    ctx.fillRect(mapX(c.x), 11, 2, 2);
                 }
 
                 // Player marker (bright white arrow diamond)
