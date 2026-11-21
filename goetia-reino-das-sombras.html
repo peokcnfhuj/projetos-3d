@@ -359,60 +359,80 @@
         .hud-bottom {
             display: flex;
             flex-direction: column;
-            align-items: center;
-            gap: 8px;
+            align-items: stretch;
+            gap: 5px;
             width: 100%;
         }
 
         .hud-bottom-bars {
             pointer-events: none;
             display: flex;
-            align-items: center;
-            justify-content: center;
-            flex-wrap: wrap;
-            gap: 8px;
-            max-width: 100%;
+            align-items: flex-end;
+            justify-content: space-between;
+            flex-wrap: nowrap;
+            gap: 6px;
+            width: 100%;
+            padding: 0 8px;
         }
 
         .power-bar {
             pointer-events: auto;
             display: flex;
-            align-items: center;
-            gap: 5px;
-            background: rgba(12, 16, 32, 0.86);
+            align-items: stretch;
+            flex-wrap: nowrap;
+            gap: 2px;
+            background: rgba(12, 16, 32, 0.88);
             border: 1px solid var(--border-subtle);
-            border-radius: 8px;
-            padding: 5px;
+            border-radius: 7px;
+            padding: 3px;
             backdrop-filter: blur(6px);
+            margin-left: auto;
+            max-width: 100%;
+            overflow-x: auto;
+            scrollbar-width: none;
+        }
+
+        .power-bar::-webkit-scrollbar {
+            display: none;
         }
 
         .power-tab {
             position: relative;
             overflow: hidden;
             display: flex;
+            flex-direction: column;
             align-items: center;
-            gap: 5px;
-            padding: 5px 8px;
-            border-radius: 6px;
+            justify-content: center;
+            gap: 1px;
+            min-width: 46px;
+            padding: 3px 4px 4px;
+            border-radius: 5px;
             border: 1px solid rgba(148, 163, 184, 0.22);
-            background: rgba(15, 22, 38, 0.78);
+            background: rgba(15, 22, 38, 0.82);
             color: #cbd5e1;
             cursor: pointer;
             font-family: 'Plus Jakarta Sans', sans-serif;
-            text-align: left;
+            text-align: center;
             white-space: nowrap;
-            transition: background 140ms ease, border-color 140ms ease, color 140ms ease, opacity 140ms ease;
+            flex-shrink: 0;
+            transition: background 130ms ease, border-color 130ms ease, color 130ms ease, opacity 130ms ease;
         }
 
         .power-tab:hover {
-            background: rgba(28, 37, 58, 0.92);
+            background: rgba(28, 37, 58, 0.94);
             color: #f8fafc;
         }
 
         .power-tab.active {
-            background: rgba(212, 175, 55, 0.14);
-            border-color: rgba(212, 175, 55, 0.78);
+            background: rgba(212, 175, 55, 0.16);
+            border-color: rgba(212, 175, 55, 0.84);
             color: #f8eed0;
+        }
+
+        .power-tab.ice-spell.active {
+            background: rgba(124, 191, 232, 0.18);
+            border-color: rgba(155, 212, 245, 0.86);
+            color: #e6f4ff;
         }
 
         .power-tab.channeling {
@@ -422,7 +442,15 @@
         }
 
         .power-tab.on-cd {
-            opacity: 0.76;
+            opacity: 0.74;
+        }
+
+        .power-tab-head {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 3px;
+            line-height: 1;
         }
 
         .power-cd-bar {
@@ -437,6 +465,10 @@
             pointer-events: none;
         }
 
+        .power-tab.ice-spell .power-cd-bar {
+            background: #7cbfe8;
+        }
+
         .power-tab.channeling .power-cd-bar {
             background: #8ba6d6;
         }
@@ -447,14 +479,18 @@
 
         .power-tab-key {
             font-family: 'Press Start 2P', monospace;
-            font-size: 8px;
+            font-size: 7px;
             color: #d4af37;
             flex-shrink: 0;
         }
 
+        .power-tab.ice-spell .power-tab-key {
+            color: #9bd4f5;
+        }
+
         .power-tab-icon {
-            width: 14px;
-            height: 14px;
+            width: 13px;
+            height: 13px;
             flex-shrink: 0;
             display: inline-flex;
             align-items: center;
@@ -463,39 +499,47 @@
 
         .power-tab-name {
             font-family: 'Cinzel', Georgia, serif;
-            font-size: 10px;
+            font-size: 8.5px;
             font-weight: 700;
             line-height: 1.1;
+            max-width: 52px;
+            overflow: hidden;
+            text-overflow: ellipsis;
         }
 
         .power-tab-cd {
-            font-size: 9px;
+            font-size: 7.5px;
             color: #94a3b8;
             font-variant-numeric: tabular-nums;
-            line-height: 1.1;
+            line-height: 1.05;
         }
 
         .power-tab.active .power-tab-cd {
             color: #e5d2a4;
         }
 
+        .power-tab.ice-spell.active .power-tab-cd {
+            color: #c9e8ff;
+        }
+
         .daemon-bar {
             pointer-events: auto;
             display: flex;
             align-items: center;
-            gap: 6px;
+            gap: 4px;
             background: var(--surface-panel);
             border: 1px solid var(--border-subtle);
-            border-radius: 8px;
-            padding: 5px 6px;
+            border-radius: 7px;
+            padding: 3px 5px;
             backdrop-filter: blur(6px);
+            flex-shrink: 0;
         }
 
         .daemon-bar-hint {
             font-family: 'Press Start 2P', monospace;
-            font-size: 8px;
+            font-size: 7.5px;
             color: #d4af37;
-            padding: 3px 5px;
+            padding: 3px 4px;
             border: 1px solid rgba(212, 175, 55, 0.35);
             border-radius: 4px;
             background: rgba(15, 22, 38, 0.72);
@@ -505,9 +549,9 @@
         .daemon-tab {
             display: flex;
             align-items: center;
-            gap: 6px;
-            padding: 5px 10px;
-            border-radius: 6px;
+            gap: 5px;
+            padding: 4px 7px;
+            border-radius: 5px;
             border: 1px solid transparent;
             background: transparent;
             color: var(--text-muted);
@@ -536,13 +580,13 @@
 
         .daemon-tab-name {
             font-family: 'Cinzel', Georgia, serif;
-            font-size: 11px;
+            font-size: 10px;
             font-weight: 700;
             line-height: 1.1;
         }
 
         .daemon-tab-power {
-            font-size: 9.5px;
+            font-size: 8.5px;
             color: #94a3b8;
         }
 
@@ -557,8 +601,8 @@
             justify-content: space-between;
             align-items: flex-end;
             pointer-events: none;
-            padding: 0 8px 2px;
-            gap: 12px;
+            padding: 0 8px 0;
+            gap: 10px;
         }
 
         #hudLayer.joystick-mode #touchControls {
@@ -569,14 +613,30 @@
             .daemon-title, .daemon-tab-power, .res-label {
                 display: none;
             }
+            .hud-bottom-bars {
+                gap: 4px;
+                padding: 0 4px;
+            }
+            .power-bar {
+                gap: 2px;
+                padding: 2px;
+            }
             .power-tab {
-                padding: 4px 7px;
+                min-width: 39px;
+                padding: 2px 3px 3px;
             }
             .power-tab-name {
-                font-size: 9.5px;
+                font-size: 7.5px;
+                max-width: 44px;
+            }
+            .power-tab-cd {
+                font-size: 7px;
             }
             .daemon-tab {
-                padding: 4px 8px;
+                padding: 3px 6px;
+            }
+            .daemon-tab-name {
+                font-size: 9px;
             }
             .cycle-compass {
                 padding: 6px 10px;
@@ -1034,80 +1094,6 @@
                     </div>
 
                     <div class="hud-bottom-bars">
-                        <div class="power-bar" role="tablist" aria-label="Selecionar Poder">
-                            <button id="tabPower0" class="power-tab active" type="button" title="Aura do Ocidente (Tecla 1)">
-                                <span class="power-tab-key">1</span>
-                                <span class="power-tab-icon" aria-hidden="true">
-                                    <svg viewBox="0 0 16 16" width="15" height="15" fill="none">
-                                        <circle cx="8" cy="8" r="5.2" stroke="#d4af37" stroke-width="1.5"/>
-                                        <circle cx="8" cy="8" r="2.2" fill="#d4af37"/>
-                                    </svg>
-                                </span>
-                                <div>
-                                    <div class="power-tab-name">Aura do Ocidente</div>
-                                    <div class="power-tab-cd">Pronto</div>
-                                </div>
-                                <div class="power-cd-bar"></div>
-                            </button>
-                            <button id="tabPower1" class="power-tab" type="button" title="Raio Arcano (Tecla 2)">
-                                <span class="power-tab-key">2</span>
-                                <span class="power-tab-icon" aria-hidden="true">
-                                    <svg viewBox="0 0 16 16" width="15" height="15" fill="none">
-                                        <path d="M9.5 1.5L4.5 8.5H8L6.5 14.5L11.8 7.2H8.2L9.5 1.5Z" fill="#8ba6d6" stroke="#d4af37" stroke-width="0.9" stroke-linejoin="round"/>
-                                    </svg>
-                                </span>
-                                <div>
-                                    <div class="power-tab-name">Raio Arcano</div>
-                                    <div class="power-tab-cd">Pronto</div>
-                                </div>
-                                <div class="power-cd-bar"></div>
-                            </button>
-                            <button id="tabPower2" class="power-tab" type="button" title="Poeira de Pedra (Tecla 3)">
-                                <span class="power-tab-key">3</span>
-                                <span class="power-tab-icon" aria-hidden="true">
-                                    <svg viewBox="0 0 16 16" width="15" height="15" fill="none">
-                                        <circle cx="6.2" cy="9.2" r="3.4" fill="#8c7e74"/>
-                                        <circle cx="10.2" cy="8.4" r="2.8" fill="#6b615b"/>
-                                        <rect x="4" y="4" width="2.2" height="2" rx="0.5" fill="#b8aa9e"/>
-                                        <rect x="10.5" y="4.5" width="2" height="1.8" rx="0.5" fill="#9c8f84"/>
-                                    </svg>
-                                </span>
-                                <div>
-                                    <div class="power-tab-name">Poeira de Pedra</div>
-                                    <div class="power-tab-cd">Pronto</div>
-                                </div>
-                                <div class="power-cd-bar"></div>
-                            </button>
-                            <button id="tabPower3" class="power-tab" type="button" title="Chama Sombria (Tecla 4)">
-                                <span class="power-tab-key">4</span>
-                                <span class="power-tab-icon" aria-hidden="true">
-                                    <svg viewBox="0 0 16 16" width="15" height="15" fill="none">
-                                        <path d="M8.2 1.8C10.5 4.4 12.2 6.8 11.8 10C11.5 12.6 9.8 14.2 7.8 14.2C5.4 14.2 3.8 12.4 4.1 9.8C4.4 7.3 6.2 5.6 6.4 3.5C7 4.4 7.5 4.9 8.2 1.8Z" fill="#7d3c8a" stroke="#c89a64" stroke-width="0.9"/>
-                                    </svg>
-                                </span>
-                                <div>
-                                    <div class="power-tab-name">Chama Sombria</div>
-                                    <div class="power-tab-cd">Pronto</div>
-                                </div>
-                                <div class="power-cd-bar"></div>
-                            </button>
-                            <button id="tabPower4" class="power-tab" type="button" title="Raio Contínuo — Segure Espaço (Tecla 5)">
-                                <span class="power-tab-key">5</span>
-                                <span class="power-tab-icon" aria-hidden="true">
-                                    <svg viewBox="0 0 16 16" width="15" height="15" fill="none">
-                                        <path d="M1.5 8.5L4.8 6L7.4 9.5L10.6 5.5L14.5 8" stroke="#8ba6d6" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
-                                        <path d="M1.5 8.5L4.8 6L7.4 9.5L10.6 5.5L14.5 8" stroke="#efe0b0" stroke-width="1" stroke-linecap="round" stroke-linejoin="round"/>
-                                        <circle cx="14" cy="8" r="1.4" fill="#d4af37"/>
-                                    </svg>
-                                </span>
-                                <div>
-                                    <div class="power-tab-name">Raio Contínuo</div>
-                                    <div class="power-tab-cd">Pronto</div>
-                                </div>
-                                <div class="power-cd-bar"></div>
-                            </button>
-                        </div>
-
                         <div class="daemon-bar" role="tablist" aria-label="Selecionar Daemon">
                             <span class="daemon-bar-hint" title="Pressione Q para alternar Daemons">Q</span>
                             <button id="tabDaemon0" class="daemon-tab active" type="button">
@@ -1129,6 +1115,123 @@
                                 </div>
                             </button>
                         </div>
+
+                        <div class="power-bar" role="tablist" aria-label="Selecionar Poder">
+                            <button id="tabPower0" class="power-tab active" type="button" title="Aura do Ocidente (Tecla 1)">
+                                <span class="power-tab-head">
+                                    <span class="power-tab-key">1</span>
+                                    <span class="power-tab-icon" aria-hidden="true">
+                                        <svg viewBox="0 0 16 16" width="13" height="13" fill="none">
+                                            <circle cx="8" cy="8" r="5.2" stroke="#d4af37" stroke-width="1.5"/>
+                                            <circle cx="8" cy="8" r="2.2" fill="#d4af37"/>
+                                        </svg>
+                                    </span>
+                                </span>
+                                <div class="power-tab-name">Aura</div>
+                                <div class="power-tab-cd">Pronto</div>
+                                <div class="power-cd-bar"></div>
+                            </button>
+                            <button id="tabPower1" class="power-tab" type="button" title="Raio Arcano (Tecla 2)">
+                                <span class="power-tab-head">
+                                    <span class="power-tab-key">2</span>
+                                    <span class="power-tab-icon" aria-hidden="true">
+                                        <svg viewBox="0 0 16 16" width="13" height="13" fill="none">
+                                            <path d="M9.5 1.5L4.5 8.5H8L6.5 14.5L11.8 7.2H8.2L9.5 1.5Z" fill="#8ba6d6" stroke="#d4af37" stroke-width="0.9" stroke-linejoin="round"/>
+                                        </svg>
+                                    </span>
+                                </span>
+                                <div class="power-tab-name">Raio</div>
+                                <div class="power-tab-cd">Pronto</div>
+                                <div class="power-cd-bar"></div>
+                            </button>
+                            <button id="tabPower2" class="power-tab" type="button" title="Poeira de Pedra (Tecla 3)">
+                                <span class="power-tab-head">
+                                    <span class="power-tab-key">3</span>
+                                    <span class="power-tab-icon" aria-hidden="true">
+                                        <svg viewBox="0 0 16 16" width="13" height="13" fill="none">
+                                            <circle cx="6.2" cy="9.2" r="3.4" fill="#8c7e74"/>
+                                            <circle cx="10.2" cy="8.4" r="2.8" fill="#6b615b"/>
+                                            <rect x="4" y="4" width="2.2" height="2" rx="0.5" fill="#b8aa9e"/>
+                                            <rect x="10.5" y="4.5" width="2" height="1.8" rx="0.5" fill="#9c8f84"/>
+                                        </svg>
+                                    </span>
+                                </span>
+                                <div class="power-tab-name">Poeira</div>
+                                <div class="power-tab-cd">Pronto</div>
+                                <div class="power-cd-bar"></div>
+                            </button>
+                            <button id="tabPower3" class="power-tab" type="button" title="Chama Sombria (Tecla 4)">
+                                <span class="power-tab-head">
+                                    <span class="power-tab-key">4</span>
+                                    <span class="power-tab-icon" aria-hidden="true">
+                                        <svg viewBox="0 0 16 16" width="13" height="13" fill="none">
+                                            <path d="M8.2 1.8C10.5 4.4 12.2 6.8 11.8 10C11.5 12.6 9.8 14.2 7.8 14.2C5.4 14.2 3.8 12.4 4.1 9.8C4.4 7.3 6.2 5.6 6.4 3.5C7 4.4 7.5 4.9 8.2 1.8Z" fill="#7d3c8a" stroke="#c89a64" stroke-width="0.9"/>
+                                        </svg>
+                                    </span>
+                                </span>
+                                <div class="power-tab-name">Chama</div>
+                                <div class="power-tab-cd">Pronto</div>
+                                <div class="power-cd-bar"></div>
+                            </button>
+                            <button id="tabPower4" class="power-tab" type="button" title="Raio Contínuo — Segure Espaço (Tecla 5)">
+                                <span class="power-tab-head">
+                                    <span class="power-tab-key">5</span>
+                                    <span class="power-tab-icon" aria-hidden="true">
+                                        <svg viewBox="0 0 16 16" width="13" height="13" fill="none">
+                                            <path d="M1.5 8.5L4.8 6L7.4 9.5L10.6 5.5L14.5 8" stroke="#8ba6d6" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+                                            <path d="M1.5 8.5L4.8 6L7.4 9.5L10.6 5.5L14.5 8" stroke="#efe0b0" stroke-width="1" stroke-linecap="round" stroke-linejoin="round"/>
+                                            <circle cx="14" cy="8" r="1.4" fill="#d4af37"/>
+                                        </svg>
+                                    </span>
+                                </span>
+                                <div class="power-tab-name">Feixe</div>
+                                <div class="power-tab-cd">Segure</div>
+                                <div class="power-cd-bar"></div>
+                            </button>
+                            <button id="tabPower5" class="power-tab ice-spell" type="button" title="Estilhaços de Gelo (Tecla 6)">
+                                <span class="power-tab-head">
+                                    <span class="power-tab-key">6</span>
+                                    <span class="power-tab-icon" aria-hidden="true">
+                                        <svg viewBox="0 0 16 16" width="13" height="13" fill="none">
+                                            <path d="M2.5 5.5L11.5 2.5L7.5 6.8Z" fill="#9bd4f5" stroke="#2c537a" stroke-width="0.8"/>
+                                            <path d="M3 8.2L14 7.8L7.8 10Z" fill="#d8effc" stroke="#2c537a" stroke-width="0.8"/>
+                                            <path d="M2.5 11L11 13.5L7.5 10.2Z" fill="#7cbfe8" stroke="#2c537a" stroke-width="0.8"/>
+                                        </svg>
+                                    </span>
+                                </span>
+                                <div class="power-tab-name">Estilhaços</div>
+                                <div class="power-tab-cd">Pronto</div>
+                                <div class="power-cd-bar"></div>
+                            </button>
+                            <button id="tabPower6" class="power-tab ice-spell" type="button" title="Nevasca (Tecla 7)">
+                                <span class="power-tab-head">
+                                    <span class="power-tab-key">7</span>
+                                    <span class="power-tab-icon" aria-hidden="true">
+                                        <svg viewBox="0 0 16 16" width="13" height="13" fill="none">
+                                            <path d="M8 1.8V14.2M2.6 5L13.4 11M13.4 5L2.6 11" stroke="#b9dff7" stroke-width="1.3" stroke-linecap="round"/>
+                                            <circle cx="8" cy="8" r="2.1" fill="#e6f5ff" stroke="#4f83b0" stroke-width="0.8"/>
+                                        </svg>
+                                    </span>
+                                </span>
+                                <div class="power-tab-name">Nevasca</div>
+                                <div class="power-tab-cd">Pronto</div>
+                                <div class="power-cd-bar"></div>
+                            </button>
+                            <button id="tabPower7" class="power-tab ice-spell" type="button" title="Lança de Gelo (Tecla 8)">
+                                <span class="power-tab-head">
+                                    <span class="power-tab-key">8</span>
+                                    <span class="power-tab-icon" aria-hidden="true">
+                                        <svg viewBox="0 0 16 16" width="13" height="13" fill="none">
+                                            <path d="M1.5 9.2L10.5 6.2L14.6 7.8L10.2 10.4L1.5 9.2Z" fill="#7cbfe8" stroke="#1e3c5c" stroke-width="0.9" stroke-linejoin="round"/>
+                                            <path d="M4.2 8.6L13.2 7.8" stroke="#eaf7ff" stroke-width="1"/>
+                                        </svg>
+                                    </span>
+                                </span>
+                                <div class="power-tab-name">Lança</div>
+                                <div class="power-tab-cd">Pronto</div>
+                                <div class="power-cd-bar"></div>
+                            </button>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -1140,7 +1243,7 @@
                     <h1 class="modal-title">GOETIA</h1>
                     <div class="modal-subtitle">REINO DAS SOMBRAS</div>
                     <p class="modal-desc">
-                        Cavalgue pelas ruínas astrais, salte sobre <strong style="color:#d4af37">plataformas de pedra antigas</strong>, esmague criaturas e obstáculos no salto, domine os <strong style="color:#fbbf24">5 feitiços goéticos</strong> e desperte o <strong style="color:#a5b4fc">Príncipe Stolas</strong> e o <strong style="color:#fca5a5">Duque Eligos</strong> para selar os dois Portais Abissais nos extremos do reino.
+                        Cavalgue pelas ruínas astrais, salte sobre <strong style="color:#d4af37">plataformas de pedra antigas</strong>, esmague criaturas e obstáculos no salto, domine os <strong style="color:#fbbf24">8 feitiços goéticos e glaciais</strong> e desperte o <strong style="color:#a5b4fc">Príncipe Stolas</strong> e o <strong style="color:#fca5a5">Duque Eligos</strong> para selar os dois Portais Abissais nos extremos do reino.
                     </p>
                     <div class="controls-grid">
                         <div class="ctrl-item"><span>Andar</span><span class="kbd">A / D ou ◀ / ▶</span></div>
@@ -1148,7 +1251,7 @@
                         <div class="ctrl-item"><span>Galopar / Voar</span><span class="kbd">SHIFT</span></div>
                         <div class="ctrl-item"><span>Interagir / Selar</span><span class="kbd">E / S / ▼</span></div>
                         <div class="ctrl-item"><span>Usar Poder Ativo</span><span class="kbd">ESPAÇO (Segurar no 5)</span></div>
-                        <div class="ctrl-item"><span>Trocar Poder</span><span class="kbd">1 · 2 · 3 · 4 · 5</span></div>
+                        <div class="ctrl-item"><span>Trocar Poder</span><span class="kbd">1 · 2 · 3 · 4 · 5 · 6 · 7 · 8</span></div>
                         <div class="ctrl-item"><span>Alternar Daemon</span><span class="kbd">Q / Clique</span></div>
                     </div>
                     <div class="mode-selector-bar" role="group" aria-label="Modo de controle">
@@ -1183,7 +1286,7 @@
                     <h2 class="modal-title" style="font-size: 1.55rem; margin-bottom: 16px;">Guia do Reino</h2>
                     <div class="guide-list">
                         <p><strong>Movimento, Plataformas &amp; Pulo Esmagador:</strong> Use <strong>A/D</strong> ou <strong>Setas</strong> para cavalgar, <strong>W/▲</strong> para pular e <strong>Shift</strong> para galopar. Suba pelas <strong>7 plataformas flutuantes de pedra</strong> (atravessam por baixo e sustentam no topo) para coletar Essências elevadas. <strong>Pule em cima</strong> de <strong>pedras, espinhos ou raízes</strong> para quebrá-los e abrir caminho, ou sobre <strong>criaturas sombrias</strong> para esmagá-las, quicar e ganhar <strong>+2 Essências</strong> (não funciona na chefe, fendas ou piche).</p>
-                        <p><strong>Os 5 Poderes (Teclas 1–5 ou Barra no HUD, usar com ESPAÇO):</strong> Todos começam liberados com recarga própria: <strong>1. Aura do Ocidente</strong> (poder do Daemon ativo), <strong>2. Raio Arcano</strong> (raio do céu/projétil, dano 3, recarga 6s), <strong>3. Poeira de Pedra</strong> (dano 2 em área + lentidão, recarga 4s), <strong>4. Chama Sombria</strong> (fogo roxo no chão, dano 2, recarga 5s) e <strong>5. Raio Contínuo</strong> (<strong>segure ESPAÇO</strong> ou o botão Poder por até 3s para canalizar um feixe direcional de relâmpago com dano contínuo enquanto caminha devagar; recarga 4s ao soltar). Todos ferem a Grande Bruxa Abissal fora da investida!</p>
+                        <p><strong>Os 8 Poderes (Teclas 1–8 ou Barra no HUD, usar com ESPAÇO):</strong> Todos começam liberados com recarga própria: <strong>1. Aura do Ocidente</strong> (poder do Daemon ativo), <strong>2. Raio Arcano</strong> (raio do céu/projétil, dano 3, recarga 6s), <strong>3. Poeira de Pedra</strong> (dano 2 em área + lentidão, recarga 4s), <strong>4. Chama Sombria</strong> (fogo roxo no chão, dano 2, recarga 5s), <strong>5. Raio Contínuo</strong> (<strong>segure ESPAÇO</strong> ou o botão Poder por até 3s para canalizar um feixe direcional de relâmpago enquanto caminha devagar; recarga 4s), <strong>6. Estilhaços de Gelo</strong> (leque de 3 estilhaços frontais, dano 2 cada, recarga 4,5s), <strong>7. Nevasca</strong> (tempestade de gelo ao redor com dano 2 + lentidão, recarga 6s) e <strong>8. Lança de Gelo</strong> (projétil glacial pesado perfurante em linha reta, dano 4, recarga 5,5s). Todos funcionam contra inimigos comuns e chefes!</p>
                         <p><strong>Obstáculos da Estrada:</strong> Pule ou esmague <strong>pedras</strong>, <strong>arbustos de espinhos</strong> e <strong>raízes espinhosas</strong>; salte sobre <strong>fendas</strong> e <strong>poças de piche</strong> (deixam a cavalgada lenta sem causar dano).</p>
                         <p><strong>Os 3 Daemons (Tecla Q ou Clique nas Abas):</strong> <strong>Rei Paimon</strong> atrai essências e fortalece acólitos; desperte <strong>Príncipe Stolas</strong> no Altar Oeste <strong>(5)</strong> e <strong>Duque Eligos</strong> no Altar Leste <strong>(5)</strong>. Sele os <strong>Portais Abissais (10 cada)</strong> para abrir o teleporte do Portal Leste rumo à <strong>Fase 2 — O Reino Profundo</strong> (neve, gelo, arqueiros, diabretes e a <strong>Rainha do Gelo</strong>).</p>
                     </div>
@@ -1436,6 +1539,41 @@
                     gain.connect(this.ctx.destination);
                     osc.start(t);
                     osc.stop(t + 0.42);
+                } else if (spellIdx === 5) {
+                    // Estilhaços de Gelo: crisp crystalline frost scatter
+                    osc.type = 'triangle';
+                    osc.frequency.setValueAtTime(1180, t);
+                    osc.frequency.exponentialRampToValueAtTime(640, t + 0.12);
+                    osc.frequency.exponentialRampToValueAtTime(980, t + 0.24);
+                    gain.gain.setValueAtTime(0.095, t);
+                    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.28);
+                    osc.connect(gain);
+                    gain.connect(this.ctx.destination);
+                    osc.start(t);
+                    osc.stop(t + 0.3);
+                } else if (spellIdx === 6) {
+                    // Nevasca: swirling icy wind howl
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(280, t);
+                    osc.frequency.exponentialRampToValueAtTime(520, t + 0.22);
+                    osc.frequency.exponentialRampToValueAtTime(185, t + 0.52);
+                    gain.gain.setValueAtTime(0.11, t);
+                    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.55);
+                    osc.connect(gain);
+                    gain.connect(this.ctx.destination);
+                    osc.start(t);
+                    osc.stop(t + 0.56);
+                } else if (spellIdx === 7) {
+                    // Lança de Gelo: sharp glacial crack + heavy lance thrust
+                    osc.type = 'sawtooth';
+                    osc.frequency.setValueAtTime(760, t);
+                    osc.frequency.exponentialRampToValueAtTime(145, t + 0.3);
+                    gain.gain.setValueAtTime(0.115, t);
+                    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.32);
+                    osc.connect(gain);
+                    gain.connect(this.ctx.destination);
+                    osc.start(t);
+                    osc.stop(t + 0.34);
                 }
             }
 
@@ -2094,6 +2232,32 @@
                 range: 195,
                 holdable: true,
                 color: '#d4af37'
+            },
+            {
+                id: 'iceShards',
+                name: 'Estilhaços de Gelo',
+                shortName: 'Estilhaços',
+                cooldown: 4.5,
+                damage: 2,
+                color: '#7cbfe8'
+            },
+            {
+                id: 'blizzardNova',
+                name: 'Nevasca',
+                shortName: 'Nevasca',
+                cooldown: 6.0,
+                damage: 2,
+                slowDur: 3.8,
+                color: '#a8d5f5'
+            },
+            {
+                id: 'iceLance',
+                name: 'Lança de Gelo',
+                shortName: 'Lança',
+                cooldown: 5.5,
+                damage: 4,
+                pierce: 4,
+                color: '#5ea8d8'
             }
         ];
 
@@ -2272,7 +2436,7 @@
                     unlocked: [true, false, false],
                     essence: 12,
                     activePowerIdx: 0,
-                    powerCds: [0, 0, 0, 0, 0],
+                    powerCds: [0, 0, 0, 0, 0, 0, 0, 0],
                     powerCd: 0,
                     beam: {
                         active: false,
@@ -2531,7 +2695,7 @@
                     tarSlowTimer: 0,
                     activePowerIdx: keepPowerIdx,
                     powerCd: 0,
-                    powerCds: [0, 0, 0, 0, 0],
+                    powerCds: [0, 0, 0, 0, 0, 0, 0, 0],
                     beam: {
                         active: false,
                         holdTime: 0,
@@ -2897,6 +3061,9 @@
                 else if (code === 'Digit3' || k === '3') this.selectPower(2);
                 else if (code === 'Digit4' || k === '4') this.selectPower(3);
                 else if (code === 'Digit5' || k === '5') this.selectPower(4);
+                else if (code === 'Digit6' || k === '6') this.selectPower(5);
+                else if (code === 'Digit7' || k === '7') this.selectPower(6);
+                else if (code === 'Digit8' || k === '8') this.selectPower(7);
                 else if (code === 'KeyQ' || k === 'q') this.cycleDaemon();
                 else if (code === 'KeyW' || k === 'w' || code === 'ArrowUp' || k === 'arrowup') {
                     this.requestJump();
@@ -2994,7 +3161,7 @@
 
                 byId('btnDownloadHtml').addEventListener('click', () => this.downloadStandaloneHtml());
 
-                [0, 1, 2, 3, 4].forEach((idx) => {
+                SPELLS.forEach((_, idx) => {
                     const pTab = byId(`tabPower${idx}`);
                     if (pTab) {
                         pTab.addEventListener('click', () => {
@@ -4980,123 +5147,239 @@
                     hoodedArcher.push(ac);
                 }
 
-                // 10) PHASE 2 BOSS — RAINHA DO GELO (2 frames, 168x176 physical; blue horned winged demoness in dark gown!)
+                // 10) PHASE 2 BOSS — RAINHA DO GELO (2 frames, 168x176 physical; slender horned demoness with V-folded dark bat wings pointing UPWARD, long dark hair, defined pale face & long dark gown!)
                 const bossIceQueen = [];
                 for (let f = 0; f < 2; f++) {
                     const bc = makeC(168, 176);
                     const bctx = bc.getContext('2d');
-                    const wingLift = f === 0 ? -9 : 8;
+                    const wingBreath = f === 0 ? -3 : 3;
 
-                    // Large tattered frost-blue bat-like wings (left & right)
+                    // Dark bat-like wings FOLDED UPWARD in a crisp V behind her back (tips pointing UPWARD, never flared sideways like a butterfly!)
                     for (const side of [-1, 1]) {
-                        const wg = bctx.createLinearGradient(84, 34, 84 + side * 76, 128);
-                        wg.addColorStop(0, '#7cbfe8');
-                        wg.addColorStop(0.5, '#3b6d9e');
-                        wg.addColorStop(1, '#1a2c4a');
+                        const topTipX = 84 + side * 42;
+                        const topTipY = 8 + wingBreath;
+                        const elbowX = 84 + side * 32;
+                        const elbowY = 24 + wingBreath * 0.8;
+                        const outerTipX = 84 + side * 46;
+                        const outerTipY = 44 + wingBreath * 0.5;
+                        const midTipX = 84 + side * 37;
+                        const midTipY = 74;
+                        const lowTipX = 84 + side * 27;
+                        const lowTipY = 96;
+
+                        // Dark bat wing membrane body (deep midnight-charcoal to muted glacial slate)
+                        const wg = bctx.createLinearGradient(84 + side * 12, 92, topTipX, topTipY);
+                        wg.addColorStop(0, '#0e1322');
+                        wg.addColorStop(0.55, '#1b263d');
+                        wg.addColorStop(1, '#2b3e5e');
                         bctx.fillStyle = wg;
-                        bctx.strokeStyle = '#0f1729';
+                        bctx.strokeStyle = '#070a14';
                         bctx.lineWidth = 2.6;
                         bctx.beginPath();
-                        bctx.moveTo(84 + side * 10, 62);
-                        bctx.quadraticCurveTo(84 + side * 44, 24 + wingLift, 84 + side * 78, 38 + wingLift);
-                        bctx.quadraticCurveTo(84 + side * 72, 80 + wingLift * 0.4, 84 + side * 66, 118);
-                        bctx.quadraticCurveTo(84 + side * 48, 102, 84 + side * 38, 118);
-                        bctx.quadraticCurveTo(84 + side * 24, 100, 84 + side * 12, 92);
+                        bctx.moveTo(84 + side * 9, 64);
+                        // Steep upward leading bat-wing arm forming the V silhouette
+                        bctx.quadraticCurveTo(84 + side * 22, 34 + wingBreath * 0.6, topTipX, topTipY);
+                        // Sharp outer edge folding tightly down-inward along scalloped bat fingers
+                        bctx.quadraticCurveTo(84 + side * 47, 25 + wingBreath * 0.5, outerTipX, outerTipY);
+                        bctx.quadraticCurveTo(84 + side * 38, 56, midTipX, midTipY);
+                        bctx.quadraticCurveTo(84 + side * 29, 80, lowTipX, lowTipY);
+                        bctx.quadraticCurveTo(84 + side * 18, 86, 84 + side * 10, 92);
                         bctx.closePath();
                         bctx.fill();
                         bctx.stroke();
 
-                        // Pale frost wing membrane ribs
-                        bctx.strokeStyle = 'rgba(190, 230, 255, 0.55)';
-                        bctx.lineWidth = 1.6;
+                        // Translucent slate-blue bat wing membrane panels (clearly visible leather/membrane folds!)
+                        bctx.fillStyle = 'rgba(84, 128, 168, 0.24)';
                         bctx.beginPath();
-                        bctx.moveTo(84 + side * 16, 62);
-                        bctx.lineTo(84 + side * 68, 46 + wingLift);
-                        bctx.moveTo(84 + side * 16, 66);
-                        bctx.lineTo(84 + side * 56, 98);
+                        bctx.moveTo(elbowX, elbowY);
+                        bctx.lineTo(outerTipX - side * 2, outerTipY - 2);
+                        bctx.quadraticCurveTo(84 + side * 35, 56, midTipX - side * 1, midTipY - 3);
+                        bctx.lineTo(84 + side * 14, 72);
+                        bctx.closePath();
+                        bctx.fill();
+
+                        // Leading wing-arm ridge + hooked bat thumb claw pointing up
+                        bctx.strokeStyle = '#3c5578';
+                        bctx.lineWidth = 2.2;
+                        bctx.beginPath();
+                        bctx.moveTo(84 + side * 10, 64);
+                        bctx.quadraticCurveTo(84 + side * 22, 34 + wingBreath * 0.6, topTipX, topTipY);
+                        bctx.stroke();
+
+                        // Crisp visible bat-wing finger ribs radiating down from upper joint
+                        bctx.strokeStyle = 'rgba(155, 200, 235, 0.58)';
+                        bctx.lineWidth = 1.4;
+                        bctx.beginPath();
+                        bctx.moveTo(elbowX, elbowY);
+                        bctx.lineTo(outerTipX, outerTipY);
+                        bctx.moveTo(elbowX, elbowY);
+                        bctx.lineTo(midTipX, midTipY);
+                        bctx.moveTo(elbowX, elbowY);
+                        bctx.lineTo(lowTipX, lowTipY);
                         bctx.stroke();
                     }
 
-                    // Long flowing dark indigo-black royal dress with jagged icy-slate pleats
-                    const dressG = bctx.createLinearGradient(84, 62, 84, 170);
-                    dressG.addColorStop(0, '#2a3752');
-                    dressG.addColorStop(0.45, '#192136');
-                    dressG.addColorStop(1, '#0e1322');
-                    bctx.fillStyle = dressG;
-                    bctx.strokeStyle = '#0a0e1a';
-                    bctx.lineWidth = 2.6;
+                    // Long flowing dark hair cascading behind shoulders and back
+                    bctx.fillStyle = '#0c101d';
+                    bctx.strokeStyle = '#05070e';
+                    bctx.lineWidth = 2.2;
                     bctx.beginPath();
-                    bctx.moveTo(70, 62);
-                    bctx.lineTo(98, 62);
-                    bctx.quadraticCurveTo(104, 106, 122, 166);
-                    bctx.lineTo(102, 158);
-                    bctx.lineTo(90, 170);
-                    bctx.lineTo(78, 160);
-                    bctx.lineTo(66, 170);
-                    bctx.lineTo(46, 164);
-                    bctx.quadraticCurveTo(64, 106, 70, 62);
+                    bctx.moveTo(71, 38);
+                    bctx.quadraticCurveTo(64, 62, 66, 94);
+                    bctx.lineTo(74, 88);
+                    bctx.lineTo(84, 96);
+                    bctx.lineTo(94, 88);
+                    bctx.lineTo(102, 94);
+                    bctx.quadraticCurveTo(104, 62, 97, 38);
                     bctx.closePath();
                     bctx.fill();
                     bctx.stroke();
 
-                    // Pale ice corset lacing & vertical gown folds
+                    // Long flowing dark indigo-black royal dress with slender waist & jagged pleats
+                    const dressG = bctx.createLinearGradient(84, 62, 84, 170);
+                    dressG.addColorStop(0, '#26334d');
+                    dressG.addColorStop(0.42, '#171f33');
+                    dressG.addColorStop(1, '#0c111f');
+                    bctx.fillStyle = dressG;
+                    bctx.strokeStyle = '#090d18';
+                    bctx.lineWidth = 2.6;
+                    bctx.beginPath();
+                    bctx.moveTo(73, 62);
+                    bctx.lineTo(95, 62);
+                    bctx.quadraticCurveTo(96, 86, 100, 104);
+                    bctx.quadraticCurveTo(107, 134, 118, 166);
+                    bctx.lineTo(101, 158);
+                    bctx.lineTo(90, 170);
+                    bctx.lineTo(78, 160);
+                    bctx.lineTo(67, 170);
+                    bctx.lineTo(50, 166);
+                    bctx.quadraticCurveTo(61, 134, 68, 104);
+                    bctx.quadraticCurveTo(72, 86, 73, 62);
+                    bctx.closePath();
+                    bctx.fill();
+                    bctx.stroke();
+
+                    // Pale ice corset lacing & vertical gown pleats
                     bctx.strokeStyle = '#7db5db';
+                    bctx.lineWidth = 1.5;
+                    bctx.beginPath();
+                    bctx.moveTo(84, 70);
+                    bctx.lineTo(84, 162);
+                    bctx.moveTo(76, 94);
+                    bctx.lineTo(65, 158);
+                    bctx.moveTo(92, 94);
+                    bctx.lineTo(103, 158);
+                    bctx.stroke();
+
+                    // Pale frost-tinted slender arms & clawed hands
+                    bctx.fillStyle = '#8cb6d6';
+                    bctx.strokeStyle = '#101a2e';
+                    bctx.lineWidth = 2.0;
+                    bctx.beginPath();
+                    bctx.moveTo(73, 66);
+                    bctx.lineTo(54, 94 + (f === 0 ? -2 : 2));
+                    bctx.lineTo(59, 98 + (f === 0 ? -2 : 2));
+                    bctx.lineTo(75, 76);
+                    bctx.moveTo(95, 66);
+                    bctx.lineTo(114, 94 + (f === 0 ? 2 : -2));
+                    bctx.lineTo(109, 98 + (f === 0 ? 2 : -2));
+                    bctx.lineTo(93, 76);
+                    bctx.fill();
+                    bctx.stroke();
+
+                    // Neck & well-defined pale/frost-tinted demoness face
+                    bctx.fillStyle = '#9ec4e0';
+                    bctx.fillRect(80.5, 56, 7, 8);
+                    const faceG = bctx.createLinearGradient(84, 34, 84, 60);
+                    faceG.addColorStop(0, '#c2dff2');
+                    faceG.addColorStop(0.65, '#9ec4e0');
+                    faceG.addColorStop(1, '#7ba7ca');
+                    bctx.fillStyle = faceG;
+                    bctx.strokeStyle = '#0e1628';
+                    bctx.lineWidth = 2.0;
+                    bctx.beginPath();
+                    bctx.moveTo(74, 42);
+                    bctx.quadraticCurveTo(73.5, 52, 79, 57);
+                    bctx.quadraticCurveTo(84, 61, 89, 57);
+                    bctx.quadraticCurveTo(94.5, 52, 94, 42);
+                    bctx.quadraticCurveTo(94, 34, 84, 34);
+                    bctx.quadraticCurveTo(74, 34, 74, 42);
+                    bctx.closePath();
+                    bctx.fill();
+                    bctx.stroke();
+
+                    // Long dark framing hair locks around forehead & cheeks
+                    bctx.fillStyle = '#0e1322';
+                    bctx.strokeStyle = '#05070e';
                     bctx.lineWidth = 1.6;
                     bctx.beginPath();
-                    bctx.moveTo(84, 72);
-                    bctx.lineTo(84, 162);
-                    bctx.moveTo(74, 92);
-                    bctx.lineTo(62, 158);
-                    bctx.moveTo(94, 92);
-                    bctx.lineTo(106, 158);
-                    bctx.stroke();
-
-                    // Blue-skinned torso, arms & icy shoulder pauldrons
-                    bctx.fillStyle = '#5c97c4';
-                    bctx.strokeStyle = '#121d33';
-                    bctx.lineWidth = 2.2;
-                    // Outstretched slender clawed arms
-                    bctx.beginPath();
-                    bctx.moveTo(70, 66);
-                    bctx.lineTo(48, 92 + (f === 0 ? -3 : 3));
-                    bctx.lineTo(54, 96 + (f === 0 ? -3 : 3));
-                    bctx.lineTo(73, 76);
-                    bctx.moveTo(98, 66);
-                    bctx.lineTo(120, 92 + (f === 0 ? 3 : -3));
-                    bctx.lineTo(114, 96 + (f === 0 ? 3 : -3));
-                    bctx.lineTo(95, 76);
+                    bctx.moveTo(73, 41);
+                    bctx.quadraticCurveTo(76, 33, 84, 34);
+                    bctx.quadraticCurveTo(92, 33, 95, 41);
+                    bctx.quadraticCurveTo(95, 56, 98, 74);
+                    bctx.lineTo(92, 66);
+                    bctx.quadraticCurveTo(93, 49, 91, 41);
+                    bctx.quadraticCurveTo(84, 37, 77, 41);
+                    bctx.quadraticCurveTo(75, 49, 76, 66);
+                    bctx.lineTo(70, 74);
+                    bctx.quadraticCurveTo(73, 56, 73, 41);
+                    bctx.closePath();
                     bctx.fill();
                     bctx.stroke();
 
-                    // Head (blue demoness face)
-                    bctx.fillStyle = '#6da9d6';
-                    bctx.beginPath();
-                    bctx.ellipse(84, 46, 11.5, 13.5, 0, 0, Math.PI * 2);
-                    bctx.fill();
-                    bctx.stroke();
-
-                    // Sweeping curved icy crown horns (matching reference image!)
-                    const hornG = bctx.createLinearGradient(84, 10, 84, 42);
+                    // Sweeping curved icy crown horns (gracefully framed inside the V of her wings)
+                    const hornG = bctx.createLinearGradient(84, 12, 84, 40);
                     hornG.addColorStop(0, '#e3f4ff');
                     hornG.addColorStop(0.55, '#8ac4eb');
-                    hornG.addColorStop(1, '#3c6896');
+                    hornG.addColorStop(1, '#365e88');
                     bctx.fillStyle = hornG;
+                    bctx.strokeStyle = '#0d1526';
+                    bctx.lineWidth = 1.9;
                     for (const side of [-1, 1]) {
                         bctx.beginPath();
                         bctx.moveTo(84 + side * 6, 36);
-                        bctx.quadraticCurveTo(84 + side * 24, 24, 84 + side * 28, 10);
-                        bctx.quadraticCurveTo(84 + side * 14, 18, 84 + side * 10, 38);
+                        bctx.quadraticCurveTo(84 + side * 20, 24, 84 + side * 23, 12);
+                        bctx.quadraticCurveTo(84 + side * 13, 20, 84 + side * 10, 38);
                         bctx.closePath();
                         bctx.fill();
                         bctx.stroke();
                     }
 
-                    // Luminous pale-cyan eyes
-                    bctx.fillStyle = '#dcf4ff';
+                    // Defined dark brows, luminous pale-cyan eyes & solemn dark lips
+                    bctx.strokeStyle = '#0d1526';
+                    bctx.lineWidth = 1.4;
                     bctx.beginPath();
-                    bctx.ellipse(79.5, 45, 2.3, 1.5, 0.2, 0, Math.PI * 2);
-                    bctx.ellipse(88.5, 45, 2.3, 1.5, -0.2, 0, Math.PI * 2);
+                    bctx.moveTo(76.5, 42.5);
+                    bctx.lineTo(82, 43.8);
+                    bctx.moveTo(91.5, 42.5);
+                    bctx.lineTo(86, 43.8);
+                    bctx.stroke();
+
+                    bctx.fillStyle = '#0e1628';
+                    bctx.beginPath();
+                    bctx.ellipse(79.5, 46, 2.7, 1.7, 0.14, 0, Math.PI * 2);
+                    bctx.ellipse(88.5, 46, 2.7, 1.7, -0.14, 0, Math.PI * 2);
                     bctx.fill();
+
+                    bctx.fillStyle = '#dff6ff';
+                    bctx.beginPath();
+                    bctx.ellipse(79.5, 46, 1.8, 1.1, 0.14, 0, Math.PI * 2);
+                    bctx.ellipse(88.5, 46, 1.8, 1.1, -0.14, 0, Math.PI * 2);
+                    bctx.fill();
+
+                    // Subtle nose & dark indigo lips
+                    bctx.strokeStyle = 'rgba(20, 34, 56, 0.72)';
+                    bctx.lineWidth = 1.1;
+                    bctx.beginPath();
+                    bctx.moveTo(84, 48);
+                    bctx.lineTo(83.5, 51);
+                    bctx.stroke();
+                    bctx.strokeStyle = '#1b2742';
+                    bctx.lineWidth = 1.5;
+                    bctx.beginPath();
+                    bctx.moveTo(81.5, 54);
+                    bctx.quadraticCurveTo(84, 55.2, 86.5, 54);
+                    bctx.stroke();
 
                     bossIceQueen.push(bc);
                 }
@@ -5352,6 +5635,13 @@
                     return DAEMONS[this.player.daemonIdx].powerName;
                 }
                 return (SPELLS[spellIdx] || SPELLS[0]).name;
+            }
+
+            getSpellShortName(spellIdx) {
+                if (spellIdx === 0 && this.player && this.player.daemonIdx !== 0) {
+                    return this.player.daemonIdx === 1 ? 'Estrelas' : 'Investida';
+                }
+                return (SPELLS[spellIdx] || SPELLS[0]).shortName;
             }
 
             updateDaemonPortrait() {
@@ -5901,6 +6191,73 @@
                     });
                     this.spawnBurst(p.x + p.facing * 22, this.groundY - 8, '#7d3c8a', 10);
                     this.addFloatingText(p.x, p.y - 46, 'Chama Sombria!', '#c9a0d6');
+                } else if (sIdx === 5) {
+                    // 6) ESTILHAÇOS DE GELO — forward fan of 3 hand-painted jagged ice shards; dmg 2 each, cd 4.5s, ZERO neon
+                    this.sound.playSpell(5);
+                    const fanVys = [-54, 0, 48];
+                    const fanTilts = [-0.2, 0, 0.18];
+                    for (let k = 0; k < fanVys.length; k++) {
+                        this.spellEffects.push({
+                            type: 'iceShard',
+                            x: p.x + p.facing * 22,
+                            y: p.y - 22 + (k - 1) * 4,
+                            vx: p.facing * 278,
+                            vy: fanVys[k],
+                            tilt: fanTilts[k],
+                            dir: p.facing,
+                            damage: 2,
+                            life: 0.78,
+                            maxLife: 0.78,
+                            hitSet: new Set()
+                        });
+                    }
+                    this.spawnBurst(p.x + p.facing * 22, p.y - 22, '#9bd4f5', 10);
+                    this.addFloatingText(p.x, p.y - 46, 'Estilhaços de Gelo!', '#c7e8fc');
+                } else if (sIdx === 6) {
+                    // 7) NEVASCA — swirling snowstorm AoE around Paimon; dmg 2 + slow 3.8s, cd 6s, ZERO neon
+                    this.sound.playSpell(6);
+                    const flakes = [];
+                    for (let k = 0; k < 22; k++) {
+                        flakes.push({
+                            angle: (k / 22) * Math.PI * 2,
+                            dist: 22 + (k % 5) * 24,
+                            sz: 1.6 + (k % 3) * 0.9,
+                            speed: 2.6 + (k % 4) * 0.7
+                        });
+                    }
+                    this.spellEffects.push({
+                        type: 'blizzardNova',
+                        x: p.x,
+                        y: p.y - 18,
+                        radius: 138,
+                        damage: 2,
+                        slowDur: 3.8,
+                        life: 1.25,
+                        maxLife: 1.25,
+                        hitSet: new Set(),
+                        flakes
+                    });
+                    this.spawnBurst(p.x, p.y - 20, '#b9dff7', 16);
+                    this.triggerShake(0.18, 2.0);
+                    this.addFloatingText(p.x, p.y - 46, 'Nevasca!', '#d8effc');
+                } else if (sIdx === 7) {
+                    // 8) LANÇA DE GELO — heavy straight-line piercing glacial lance; dmg 4, pierce 4, cd 5.5s, ZERO neon
+                    this.sound.playSpell(7);
+                    this.spellEffects.push({
+                        type: 'iceLance',
+                        x: p.x + p.facing * 24,
+                        y: p.y - 22,
+                        vx: p.facing * 355,
+                        dir: p.facing,
+                        damage: 4,
+                        pierce: 4,
+                        life: 0.95,
+                        maxLife: 0.95,
+                        hitSet: new Set()
+                    });
+                    this.spawnBurst(p.x + p.facing * 24, p.y - 22, '#7cbfe8', 12);
+                    this.triggerShake(0.16, 2.2);
+                    this.addFloatingText(p.x, p.y - 46, 'Lança de Gelo!', '#a8d5f5');
                 }
 
                 this.syncHUD(true);
@@ -6046,6 +6403,176 @@
                                 fx.hitSet.add(this.boss);
                                 this.damageBoss(fx.damage, fx.dir);
                             }
+                        }
+                    } else if (fx.type === 'iceShard') {
+                        fx.x += fx.vx * dt;
+                        fx.y += fx.vy * dt;
+                        if (fx.y > this.groundY - 3) {
+                            this.spawnBurst(fx.x, this.groundY - 4, '#a8d5f5', 4);
+                            this.spellEffects.splice(i, 1);
+                            continue;
+                        }
+                        if (Math.random() < dt * 18) {
+                            this.particles.push({
+                                x: fx.x,
+                                y: fx.y,
+                                vx: -fx.dir * (12 + Math.random() * 14),
+                                vy: (Math.random() - 0.5) * 14,
+                                color: Math.random() < 0.5 ? '#c7e8fc' : '#7cbfe8',
+                                size: 1.5,
+                                life: 0.24,
+                                maxLife: 0.24,
+                                gravity: 15
+                            });
+                        }
+
+                        let consumed = false;
+                        for (let j = this.critters.length - 1; j >= 0; j--) {
+                            const c = this.critters[j];
+                            if (fx.hitSet.has(c)) continue;
+                            if (Math.abs(fx.x - c.x) < 20 && Math.abs(fx.y - (c.y - 10)) < 26) {
+                                fx.hitSet.add(c);
+                                this.damageCritter(c, fx.damage, fx.dir);
+                                this.spawnBurst(c.x, c.y - 10, '#a8d5f5', 7);
+                                consumed = true;
+                                break;
+                            }
+                        }
+                        if (!consumed) {
+                            for (const s of this.shadows) {
+                                if (fx.hitSet.has(s)) continue;
+                                if (Math.abs(fx.x - s.x) < 20 && Math.abs(fx.y - (this.groundY - 16)) < 28) {
+                                    fx.hitSet.add(s);
+                                    s.hp -= fx.damage;
+                                    s.knockVx = fx.dir * 95;
+                                    this.sound.playHit();
+                                    this.spawnBurst(s.x, this.groundY - 14, '#a8d5f5', 7);
+                                    consumed = true;
+                                    break;
+                                }
+                            }
+                        }
+                        if (!consumed && this.boss && !this.boss.defeated && !fx.hitSet.has(this.boss)) {
+                            if (Math.abs(fx.x - this.boss.x) < 34 && Math.abs(fx.y - (this.boss.y - 12)) < 46) {
+                                fx.hitSet.add(this.boss);
+                                this.damageBoss(fx.damage, fx.dir);
+                                this.spawnBurst(this.boss.x, this.boss.y - 14, '#a8d5f5', 8);
+                                consumed = true;
+                            }
+                        }
+                        if (consumed) {
+                            this.spellEffects.splice(i, 1);
+                        }
+                    } else if (fx.type === 'blizzardNova') {
+                        if (this.player) {
+                            fx.x = lerp(fx.x, this.player.x, Math.min(1, dt * 8));
+                            fx.y = lerp(fx.y, this.player.y - 18, Math.min(1, dt * 8));
+                        }
+                        if (Math.random() < dt * 28) {
+                            const ang = Math.random() * Math.PI * 2;
+                            const dist = 16 + Math.random() * (fx.radius * 0.9);
+                            this.particles.push({
+                                x: fx.x + Math.cos(ang) * dist,
+                                y: fx.y + Math.sin(ang) * (dist * 0.45),
+                                vx: -Math.sin(ang) * 42,
+                                vy: -12 + Math.cos(ang) * 14,
+                                color: Math.random() < 0.6 ? '#dff2ff' : '#89bee2',
+                                size: Math.random() < 0.5 ? 2 : 1.5,
+                                life: 0.36,
+                                maxLife: 0.36,
+                                gravity: 6
+                            });
+                        }
+
+                        for (let j = this.critters.length - 1; j >= 0; j--) {
+                            const c = this.critters[j];
+                            if (Math.abs(fx.x - c.x) < fx.radius + 10) {
+                                c.slowTimer = Math.max(c.slowTimer || 0, fx.slowDur);
+                                if (!fx.hitSet.has(c)) {
+                                    fx.hitSet.add(c);
+                                    this.damageCritter(c, fx.damage, c.x >= fx.x ? 1 : -1);
+                                    this.spawnBurst(c.x, c.y - 10, '#b9dff7', 6);
+                                }
+                            }
+                        }
+                        for (const s of this.shadows) {
+                            if (Math.abs(fx.x - s.x) < fx.radius + 8) {
+                                s.slowTimer = Math.max(s.slowTimer || 0, fx.slowDur);
+                                if (!fx.hitSet.has(s)) {
+                                    fx.hitSet.add(s);
+                                    s.hp -= fx.damage;
+                                    s.knockVx = (s.x >= fx.x ? 1 : -1) * 90;
+                                    this.sound.playHit();
+                                    this.spawnBurst(s.x, this.groundY - 14, '#b9dff7', 6);
+                                }
+                            }
+                        }
+                        if (this.boss && !this.boss.defeated && !fx.hitSet.has(this.boss)) {
+                            if (Math.abs(fx.x - this.boss.x) < fx.radius + 26) {
+                                fx.hitSet.add(this.boss);
+                                this.damageBoss(fx.damage, this.boss.x >= fx.x ? 1 : -1);
+                                this.spawnBurst(this.boss.x, this.boss.y - 14, '#b9dff7', 10);
+                            }
+                        }
+                    } else if (fx.type === 'iceLance') {
+                        fx.x += fx.vx * dt;
+                        if (Math.random() < dt * 26) {
+                            this.particles.push({
+                                x: fx.x - fx.dir * 12,
+                                y: fx.y + (Math.random() - 0.5) * 6,
+                                vx: -fx.dir * (22 + Math.random() * 18),
+                                vy: (Math.random() - 0.5) * 16,
+                                color: Math.random() < 0.5 ? '#d8effc' : '#6da9d6',
+                                size: 2,
+                                life: 0.28,
+                                maxLife: 0.28,
+                                gravity: 10
+                            });
+                        }
+
+                        let spent = false;
+                        for (let j = this.critters.length - 1; j >= 0; j--) {
+                            const c = this.critters[j];
+                            if (fx.hitSet.has(c)) continue;
+                            if (Math.abs(fx.x - c.x) < 26 && Math.abs(fx.y - (c.y - 10)) < 28) {
+                                fx.hitSet.add(c);
+                                this.damageCritter(c, fx.damage, fx.dir);
+                                this.spawnBurst(c.x, c.y - 10, '#7cbfe8', 10);
+                                fx.pierce -= 1;
+                                if (fx.pierce <= 0) {
+                                    spent = true;
+                                    break;
+                                }
+                            }
+                        }
+                        if (!spent) {
+                            for (const s of this.shadows) {
+                                if (fx.hitSet.has(s)) continue;
+                                if (Math.abs(fx.x - s.x) < 24 && Math.abs(fx.y - (this.groundY - 16)) < 30) {
+                                    fx.hitSet.add(s);
+                                    s.hp -= fx.damage;
+                                    s.knockVx = fx.dir * 150;
+                                    this.sound.playHit();
+                                    this.spawnBurst(s.x, this.groundY - 14, '#7cbfe8', 9);
+                                    fx.pierce -= 1;
+                                    if (fx.pierce <= 0) {
+                                        spent = true;
+                                        break;
+                                    }
+                                }
+                            }
+                        }
+                        if (!spent && this.boss && !this.boss.defeated && !fx.hitSet.has(this.boss)) {
+                            if (Math.abs(fx.x - this.boss.x) < 36 && Math.abs(fx.y - (this.boss.y - 12)) < 46) {
+                                fx.hitSet.add(this.boss);
+                                this.damageBoss(fx.damage, fx.dir);
+                                this.spawnBurst(this.boss.x, this.boss.y - 14, '#d8effc', 12);
+                                this.triggerShake(0.18, 2.5);
+                                spent = true;
+                            }
+                        }
+                        if (spent) {
+                            this.spellEffects.splice(i, 1);
                         }
                     }
                 }
@@ -9766,6 +10293,116 @@
                                 ctx.fill();
                             }
                             ctx.globalAlpha = 1;
+                        } else if (fx.type === 'iceShard') {
+                            // Hand-painted faceted glacial ice shard (zero neon!)
+                            ctx.save();
+                            ctx.translate(fx.x, fx.y);
+                            ctx.rotate(fx.dir > 0 ? fx.tilt : Math.PI - fx.tilt);
+                            ctx.globalAlpha = clamp(alpha * 1.15, 0, 0.96);
+                            ctx.fillStyle = '#7cbfe8';
+                            ctx.strokeStyle = '#1b3554';
+                            ctx.lineWidth = 1.2;
+                            ctx.beginPath();
+                            ctx.moveTo(11, 0);
+                            ctx.lineTo(-2, -4.2);
+                            ctx.lineTo(-10, 0);
+                            ctx.lineTo(-2, 4.2);
+                            ctx.closePath();
+                            ctx.fill();
+                            ctx.stroke();
+
+                            // Crisp pale frost top facet
+                            ctx.fillStyle = '#dff3ff';
+                            ctx.beginPath();
+                            ctx.moveTo(9, 0);
+                            ctx.lineTo(-2, -2.6);
+                            ctx.lineTo(-6, 0);
+                            ctx.closePath();
+                            ctx.fill();
+                            ctx.restore();
+                        } else if (fx.type === 'blizzardNova') {
+                            // Swirling hand-painted snowstorm aura & drifting ice gusts (zero neon!)
+                            const expand = 0.65 + (1 - alpha) * 0.42;
+                            const rad = fx.radius * Math.min(1, expand);
+                            ctx.globalAlpha = clamp(alpha * 0.85, 0, 0.85);
+
+                            // Soft frosted ground mist band
+                            const bg = ctx.createRadialGradient(fx.x, fx.y + 4, 8, fx.x, fx.y + 4, rad);
+                            bg.addColorStop(0, 'rgba(216, 239, 252, 0.24)');
+                            bg.addColorStop(0.6, 'rgba(130, 185, 224, 0.16)');
+                            bg.addColorStop(1, 'rgba(90, 140, 184, 0)');
+                            ctx.fillStyle = bg;
+                            ctx.beginPath();
+                            ctx.ellipse(fx.x, fx.y + 6, rad, rad * 0.42, 0, 0, Math.PI * 2);
+                            ctx.fill();
+
+                            // Painted swirling wind ribbons
+                            ctx.strokeStyle = 'rgba(212, 236, 250, 0.56)';
+                            ctx.lineWidth = 1.8;
+                            for (let r = 0; r < 3; r++) {
+                                const phase = this.elapsed * (3.6 + r * 0.7) + r * 2.1;
+                                const rx = rad * (0.45 + r * 0.22);
+                                const ry = rx * 0.34;
+                                ctx.beginPath();
+                                ctx.ellipse(fx.x, fx.y + 4 - r * 5, rx, ry, 0, phase, phase + Math.PI * 0.78);
+                                ctx.stroke();
+                            }
+
+                            // Orbiting painted snowflakes & crystal specks
+                            for (const fl of fx.flakes) {
+                                const ang = fl.angle + this.elapsed * fl.speed;
+                                const px = fx.x + Math.cos(ang) * (fl.dist * Math.min(1, expand));
+                                const py = fx.y + 2 + Math.sin(ang) * (fl.dist * 0.38);
+                                ctx.fillStyle = fl.sz > 2.1 ? '#eef8ff' : '#9bd4f5';
+                                ctx.fillRect(Math.round(px), Math.round(py), fl.sz, fl.sz);
+                            }
+                            ctx.globalAlpha = 1;
+                        } else if (fx.type === 'iceLance') {
+                            // Heavy hand-painted piercing glacial spear with icy wake (zero neon!)
+                            ctx.save();
+                            ctx.translate(fx.x, fx.y);
+                            if (fx.dir < 0) ctx.scale(-1, 1);
+                            ctx.globalAlpha = clamp(alpha * 1.15, 0, 0.98);
+
+                            // Trailing frost wake lines
+                            ctx.strokeStyle = 'rgba(195, 228, 250, 0.45)';
+                            ctx.lineWidth = 1.6;
+                            ctx.beginPath();
+                            ctx.moveTo(-18, -3.5);
+                            ctx.lineTo(-34, -5);
+                            ctx.moveTo(-18, 3.5);
+                            ctx.lineTo(-34, 5);
+                            ctx.stroke();
+
+                            // Sculpted heavy ice lance blade
+                            const lg = ctx.createLinearGradient(-22, 0, 22, 0);
+                            lg.addColorStop(0, '#3e6e9c');
+                            lg.addColorStop(0.55, '#8ac6eb');
+                            lg.addColorStop(1, '#e6f6ff');
+                            ctx.fillStyle = lg;
+                            ctx.strokeStyle = '#142942';
+                            ctx.lineWidth = 1.6;
+                            ctx.beginPath();
+                            ctx.moveTo(22, 0);
+                            ctx.lineTo(4, -6.5);
+                            ctx.lineTo(-10, -4.2);
+                            ctx.lineTo(-22, -6);
+                            ctx.lineTo(-16, 0);
+                            ctx.lineTo(-22, 6);
+                            ctx.lineTo(-10, 4.2);
+                            ctx.lineTo(4, 6.5);
+                            ctx.closePath();
+                            ctx.fill();
+                            ctx.stroke();
+
+                            // Crisp central crystal ridge
+                            ctx.strokeStyle = '#eef8ff';
+                            ctx.lineWidth = 1.5;
+                            ctx.beginPath();
+                            ctx.moveTo(-14, 0);
+                            ctx.lineTo(19, 0);
+                            ctx.stroke();
+                            ctx.restore();
                         }
                     }
                     ctx.restore();
@@ -10300,7 +10937,7 @@
                     }
                 }
 
-                // Sync all 5 Spell Selector buttons in the HUD footer (active state + channeling + individual cooldowns)
+                // Sync all 8 Spell Selector buttons in the compact single-row HUD bar (active state + channeling + individual cooldowns)
                 for (let idx = 0; idx < SPELLS.length; idx++) {
                     const pTab = document.getElementById(`tabPower${idx}`);
                     if (!pTab) continue;
@@ -10313,13 +10950,14 @@
                     pTab.classList.toggle('active', activeIdx === idx);
                     pTab.classList.toggle('channeling', isChannelingThis);
                     pTab.classList.toggle('on-cd', !isChannelingThis && cdVal > 0.05);
+                    pTab.title = `${this.getSpellDisplayName(idx)} (Tecla ${idx + 1})`;
                     const nameEl = pTab.querySelector('.power-tab-name');
-                    if (nameEl) nameEl.textContent = this.getSpellDisplayName(idx);
+                    if (nameEl) nameEl.textContent = this.getSpellShortName(idx);
                     const cdEl = pTab.querySelector('.power-tab-cd');
                     if (cdEl) {
                         cdEl.textContent = isChannelingThis
-                            ? `Ativo ${beamRemain.toFixed(1)}s`
-                            : (cdVal <= 0.05 ? (idx === 4 ? 'Segurar' : 'Pronto') : `${cdVal.toFixed(1)}s`);
+                            ? `${beamRemain.toFixed(1)}s`
+                            : (cdVal <= 0.05 ? (idx === 4 ? 'Segure' : 'Pronto') : `${cdVal.toFixed(1)}s`);
                     }
                     const barEl = pTab.querySelector('.power-cd-bar');
                     if (barEl) barEl.style.transform = `scaleX(${ratio.toFixed(3)})`;
