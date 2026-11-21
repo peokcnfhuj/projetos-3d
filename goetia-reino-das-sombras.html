@@ -1185,7 +1185,7 @@
                         <p><strong>Movimento, Plataformas &amp; Pulo Esmagador:</strong> Use <strong>A/D</strong> ou <strong>Setas</strong> para cavalgar, <strong>W/▲</strong> para pular e <strong>Shift</strong> para galopar. Suba pelas <strong>7 plataformas flutuantes de pedra</strong> (atravessam por baixo e sustentam no topo) para coletar Essências elevadas. <strong>Pule em cima</strong> de <strong>pedras, espinhos ou raízes</strong> para quebrá-los e abrir caminho, ou sobre <strong>criaturas sombrias</strong> para esmagá-las, quicar e ganhar <strong>+2 Essências</strong> (não funciona na chefe, fendas ou piche).</p>
                         <p><strong>Os 5 Poderes (Teclas 1–5 ou Barra no HUD, usar com ESPAÇO):</strong> Todos começam liberados com recarga própria: <strong>1. Aura do Ocidente</strong> (poder do Daemon ativo), <strong>2. Raio Arcano</strong> (raio do céu/projétil, dano 3, recarga 6s), <strong>3. Poeira de Pedra</strong> (dano 2 em área + lentidão, recarga 4s), <strong>4. Chama Sombria</strong> (fogo roxo no chão, dano 2, recarga 5s) e <strong>5. Raio Contínuo</strong> (<strong>segure ESPAÇO</strong> ou o botão Poder por até 3s para canalizar um feixe direcional de relâmpago com dano contínuo enquanto caminha devagar; recarga 4s ao soltar). Todos ferem a Grande Bruxa Abissal fora da investida!</p>
                         <p><strong>Obstáculos da Estrada:</strong> Pule ou esmague <strong>pedras</strong>, <strong>arbustos de espinhos</strong> e <strong>raízes espinhosas</strong>; salte sobre <strong>fendas</strong> e <strong>poças de piche</strong> (deixam a cavalgada lenta sem causar dano).</p>
-                        <p><strong>Os 3 Daemons (Tecla Q ou Clique nas Abas):</strong> <strong>Rei Paimon</strong> atrai essências e fortalece acólitos; desperte <strong>Príncipe Stolas</strong> no Altar Oeste <strong>(5)</strong> e <strong>Duque Eligos</strong> no Altar Leste <strong>(5)</strong>. Alterne entre <strong>Teclado</strong> e <strong>Joystick</strong> quando quiser e sele os <strong>Portais Abissais (10 cada)</strong>!</p>
+                        <p><strong>Os 3 Daemons (Tecla Q ou Clique nas Abas):</strong> <strong>Rei Paimon</strong> atrai essências e fortalece acólitos; desperte <strong>Príncipe Stolas</strong> no Altar Oeste <strong>(5)</strong> e <strong>Duque Eligos</strong> no Altar Leste <strong>(5)</strong>. Sele os <strong>Portais Abissais (10 cada)</strong> para abrir o teleporte do Portal Leste rumo à <strong>Fase 2 — O Reino Profundo</strong> (neve, gelo, arqueiros, diabretes e a <strong>Rainha do Gelo</strong>).</p>
                     </div>
                     <button id="btnCloseHelp" class="btn-primary" type="button">Voltar ao Reino</button>
                 </div>
@@ -1194,11 +1194,11 @@
             <!-- Victory Overlay -->
             <div id="victoryModal" class="modal-backdrop hidden">
                 <div class="modal-card">
-                    <div class="modal-kicker">Vitória Astral</div>
-                    <h2 class="modal-title">REINO PURIFICADO</h2>
-                    <div class="modal-subtitle">OS PORTAIS ABISSAIS FORAM SELADOS</div>
-                    <p class="modal-desc" style="text-align:center;">
-                        Sob a soberania dos Daemons iluminados, a névoa abissal recuou e a luz dourada repousa sobre as águas do reino.
+                    <div id="vicKicker" class="modal-kicker">Vitória Astral</div>
+                    <h2 id="vicTitle" class="modal-title">REINO PURIFICADO</h2>
+                    <div id="vicSubtitle" class="modal-subtitle">OS PORTAIS ABISSAIS FORAM SELADOS</div>
+                    <p id="vicDesc" class="modal-desc" style="text-align:center;">
+                        Sob a soberania dos Daemons iluminados, a névoa abissal recuou. O Portal Oriental agora pulsa com gelo e aurora, abrindo passagem para O Reino Profundo.
                     </p>
                     <div class="stats-grid">
                         <div>
@@ -1214,8 +1214,9 @@
                             <div class="stat-box-label">Acólitos Fiéis</div>
                         </div>
                     </div>
-                    <button id="btnContinueFree" class="btn-primary" type="button">Continuar Explorando</button>
+                    <button id="btnEnterPhase2" class="btn-primary" type="button">Entrar no Portal — Fase 2</button>
                     <div class="btn-row">
+                        <button id="btnContinueFree" class="btn-secondary" type="button">Continuar Explorando</button>
                         <button id="btnVictoryRestart" class="btn-secondary" type="button">Jogar Novamente</button>
                     </div>
                 </div>
@@ -2237,11 +2238,16 @@
             }
 
             resetWorld() {
+                this.stage = 1;
+                this.phase1VictoryUnlocked = false;
+                this.phase2Completed = false;
+                this.portalTransitionFlash = 0;
                 this.day = 1;
                 this.timeOfDay = 0.24; // Starts in golden afternoon -> dusk approaching
                 this.dayDuration = 82; // 82 seconds per full Day/Dusk/Night/Dawn cycle
                 this.lastPhase = 'Dia';
                 this.nightSpawnTimer = 0;
+                this.bossIcicles = [];
 
                 this.stats = {
                     shadowsBanished: 0,
@@ -2479,6 +2485,247 @@
                     this.essences[this.essences.length - 1].onPlatform = true;
                 }
 
+                this.updateDaemonPortrait();
+                this.syncHUD(true);
+            }
+
+            enterPhase2() {
+                const prev = this.player;
+                const keepEssence = prev ? prev.essence : 12;
+                const keepUnlocked = prev ? [...prev.unlocked] : [true, false, false];
+                const keepDaemonIdx = prev ? prev.daemonIdx : 0;
+                const keepPowerIdx = prev ? (prev.activePowerIdx || 0) : 0;
+
+                this.stage = 2;
+                this.phase2Completed = false;
+                this.portalTransitionFlash = 1.0;
+                this.state = 'PLAYING';
+                this.clearInputs();
+                const vicEl = document.getElementById('victoryModal');
+                if (vicEl) vicEl.classList.add('hidden');
+                const pauseEl = document.getElementById('pauseModal');
+                if (pauseEl) pauseEl.classList.add('hidden');
+
+                // Player enters O Reino Profundo with carried Essence, unlocked Daemons, all 5 powers ready & FULL Vigor!
+                this.player = {
+                    x: 270,
+                    y: this.groundY,
+                    prevY: this.groundY,
+                    vx: 0,
+                    vy: 0,
+                    onGround: true,
+                    onPlatform: null,
+                    jumpBuffer: 0,
+                    facing: 1,
+                    vigor: 100,
+                    maxVigor: 100,
+                    exhausted: false,
+                    daemonIdx: keepDaemonIdx,
+                    unlocked: keepUnlocked,
+                    essence: keepEssence,
+                    hasCrown: true,
+                    invulnTimer: 0.75,
+                    dashTimer: 0,
+                    dashDir: 1,
+                    fervorTimer: 0,
+                    tarSlowTimer: 0,
+                    activePowerIdx: keepPowerIdx,
+                    powerCd: 0,
+                    powerCds: [0, 0, 0, 0, 0],
+                    beam: {
+                        active: false,
+                        holdTime: 0,
+                        maxHold: 3.0,
+                        tickTimer: 0,
+                        sfxTimer: 0,
+                        range: 195
+                    },
+                    walkCycle: 0,
+                    walkAnimFrame: 0,
+                    stepSoundGate: -1
+                };
+                this.fallenCrown = null;
+                this.cameraX = 0;
+
+                // Snow Sanctuary Campfire & Preserved Altars (if still locked from Phase 1, can be awakened here!)
+                this.sanctuary = { x: 2100, tribute: 4 };
+                this.altarStolas = { x: 1090, active: Boolean(keepUnlocked[1]), cost: 5 };
+                this.altarEligos = { x: 2880, active: Boolean(keepUnlocked[2]), cost: 5 };
+
+                // Entry Ice Portal on West (decorative return archway — Phase 2 goal is defeating Rainha do Gelo!)
+                this.portals = [
+                    { id: 'ice_entry', name: 'Portal de Gelo', x: 165, sealed: true, cost: 0, isPhase2Entry: true }
+                ];
+
+                // Defensive Obelisks & Summon Circles preserved across the frozen valley
+                this.obelisks = [
+                    { x: 760, level: 0, hp: 0, maxHp: 14, pulseCd: 0 },
+                    { x: 1580, level: 0, hp: 0, maxHp: 14, pulseCd: 0 },
+                    { x: 2560, level: 0, hp: 0, maxHp: 14, pulseCd: 0 },
+                    { x: 3560, level: 0, hp: 0, maxHp: 14, pulseCd: 0 }
+                ];
+                this.summonCircles = [
+                    { x: 1920, cost: 3, glow: 0 },
+                    { x: 2280, cost: 3, glow: 0 }
+                ];
+
+                // Blue-flame torches along the snowy frozen lake shore
+                this.torches = [360, 680, 1020, 1400, 1780, 2420, 2760, 3140, 3660, 4280].map((x, i) => ({
+                    x,
+                    lit: i === 0 || i === 4 || i === 5 || i === 8 || i === 9,
+                    cost: 2
+                }));
+
+                // Phase 2 Snow & Ice Obstacles: jagged Ice Crystals (stompable!), Stone Walls with Ice Spikes (shielding archers!), Icy Chasms & Deep Frost Slush
+                this.obstacles = [
+                    { type: 'iceCrystal', x: 520, w: 26, h: 17, variant: 0 },
+                    { type: 'pit', x: 920, w: 38, h: 0 },
+                    { type: 'iceCrystal', x: 1260, w: 28, h: 18, variant: 1 },
+                    { type: 'stoneWall', x: 1445, w: 46, h: 22, variant: 0 },
+                    { type: 'tarPool', x: 1710, w: 46, h: 0, variant: 0 },
+                    { type: 'iceCrystal', x: 2450, w: 26, h: 17, variant: 0 },
+                    { type: 'pit', x: 2690, w: 40, h: 0 },
+                    { type: 'iceCrystal', x: 3010, w: 28, h: 18, variant: 1 },
+                    { type: 'stoneWall', x: 3250, w: 50, h: 22, variant: 1 },
+                    { type: 'tarPool', x: 3465, w: 46, h: 0, variant: 1 },
+                    { type: 'iceCrystal', x: 3630, w: 26, h: 17, variant: 0 }
+                ];
+
+                // 7 Floating Frosted-Stone Platforms (2 heights: Low y=192, High y=160, including 1 near boss approach!)
+                this.platforms = [
+                    { x: 605,  y: this.groundY - 32, w: 72, h: 12, variant: 0 },
+                    { x: 1340, y: this.groundY - 32, w: 72, h: 12, variant: 1 },
+                    { x: 1435, y: this.groundY - 64, w: 74, h: 12, variant: 2 },
+                    { x: 2345, y: this.groundY - 32, w: 72, h: 12, variant: 0 },
+                    { x: 3155, y: this.groundY - 32, w: 72, h: 12, variant: 1 },
+                    { x: 3255, y: this.groundY - 64, w: 76, h: 12, variant: 2 },
+                    { x: 3945, y: this.groundY - 32, w: 74, h: 12, variant: 0 }
+                ];
+
+                // Phase 2 Boss: Rainha do Gelo (24 HP, winged blue horned demoness in dark gown, flanked by 2 blue ice imps!)
+                this.boss = {
+                    kind: 'ice_queen',
+                    name: 'Rainha do Gelo',
+                    x: 4135,
+                    y: this.groundY - 22,
+                    baseY: this.groundY - 22,
+                    vx: 0,
+                    facing: -1,
+                    hp: 24,
+                    maxHp: 24,
+                    active: false,
+                    defeated: false,
+                    state: 'hover',
+                    stateTimer: 1.4,
+                    patternIdx: 0,
+                    wingPhase: 0,
+                    hitFlash: 0,
+                    hurtCd: 0,
+                    arenaMinX: 3740,
+                    arenaMaxX: 4360,
+                    companionsSpawned: false
+                };
+                this.bossProjectiles = [];
+                this.bossIcicles = [];
+
+                // New Phase 2 Enemies: Blue Ice Imps + Hooded Archers (including the squad of 3 archers behind the eastern stone wall!)
+                const mkImp = (x, facing = -1, escort = false) => ({
+                    type: 'iceImp',
+                    x,
+                    y: this.groundY,
+                    baseY: this.groundY,
+                    vx: 0,
+                    facing,
+                    hp: 3,
+                    maxHp: 3,
+                    speed: escort ? 62 : (56 + Math.random() * 12),
+                    phase: Math.random() * Math.PI * 2,
+                    knockVx: 0,
+                    freezeTimer: 0,
+                    slowTimer: 0,
+                    hitFlash: 0,
+                    dashHit: false,
+                    escort
+                });
+                const mkArcher = (x, homeX, facing = -1) => ({
+                    type: 'hoodedArcher',
+                    x,
+                    homeX,
+                    y: this.groundY,
+                    baseY: this.groundY,
+                    vx: 0,
+                    facing,
+                    hp: 3,
+                    maxHp: 3,
+                    speed: 28,
+                    phase: Math.random() * Math.PI * 2,
+                    shootCd: 1.4 + Math.random() * 1.1,
+                    drawTimer: 0,
+                    knockVx: 0,
+                    freezeTimer: 0,
+                    slowTimer: 0,
+                    hitFlash: 0,
+                    dashHit: false
+                });
+
+                this.critters = [
+                    mkImp(840, -1, false),
+                    mkArcher(1490, 1490, -1),
+                    mkImp(1850, -1, false),
+                    mkImp(2620, -1, false),
+                    // Squad of 3 Hooded Archers positioned behind the stone barricade (x=3250), just like the reference image!
+                    mkArcher(3286, 3286, -1),
+                    mkArcher(3316, 3316, -1),
+                    mkArcher(3348, 3348, -1),
+                    // Two little blue Ice Imps flanking the Rainha do Gelo!
+                    mkImp(4085, -1, true),
+                    mkImp(4185, -1, true)
+                ];
+                this.critterSpawnTimer = 7.5;
+                this.skyWitches = [];
+                this.acolytes = [];
+                this.shadows = [];
+                this.squashedCritters = [];
+                this.essences = [];
+                this.projectiles = [];
+                this.spellEffects = [];
+                this.particles = [];
+                this.floatingTexts = [];
+                this.shockwaves = [];
+
+                // Scatter 22 Astral Essences along the snowy valley (avoiding pits)
+                for (let i = 0; i < 22; i++) {
+                    let ex = 380 + (i / 21) * (this.worldWidth - 780) + (Math.random() * 44 - 22);
+                    const overPit = this.obstacles.find((ob) => ob.type === 'pit' && Math.abs(ex - ob.x) < ob.w * 0.75);
+                    if (overPit) ex = overPit.x + overPit.w * 0.9;
+                    this.spawnEssence(ex, this.groundY - 14 - Math.random() * 12, 1, 0, 0);
+                }
+
+                // Rooftop Essences resting atop select frosted platforms
+                const p2PlatformEssences = [
+                    { x: 605,  y: this.groundY - 32 - 11 },
+                    { x: 1420, y: this.groundY - 64 - 11 },
+                    { x: 1450, y: this.groundY - 64 - 11 },
+                    { x: 2345, y: this.groundY - 32 - 11 },
+                    { x: 3240, y: this.groundY - 64 - 11 },
+                    { x: 3270, y: this.groundY - 64 - 11 },
+                    { x: 3945, y: this.groundY - 32 - 11 }
+                ];
+                for (const pe of p2PlatformEssences) {
+                    this.spawnEssence(pe.x, pe.y, 1, 0, 0);
+                    this.essences[this.essences.length - 1].onPlatform = true;
+                }
+
+                this.sound.playAwaken();
+                this.triggerShake(0.35, 3.2);
+                this.spawnBurst(this.player.x, this.groundY - 26, '#7ec4e8', 24);
+                this.spawnBurst(this.player.x, this.groundY - 26, '#c4b5fd', 16);
+                this.showBanner(
+                    'FASE II · O REINO PROFUNDO',
+                    'Atravesse o vale congelado e derrote a Rainha do Gelo a Leste!',
+                    '#93c5fd',
+                    5.5
+                );
                 this.updateDaemonPortrait();
                 this.syncHUD(true);
             }
@@ -2733,6 +2980,10 @@
                 byId('btnStartModeKeyboard').addEventListener('click', () => this.setControlMode('keyboard'));
                 byId('btnStartModeJoystick').addEventListener('click', () => this.setControlMode('joystick'));
 
+                byId('btnEnterPhase2').addEventListener('click', () => {
+                    this.enterPhase2();
+                    this.blurActive();
+                });
                 byId('btnContinueFree').addEventListener('click', () => {
                     byId('victoryModal').classList.add('hidden');
                     this.state = 'PLAYING';
@@ -4228,6 +4479,628 @@
                     floatingPlatforms.push(pc);
                 }
 
+                // =============================================================
+                // PHASE 2 — O REINO PROFUNDO (SNOW & ICE HAND-PAINTED ASSETS)
+                // =============================================================
+                const makeC = mk;
+
+                // 1) Snowdrift road + dark chiseled stone lakefront ledge (1120x60 physical)
+                const snowGroundTile = makeC(1120, 60);
+                const sgctx = snowGroundTile.getContext('2d');
+                // Top snowpack fill
+                const snowGrad = sgctx.createLinearGradient(0, 6, 0, 34);
+                snowGrad.addColorStop(0, '#e3edf8');
+                snowGrad.addColorStop(0.52, '#c5d9ec');
+                snowGrad.addColorStop(1, '#9ab4cf');
+                sgctx.fillStyle = snowGrad;
+                sgctx.beginPath();
+                sgctx.moveTo(0, 12);
+                for (let x = 0; x <= 1120; x += 40) {
+                    sgctx.lineTo(x, 10 + Math.sin(x * 0.022) * 2.6 + Math.cos(x * 0.055) * 1.4);
+                }
+                sgctx.lineTo(1120, 38);
+                sgctx.lineTo(0, 38);
+                sgctx.closePath();
+                sgctx.fill();
+
+                // Soft bluish snowdrift shading hollows
+                sgctx.fillStyle = 'rgba(118, 149, 186, 0.34)';
+                for (let x = 20; x < 1100; x += 88) {
+                    sgctx.beginPath();
+                    sgctx.ellipse(x + 28, 22 + Math.sin(x * 0.07) * 3, 34, 6, 0, 0, Math.PI * 2);
+                    sgctx.fill();
+                }
+
+                // Crisp ink contour on upper snow ridge
+                sgctx.strokeStyle = '#253247';
+                sgctx.lineWidth = 2.0;
+                sgctx.beginPath();
+                for (let x = 0; x <= 1120; x += 28) {
+                    const y = 10 + Math.sin(x * 0.022) * 2.6 + Math.cos(x * 0.055) * 1.4;
+                    if (x === 0) sgctx.moveTo(x, y);
+                    else sgctx.lineTo(x, y);
+                }
+                sgctx.stroke();
+
+                // Dark chiseled stone shoreline ledge overhanging the frozen lake
+                const ledgeGrad = sgctx.createLinearGradient(0, 32, 0, 60);
+                ledgeGrad.addColorStop(0, '#46566f');
+                ledgeGrad.addColorStop(0.45, '#2b364a');
+                ledgeGrad.addColorStop(1, '#141a26');
+                sgctx.fillStyle = ledgeGrad;
+                sgctx.fillRect(0, 33, 1120, 27);
+
+                // Hand-inked stone slabs along the shoreline
+                for (let x = 0; x < 1120; x += 56) {
+                    const sw = 48 + ((x * 13) % 14);
+                    const sh = 14 + ((x * 7) % 6);
+                    sgctx.fillStyle = ((x / 56) | 0) % 2 === 0 ? '#3e4e67' : '#324056';
+                    sgctx.strokeStyle = '#131926';
+                    sgctx.lineWidth = 2.0;
+                    sgctx.beginPath();
+                    sgctx.roundRect(x + 2, 33, sw, sh, 4);
+                    sgctx.fill();
+                    sgctx.stroke();
+
+                    // Frost rim highlighting top of each stone slab
+                    sgctx.fillStyle = 'rgba(218, 234, 248, 0.72)';
+                    sgctx.beginPath();
+                    sgctx.ellipse(x + sw * 0.5, 34.5, sw * 0.42, 3.2, 0, 0, Math.PI * 2);
+                    sgctx.fill();
+                }
+
+                // 2) Snow-laden evergreen pine trees (2 variants)
+                const snowPines = [];
+                for (let v = 0; v < 2; v++) {
+                    const pc = makeC(140, 200);
+                    const pctx = pc.getContext('2d');
+                    const cx = 70;
+
+                    // Trunk
+                    pctx.fillStyle = '#2b2633';
+                    pctx.strokeStyle = '#121520';
+                    pctx.lineWidth = 2.4;
+                    pctx.beginPath();
+                    pctx.moveTo(cx - 8, 194);
+                    pctx.lineTo(cx - 5, 145);
+                    pctx.lineTo(cx + 5, 145);
+                    pctx.lineTo(cx + 9, 194);
+                    pctx.closePath();
+                    pctx.fill();
+                    pctx.stroke();
+
+                    // 4 layered pine tiers from bottom to apex
+                    const tiers = v === 0
+                        ? [[166, 56, 42], [132, 47, 38], [98, 37, 34], [64, 26, 36]]
+                        : [[168, 52, 40], [134, 44, 38], [100, 35, 34], [66, 25, 36]];
+                    for (const [baseY, halfW, h] of tiers) {
+                        // Deep winter-teal needles
+                        pctx.fillStyle = '#203c4a';
+                        pctx.strokeStyle = '#101824';
+                        pctx.lineWidth = 2.4;
+                        pctx.beginPath();
+                        pctx.moveTo(cx, baseY - h);
+                        pctx.quadraticCurveTo(cx + halfW * 0.52, baseY - h * 0.35, cx + halfW, baseY);
+                        pctx.quadraticCurveTo(cx + halfW * 0.4, baseY + 6, cx, baseY + 2);
+                        pctx.quadraticCurveTo(cx - halfW * 0.4, baseY + 6, cx - halfW, baseY);
+                        pctx.quadraticCurveTo(cx - halfW * 0.52, baseY - h * 0.35, cx, baseY - h);
+                        pctx.closePath();
+                        pctx.fill();
+                        pctx.stroke();
+
+                        // Thick scalloped snow mantle draping the upper boughs
+                        const snG = pctx.createLinearGradient(cx, baseY - h, cx, baseY - 4);
+                        snG.addColorStop(0, '#e8f1fa');
+                        snG.addColorStop(1, '#b8cde4');
+                        pctx.fillStyle = snG;
+                        pctx.beginPath();
+                        pctx.moveTo(cx, baseY - h + 1);
+                        pctx.quadraticCurveTo(cx + halfW * 0.46, baseY - h * 0.45, cx + halfW * 0.86, baseY - 8);
+                        pctx.quadraticCurveTo(cx + halfW * 0.56, baseY - 3, cx + halfW * 0.34, baseY - 12);
+                        pctx.quadraticCurveTo(cx + halfW * 0.14, baseY - 4, cx, baseY - 11);
+                        pctx.quadraticCurveTo(cx - halfW * 0.18, baseY - 4, cx - halfW * 0.38, baseY - 12);
+                        pctx.quadraticCurveTo(cx - halfW * 0.6, baseY - 3, cx - halfW * 0.86, baseY - 8);
+                        pctx.quadraticCurveTo(cx - halfW * 0.46, baseY - h * 0.45, cx, baseY - h + 1);
+                        pctx.closePath();
+                        pctx.fill();
+                        pctx.stroke();
+                    }
+                    snowPines.push(pc);
+                }
+
+                // 3) Frost-dusted lilac winter bushes / trees (matching reference image)
+                const snowBushes = [];
+                for (let v = 0; v < 2; v++) {
+                    const bc = makeC(124, 118);
+                    const bctx = bc.getContext('2d');
+                    const cx = 62;
+                    // Twisted dark trunk & limbs
+                    bctx.strokeStyle = '#1b1d2e';
+                    bctx.lineWidth = 6;
+                    bctx.lineCap = 'round';
+                    bctx.beginPath();
+                    bctx.moveTo(cx, 114);
+                    bctx.quadraticCurveTo(cx - 4, 86, cx - 18, 62);
+                    bctx.moveTo(cx, 108);
+                    bctx.quadraticCurveTo(cx + 6, 82, cx + 22, 60);
+                    bctx.stroke();
+
+                    // Lilac-frosted puff canopies
+                    const puffs = v === 0
+                        ? [[cx - 24, 58, 22, 16], [cx + 22, 56, 23, 16], [cx, 44, 28, 20]]
+                        : [[cx - 22, 56, 20, 15], [cx + 20, 58, 21, 15], [cx - 2, 42, 26, 19], [cx + 10, 48, 18, 14]];
+                    for (const [px, py, rx, ry] of puffs) {
+                        const pg = bctx.createLinearGradient(px, py - ry, px, py + ry);
+                        pg.addColorStop(0, '#ddd6f2');
+                        pg.addColorStop(0.5, '#a896cf');
+                        pg.addColorStop(1, '#584c7c');
+                        bctx.fillStyle = pg;
+                        bctx.strokeStyle = '#1c1830';
+                        bctx.lineWidth = 2.2;
+                        bctx.beginPath();
+                        bctx.ellipse(px, py, rx, ry, 0, 0, Math.PI * 2);
+                        bctx.fill();
+                        bctx.stroke();
+
+                        // Pale snow highlight crescent on top
+                        bctx.fillStyle = 'rgba(235, 243, 252, 0.72)';
+                        bctx.beginPath();
+                        bctx.ellipse(px - 2, py - ry * 0.36, rx * 0.66, ry * 0.42, 0, 0, Math.PI * 2);
+                        bctx.fill();
+                    }
+                    snowBushes.push(bc);
+                }
+
+                // 4) Phase 2 Frosted-Stone Floating Platforms (3 variants, 160x48 physical)
+                const snowPlatforms = [];
+                for (let v = 0; v < 3; v++) {
+                    const pc = makeC(160, 48);
+                    const pctx = pc.getContext('2d');
+
+                    // Hanging icicles underneath
+                    pctx.fillStyle = '#9ecae8';
+                    pctx.strokeStyle = '#1c2c42';
+                    pctx.lineWidth = 1.6;
+                    const icicleXs = v === 0 ? [28, 62, 108, 134] : (v === 1 ? [34, 80, 124] : [24, 56, 94, 128]);
+                    for (let i = 0; i < icicleXs.length; i++) {
+                        const ix = icicleXs[i];
+                        const ih = 11 + ((i * 5 + v * 3) % 9);
+                        pctx.beginPath();
+                        pctx.moveTo(ix - 4, 24);
+                        pctx.lineTo(ix + 4, 24);
+                        pctx.lineTo(ix, 24 + ih);
+                        pctx.closePath();
+                        pctx.fill();
+                        pctx.stroke();
+                    }
+
+                    // Carved frosted slate block
+                    const stG = pctx.createLinearGradient(0, 10, 0, 30);
+                    stG.addColorStop(0, '#556985');
+                    stG.addColorStop(0.55, '#334259');
+                    stG.addColorStop(1, '#1b2434');
+                    pctx.fillStyle = stG;
+                    pctx.strokeStyle = '#101724';
+                    pctx.lineWidth = 2.2;
+                    pctx.beginPath();
+                    pctx.moveTo(10, 12);
+                    pctx.lineTo(150, 12);
+                    pctx.lineTo(142, 26);
+                    pctx.lineTo(108, 30);
+                    pctx.lineTo(54, 29);
+                    pctx.lineTo(18, 25);
+                    pctx.closePath();
+                    pctx.fill();
+                    pctx.stroke();
+
+                    // Snowdrift cushions crowning the walkable top lip
+                    const driftCaps = [[32, 10.5, 22, 5], [78, 9.8, 28, 5.2], [124, 10.5, 23, 5]];
+                    for (const [mx, my, rx, ry] of driftCaps) {
+                        pctx.fillStyle = '#dce9f7';
+                        pctx.strokeStyle = '#203047';
+                        pctx.lineWidth = 1.8;
+                        pctx.beginPath();
+                        pctx.ellipse(mx, my, rx, ry, 0, 0, Math.PI * 2);
+                        pctx.fill();
+                        pctx.stroke();
+                    }
+                    snowPlatforms.push(pc);
+                }
+
+                // 5) Jagged Ice Crystal Obstacles (2 variants, stomp-breakable!)
+                const iceCrystals = [];
+                for (let v = 0; v < 2; v++) {
+                    const ic = makeC(72, 56);
+                    const ictx = ic.getContext('2d');
+                    const shards = v === 0
+                        ? [[22, 48, 12, 18, 29, 48], [36, 50, 34, 8, 48, 50], [49, 49, 60, 22, 62, 49]]
+                        : [[14, 49, 10, 22, 26, 49], [30, 50, 26, 10, 43, 50], [44, 50, 52, 13, 60, 50]];
+                    for (let i = 0; i < shards.length; i++) {
+                        const [x1, y1, tx, ty, x2, y2] = shards[i];
+                        const cg = ictx.createLinearGradient(tx, ty, (x1 + x2) * 0.5, y1);
+                        cg.addColorStop(0, '#dff2ff');
+                        cg.addColorStop(0.45, '#7cb7e2');
+                        cg.addColorStop(1, '#3b6491');
+                        ictx.fillStyle = cg;
+                        ictx.strokeStyle = '#172840';
+                        ictx.lineWidth = 2.2;
+                        ictx.beginPath();
+                        ictx.moveTo(x1, y1);
+                        ictx.lineTo(tx, ty);
+                        ictx.lineTo(x2, y2);
+                        ictx.closePath();
+                        ictx.fill();
+                        ictx.stroke();
+
+                        // Inner crystal facet line
+                        ictx.strokeStyle = 'rgba(235, 248, 255, 0.72)';
+                        ictx.lineWidth = 1.3;
+                        ictx.beginPath();
+                        ictx.moveTo(tx, ty + 3);
+                        ictx.lineTo((x1 + x2) * 0.5, y1 - 3);
+                        ictx.stroke();
+                    }
+                    // Snow skirt at base
+                    ictx.fillStyle = '#d4e5f5';
+                    ictx.beginPath();
+                    ictx.ellipse(36, 49, 26, 4.5, 0, 0, Math.PI * 2);
+                    ictx.fill();
+                    iceCrystals.push(ic);
+                }
+
+                // 6) Stone Wall Barricade with Jagged Ice Spikes (2 variants — shields archers, jumpable!)
+                const stoneWalls = [];
+                for (let v = 0; v < 2; v++) {
+                    const wc = makeC(124, 68);
+                    const wctx = wc.getContext('2d');
+                    // Jagged ice spikes rising along the rear/top ridge
+                    for (let i = 0; i < 6; i++) {
+                        const sx = 16 + i * 17 + (v === 1 ? 3 : 0);
+                        const sh = 18 + ((i * 7 + v * 5) % 13);
+                        const ig = wctx.createLinearGradient(sx, 28 - sh, sx, 34);
+                        ig.addColorStop(0, '#d8effc');
+                        ig.addColorStop(0.55, '#78b0dc');
+                        ig.addColorStop(1, '#3b5d85');
+                        wctx.fillStyle = ig;
+                        wctx.strokeStyle = '#16253b';
+                        wctx.lineWidth = 1.9;
+                        wctx.beginPath();
+                        wctx.moveTo(sx - 6, 34);
+                        wctx.lineTo(sx - 1 + (i % 2 === 0 ? -3 : 3), 30 - sh);
+                        wctx.lineTo(sx + 7, 34);
+                        wctx.closePath();
+                        wctx.fill();
+                        wctx.stroke();
+                    }
+                    // Stacked hand-painted dark stone masonry rows
+                    const rows = [
+                        { y: 26, h: 12, stones: [[14, 28], [43, 30], [74, 28]] },
+                        { y: 38, h: 12, stones: [[8, 26], [35, 30], [66, 26], [93, 22]] },
+                        { y: 50, h: 13, stones: [[6, 30], [37, 28], [66, 32], [99, 19]] }
+                    ];
+                    for (const row of rows) {
+                        for (const [sx, sw] of row.stones) {
+                            const sg = wctx.createLinearGradient(sx, row.y, sx, row.y + row.h);
+                            sg.addColorStop(0, '#50607a');
+                            sg.addColorStop(0.55, '#334056');
+                            sg.addColorStop(1, '#1c2434');
+                            wctx.fillStyle = sg;
+                            wctx.strokeStyle = '#111622';
+                            wctx.lineWidth = 2.0;
+                            wctx.beginPath();
+                            wctx.roundRect(sx, row.y, sw, row.h, 4);
+                            wctx.fill();
+                            wctx.stroke();
+                        }
+                    }
+                    // Snow patches along base
+                    wctx.fillStyle = '#d3e3f4';
+                    wctx.beginPath();
+                    wctx.ellipse(26, 62, 18, 4, 0, 0, Math.PI * 2);
+                    wctx.ellipse(92, 62, 22, 4.5, 0, 0, Math.PI * 2);
+                    wctx.fill();
+                    stoneWalls.push(wc);
+                }
+
+                // 7) Crystalline Ice Portal (Phase 2 West entry archway — matching right side of reference image)
+                const icePortal = makeC(144, 178);
+                const ipctx = icePortal.getContext('2d');
+                // Soft interior pale-violet/cyan storybook vortex
+                const vGrad = ipctx.createRadialGradient(72, 98, 6, 72, 98, 52);
+                vGrad.addColorStop(0, '#eefaff');
+                vGrad.addColorStop(0.38, '#7cc6f0');
+                vGrad.addColorStop(0.75, '#7e6bc4');
+                vGrad.addColorStop(1, 'rgba(65, 58, 128, 0)');
+                ipctx.fillStyle = vGrad;
+                ipctx.beginPath();
+                ipctx.ellipse(72, 98, 44, 62, 0, 0, Math.PI * 2);
+                ipctx.fill();
+
+                // Jagged crystalline ice arch framing the gateway
+                const archSpikes = [
+                    [[22, 166], [16, 118], [32, 82], [44, 166]],
+                    [[28, 92], [38, 46], [62, 24], [52, 88]],
+                    [[54, 34], [72, 8], [90, 34], [72, 48]],
+                    [[82, 24], [106, 46], [116, 92], [92, 88]],
+                    [[100, 166], [112, 82], [128, 118], [122, 166]]
+                ];
+                for (const pts of archSpikes) {
+                    const ag = ipctx.createLinearGradient(72, 12, 72, 166);
+                    ag.addColorStop(0, '#e5f5ff');
+                    ag.addColorStop(0.5, '#7ebce6');
+                    ag.addColorStop(1, '#4b6fa8');
+                    ipctx.fillStyle = ag;
+                    ipctx.strokeStyle = '#1c2b4a';
+                    ipctx.lineWidth = 2.4;
+                    ipctx.beginPath();
+                    ipctx.moveTo(pts[0][0], pts[0][1]);
+                    for (let k = 1; k < pts.length; k++) ipctx.lineTo(pts[k][0], pts[k][1]);
+                    ipctx.closePath();
+                    ipctx.fill();
+                    ipctx.stroke();
+                }
+
+                // 8) Blue Ice Imps — 2 frames (52x40 physical, facing right; matches 2 little blue imps in image)
+                const iceImp = [];
+                for (let f = 0; f < 2; f++) {
+                    const ic = makeC(52, 40);
+                    const ictx = ic.getContext('2d');
+                    const step = f === 0 ? 0 : 2.5;
+                    // Spiky tail
+                    ictx.strokeStyle = '#131d32';
+                    ictx.lineWidth = 3.2;
+                    ictx.beginPath();
+                    ictx.moveTo(15, 25);
+                    ictx.quadraticCurveTo(5, 20 - step, 7, 13);
+                    ictx.stroke();
+                    // Legs
+                    ictx.fillStyle = '#1d3252';
+                    ictx.strokeStyle = '#0d1524';
+                    ictx.lineWidth = 1.8;
+                    ictx.beginPath();
+                    ictx.ellipse(20 - step * 0.6, 34, 4.5, 5, 0, 0, Math.PI * 2);
+                    ictx.ellipse(31 + step * 0.6, 34, 4.5, 5, 0, 0, Math.PI * 2);
+                    ictx.fill();
+                    ictx.stroke();
+                    // Crouched indigo-blue imp torso
+                    const bg = ictx.createLinearGradient(16, 15, 36, 34);
+                    bg.addColorStop(0, '#4674a8');
+                    bg.addColorStop(0.55, '#26446e');
+                    bg.addColorStop(1, '#15243d');
+                    ictx.fillStyle = bg;
+                    ictx.beginPath();
+                    ictx.ellipse(25, 25, 11.5, 8.5, -0.15, 0, Math.PI * 2);
+                    ictx.fill();
+                    ictx.stroke();
+                    // Head & curved ice horns
+                    ictx.beginPath();
+                    ictx.arc(34, 18, 7.5, 0, Math.PI * 2);
+                    ictx.fill();
+                    ictx.stroke();
+                    ictx.fillStyle = '#a8d5f5';
+                    ictx.beginPath();
+                    ictx.moveTo(30, 12);
+                    ictx.lineTo(24, 4);
+                    ictx.lineTo(34, 10);
+                    ictx.moveTo(36, 11);
+                    ictx.lineTo(38, 3);
+                    ictx.lineTo(40, 12);
+                    ictx.fill();
+                    ictx.stroke();
+                    // Pale ice eye
+                    ictx.fillStyle = '#cbeeff';
+                    ictx.beginPath();
+                    ictx.arc(37.5, 17.5, 1.9, 0, Math.PI * 2);
+                    ictx.fill();
+                    iceImp.push(ic);
+                }
+
+                // 9) Hooded Winter Archers — 2 frames (56x56 physical, facing right; matches 3 hooded archers behind wall)
+                const hoodedArcher = [];
+                for (let f = 0; f < 2; f++) {
+                    const ac = makeC(56, 56);
+                    const actx = ac.getContext('2d');
+                    const drawPull = f === 1 ? 5 : 0;
+
+                    // Boots
+                    actx.fillStyle = '#2a2224';
+                    actx.strokeStyle = '#10141e';
+                    actx.lineWidth = 1.9;
+                    actx.beginPath();
+                    actx.roundRect(17, 43, 7, 10, 2);
+                    actx.roundRect(27, 43, 7, 10, 2);
+                    actx.fill();
+                    actx.stroke();
+
+                    // Winter slate-blue cloak & leather tunic
+                    const tg = actx.createLinearGradient(16, 20, 34, 45);
+                    tg.addColorStop(0, '#5d718c');
+                    tg.addColorStop(0.55, '#3b4a62');
+                    tg.addColorStop(1, '#232c3d');
+                    actx.fillStyle = tg;
+                    actx.beginPath();
+                    actx.moveTo(18, 22);
+                    actx.lineTo(33, 22);
+                    actx.lineTo(36, 44);
+                    actx.lineTo(15, 44);
+                    actx.closePath();
+                    actx.fill();
+                    actx.stroke();
+
+                    // Fur-trimmed parka hood
+                    actx.fillStyle = '#475973';
+                    actx.beginPath();
+                    actx.arc(25, 16, 9.5, 0, Math.PI * 2);
+                    actx.fill();
+                    actx.stroke();
+                    // Cream fur hood collar trim
+                    actx.strokeStyle = '#c8cfd9';
+                    actx.lineWidth = 3.0;
+                    actx.beginPath();
+                    actx.arc(27, 16.5, 6.2, -1.2, 1.3);
+                    actx.stroke();
+                    // Shaded face inside hood
+                    actx.fillStyle = '#c9a68c';
+                    actx.beginPath();
+                    actx.arc(27.5, 16.5, 4.4, 0, Math.PI * 2);
+                    actx.fill();
+                    actx.fillStyle = '#1b1d26';
+                    actx.fillRect(28.5, 15.2, 2, 1.8);
+
+                    // Wooden recurve bow + bowstring
+                    actx.strokeStyle = '#6c4b32';
+                    actx.lineWidth = 2.8;
+                    actx.beginPath();
+                    actx.moveTo(39, 13);
+                    actx.quadraticCurveTo(49, 27, 39, 41);
+                    actx.stroke();
+                    actx.strokeStyle = '#d5dfe8';
+                    actx.lineWidth = 1.2;
+                    actx.beginPath();
+                    actx.moveTo(39, 13);
+                    actx.lineTo(39 - drawPull, 27);
+                    actx.lineTo(39, 41);
+                    actx.stroke();
+
+                    // Frost-tipped arrow nocked
+                    actx.strokeStyle = '#8b6848';
+                    actx.lineWidth = 1.8;
+                    actx.beginPath();
+                    actx.moveTo(37 - drawPull, 27);
+                    actx.lineTo(52 - drawPull * 0.4, 27);
+                    actx.stroke();
+                    actx.fillStyle = '#9dd4f5';
+                    actx.beginPath();
+                    actx.moveTo(54 - drawPull * 0.4, 27);
+                    actx.lineTo(48 - drawPull * 0.4, 24.5);
+                    actx.lineTo(48 - drawPull * 0.4, 29.5);
+                    actx.closePath();
+                    actx.fill();
+
+                    hoodedArcher.push(ac);
+                }
+
+                // 10) PHASE 2 BOSS — RAINHA DO GELO (2 frames, 168x176 physical; blue horned winged demoness in dark gown!)
+                const bossIceQueen = [];
+                for (let f = 0; f < 2; f++) {
+                    const bc = makeC(168, 176);
+                    const bctx = bc.getContext('2d');
+                    const wingLift = f === 0 ? -9 : 8;
+
+                    // Large tattered frost-blue bat-like wings (left & right)
+                    for (const side of [-1, 1]) {
+                        const wg = bctx.createLinearGradient(84, 34, 84 + side * 76, 128);
+                        wg.addColorStop(0, '#7cbfe8');
+                        wg.addColorStop(0.5, '#3b6d9e');
+                        wg.addColorStop(1, '#1a2c4a');
+                        bctx.fillStyle = wg;
+                        bctx.strokeStyle = '#0f1729';
+                        bctx.lineWidth = 2.6;
+                        bctx.beginPath();
+                        bctx.moveTo(84 + side * 10, 62);
+                        bctx.quadraticCurveTo(84 + side * 44, 24 + wingLift, 84 + side * 78, 38 + wingLift);
+                        bctx.quadraticCurveTo(84 + side * 72, 80 + wingLift * 0.4, 84 + side * 66, 118);
+                        bctx.quadraticCurveTo(84 + side * 48, 102, 84 + side * 38, 118);
+                        bctx.quadraticCurveTo(84 + side * 24, 100, 84 + side * 12, 92);
+                        bctx.closePath();
+                        bctx.fill();
+                        bctx.stroke();
+
+                        // Pale frost wing membrane ribs
+                        bctx.strokeStyle = 'rgba(190, 230, 255, 0.55)';
+                        bctx.lineWidth = 1.6;
+                        bctx.beginPath();
+                        bctx.moveTo(84 + side * 16, 62);
+                        bctx.lineTo(84 + side * 68, 46 + wingLift);
+                        bctx.moveTo(84 + side * 16, 66);
+                        bctx.lineTo(84 + side * 56, 98);
+                        bctx.stroke();
+                    }
+
+                    // Long flowing dark indigo-black royal dress with jagged icy-slate pleats
+                    const dressG = bctx.createLinearGradient(84, 62, 84, 170);
+                    dressG.addColorStop(0, '#2a3752');
+                    dressG.addColorStop(0.45, '#192136');
+                    dressG.addColorStop(1, '#0e1322');
+                    bctx.fillStyle = dressG;
+                    bctx.strokeStyle = '#0a0e1a';
+                    bctx.lineWidth = 2.6;
+                    bctx.beginPath();
+                    bctx.moveTo(70, 62);
+                    bctx.lineTo(98, 62);
+                    bctx.quadraticCurveTo(104, 106, 122, 166);
+                    bctx.lineTo(102, 158);
+                    bctx.lineTo(90, 170);
+                    bctx.lineTo(78, 160);
+                    bctx.lineTo(66, 170);
+                    bctx.lineTo(46, 164);
+                    bctx.quadraticCurveTo(64, 106, 70, 62);
+                    bctx.closePath();
+                    bctx.fill();
+                    bctx.stroke();
+
+                    // Pale ice corset lacing & vertical gown folds
+                    bctx.strokeStyle = '#7db5db';
+                    bctx.lineWidth = 1.6;
+                    bctx.beginPath();
+                    bctx.moveTo(84, 72);
+                    bctx.lineTo(84, 162);
+                    bctx.moveTo(74, 92);
+                    bctx.lineTo(62, 158);
+                    bctx.moveTo(94, 92);
+                    bctx.lineTo(106, 158);
+                    bctx.stroke();
+
+                    // Blue-skinned torso, arms & icy shoulder pauldrons
+                    bctx.fillStyle = '#5c97c4';
+                    bctx.strokeStyle = '#121d33';
+                    bctx.lineWidth = 2.2;
+                    // Outstretched slender clawed arms
+                    bctx.beginPath();
+                    bctx.moveTo(70, 66);
+                    bctx.lineTo(48, 92 + (f === 0 ? -3 : 3));
+                    bctx.lineTo(54, 96 + (f === 0 ? -3 : 3));
+                    bctx.lineTo(73, 76);
+                    bctx.moveTo(98, 66);
+                    bctx.lineTo(120, 92 + (f === 0 ? 3 : -3));
+                    bctx.lineTo(114, 96 + (f === 0 ? 3 : -3));
+                    bctx.lineTo(95, 76);
+                    bctx.fill();
+                    bctx.stroke();
+
+                    // Head (blue demoness face)
+                    bctx.fillStyle = '#6da9d6';
+                    bctx.beginPath();
+                    bctx.ellipse(84, 46, 11.5, 13.5, 0, 0, Math.PI * 2);
+                    bctx.fill();
+                    bctx.stroke();
+
+                    // Sweeping curved icy crown horns (matching reference image!)
+                    const hornG = bctx.createLinearGradient(84, 10, 84, 42);
+                    hornG.addColorStop(0, '#e3f4ff');
+                    hornG.addColorStop(0.55, '#8ac4eb');
+                    hornG.addColorStop(1, '#3c6896');
+                    bctx.fillStyle = hornG;
+                    for (const side of [-1, 1]) {
+                        bctx.beginPath();
+                        bctx.moveTo(84 + side * 6, 36);
+                        bctx.quadraticCurveTo(84 + side * 24, 24, 84 + side * 28, 10);
+                        bctx.quadraticCurveTo(84 + side * 14, 18, 84 + side * 10, 38);
+                        bctx.closePath();
+                        bctx.fill();
+                        bctx.stroke();
+                    }
+
+                    // Luminous pale-cyan eyes
+                    bctx.fillStyle = '#dcf4ff';
+                    bctx.beginPath();
+                    bctx.ellipse(79.5, 45, 2.3, 1.5, 0.2, 0, Math.PI * 2);
+                    bctx.ellipse(88.5, 45, 2.3, 1.5, -0.2, 0, Math.PI * 2);
+                    bctx.fill();
+
+                    bossIceQueen.push(bc);
+                }
+
                 return {
                     brushGrain,
                     clouds,
@@ -4243,7 +5116,17 @@
                     critterBat,
                     critterCrawler,
                     skyWitch,
-                    bossWitch
+                    bossWitch,
+                    snowGroundTile,
+                    snowPines,
+                    snowBushes,
+                    snowPlatforms,
+                    iceCrystals,
+                    stoneWalls,
+                    icePortal,
+                    iceImp,
+                    hoodedArcher,
+                    bossIceQueen
                 };
             }
 
@@ -4548,8 +5431,11 @@
 
                 // Portals
                 for (const pt of this.portals) {
+                    if (pt.isPhase2Entry) continue;
                     if (!pt.sealed) {
                         consider('portal', pt, pt.x, this.groundY - 82, 58, pt.cost, `Selar ${pt.name}`);
+                    } else if (this.stage === 1 && this.phase1VictoryUnlocked && pt.id === 'east') {
+                        consider('enter_phase2', pt, pt.x, this.groundY - 82, 64, 0, 'Entrar no Portal — Fase 2');
                     }
                 }
 
@@ -4588,8 +5474,9 @@
                         target.obj.lit = true;
                         this.stats.structuresBuilt++;
                         this.sound.playIgnite();
-                        this.spawnBurst(target.x, this.groundY - 26, '#f59e0b', 18);
-                        this.addFloatingText(target.x, this.groundY - 40, 'Tocha Acesa', '#fde047');
+                        const torchSpark = this.stage === 2 ? '#7ec4e8' : '#f59e0b';
+                        this.spawnBurst(target.x, this.groundY - 26, torchSpark, 18);
+                        this.addFloatingText(target.x, this.groundY - 40, this.stage === 2 ? 'Chama Azul Acesa' : 'Tocha Acesa', this.stage === 2 ? '#bae6fd' : '#fde047');
                         break;
                     }
                     case 'obelisk': {
@@ -4634,7 +5521,7 @@
                         this.shockwaves.push({ x: target.x, y: this.groundY - 30, r: 8, maxR: 90, color: '#818cf8', life: 0.65, maxLife: 0.65 });
                         this.spawnBurst(target.x, this.groundY - 26, '#818cf8', 32);
                         this.selectDaemon(1);
-                        this.showBanner('PRÍNCIPE STOLAS DESPERTADO', 'Tecla [2] · Visão Noturna Ampliada & Visão das Estrelas', '#a5b4fc');
+                        this.showBanner('PRÍNCIPE STOLAS DESPERTADO', 'Tecla [Q] alterna Daemons · Visão Noturna Ampliada', '#a5b4fc');
                         break;
                     }
                     case 'altar_eligos': {
@@ -4645,7 +5532,7 @@
                         this.shockwaves.push({ x: target.x, y: this.groundY - 30, r: 8, maxR: 90, color: '#ef4444', life: 0.65, maxLife: 0.65 });
                         this.spawnBurst(target.x, this.groundY - 26, '#ef4444', 32);
                         this.selectDaemon(2);
-                        this.showBanner('DUQUE ELIGOS DESPERTADO', 'Tecla [3] · Galope Veloz & Investida Carmesim', '#fca5a5');
+                        this.showBanner('DUQUE ELIGOS DESPERTADO', 'Tecla [Q] alterna Daemons · Galope Veloz', '#fca5a5');
                         break;
                     }
                     case 'portal': {
@@ -4665,6 +5552,10 @@
                         this.showBanner(`${target.obj.name.toUpperCase()} SELADO`, 'A fenda abissal foi contida em ouro astral', '#fde047');
                         this.checkVictory();
                         break;
+                    }
+                    case 'enter_phase2': {
+                        this.enterPhase2();
+                        return;
                     }
                 }
 
@@ -5193,8 +6084,8 @@
             damageBoss(dmg, knockDir = 1) {
                 const b = this.boss;
                 if (!b || b.defeated) return false;
-                if (b.state === 'charge') {
-                    // Respect boss attack window: mid-charge lunge evades spells/strikes!
+                if (b.state === 'charge' || b.state === 'blizzard_rush') {
+                    // Respect boss attack window: mid-charge / blizzard rush evades spells/strikes!
                     this.sound.playDeny();
                     this.addFloatingText(b.x, b.y - 46, 'Esquivou!', '#cbd5e1');
                     return false;
@@ -5209,22 +6100,25 @@
                 b.x = clamp(b.x + knockDir * 14, b.arenaMinX, b.arenaMaxX);
                 this.sound.playHit();
                 this.triggerShake(0.18, 2.6);
-                this.spawnBurst(b.x, b.y - 16, '#8b2d3b', 10);
-                this.addFloatingText(b.x, b.y - 46, `-${dmg}`, '#e5c17b');
+                const isIceQueen = b.kind === 'ice_queen';
+                this.spawnBurst(b.x, b.y - 16, isIceQueen ? '#7cbfe8' : '#8b2d3b', 10);
+                this.addFloatingText(b.x, b.y - 46, `-${dmg}`, isIceQueen ? '#bae6fd' : '#e5c17b');
 
                 if (b.hp <= 0) {
                     b.defeated = true;
                     b.active = false;
                     b.state = 'defeated';
                     this.bossProjectiles = [];
-                    this.stats.shadowsBanished += 5;
+                    this.bossIcicles = [];
+                    this.stats.shadowsBanished += isIceQueen ? 8 : 5;
                     this.sound.playAwaken();
                     this.triggerShake(0.45, 4.2);
-                    this.spawnBurst(b.x, b.y - 22, '#2d1c38', 22);
-                    this.spawnBurst(b.x, b.y - 22, '#c28a38', 20);
-                    // Scatter 15 collectible Astral Essences cleanly on arena ground
-                    for (let k = 0; k < 15; k++) {
-                        const spread = ((k - 7) / 7) * 95 + (Math.random() * 14 - 7);
+                    this.spawnBurst(b.x, b.y - 22, isIceQueen ? '#6ca8d4' : '#2d1c38', 24);
+                    this.spawnBurst(b.x, b.y - 22, isIceQueen ? '#e0f4ff' : '#c28a38', 22);
+
+                    const rewardCount = isIceQueen ? 25 : 15;
+                    for (let k = 0; k < rewardCount; k++) {
+                        const spread = ((k - (rewardCount - 1) / 2) / (rewardCount / 2)) * 105 + (Math.random() * 14 - 7);
                         this.spawnEssence(
                             clamp(b.x + spread * 0.45, b.arenaMinX + 20, b.arenaMaxX - 20),
                             this.groundY - 26,
@@ -5233,25 +6127,61 @@
                             -95 - Math.random() * 55
                         );
                     }
-                    this.showBanner(
-                        'VITÓRIA · GRANDE BRUXA ABISSAL DERROTADA!',
-                        'Recompensa: +15 Essências Astrais · A exploração livre continua',
-                        '#d4af37',
-                        6.5
-                    );
+                    if (isIceQueen) {
+                        this.phase2Completed = true;
+                        this.showBanner(
+                            'VITÓRIA · RAINHA DO GELO DERROTADA!',
+                            'O Reino Profundo foi libertado! +25 Essências Astrais',
+                            '#93c5fd',
+                            6.5
+                        );
+                        this.showPhase2Victory();
+                    } else {
+                        this.showBanner(
+                            'VITÓRIA · GRANDE BRUXA ABISSAL DERROTADA!',
+                            'Recompensa: +15 Essências Astrais · A exploração livre continua',
+                            '#d4af37',
+                            6.5
+                        );
+                    }
                     this.syncHUD(true);
                 }
+                return true;
             }
 
             checkVictory() {
-                if (this.portals.every((pt) => pt.sealed)) {
+                if (this.stage === 1 && this.portals.every((pt) => pt.sealed)) {
+                    this.phase1VictoryUnlocked = true;
                     this.state = 'VICTORY';
                     this.clearInputs();
-                    document.getElementById('vicDays').textContent = String(this.day);
-                    document.getElementById('vicShadows').textContent = String(this.stats.shadowsBanished);
-                    document.getElementById('vicLegion').textContent = String(this.acolytes.length);
+                    const setTxt = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
+                    setTxt('vicKicker', 'FASE I CONCLUÍDA · PORTAL LESTE ABERTO');
+                    setTxt('vicTitle', 'REINO PURIFICADO');
+                    setTxt('vicSubtitle', 'Ambos os Portais Abissais foram selados em ouro astral');
+                    setTxt('vicDesc', 'O Portal do Leste agora conduz a O Reino Profundo — um vale nevado sob a aurora guardado pela Rainha do Gelo. Você conserva sua Essência e entra com Vigor cheio.');
+                    const btnP2 = document.getElementById('btnEnterPhase2');
+                    if (btnP2) btnP2.style.display = 'block';
+                    setTxt('vicDays', String(this.day));
+                    setTxt('vicShadows', String(this.stats.shadowsBanished));
+                    setTxt('vicLegion', String(this.acolytes.length));
                     document.getElementById('victoryModal').classList.remove('hidden');
                 }
+            }
+
+            showPhase2Victory() {
+                this.state = 'VICTORY';
+                this.clearInputs();
+                const setTxt = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
+                setTxt('vicKicker', 'FASE II CONCLUÍDA · O REINO PROFUNDO');
+                setTxt('vicTitle', 'RAINHA DO GELO DERROTADA');
+                setTxt('vicSubtitle', 'O vale congelado sob a aurora agora pertence a Rei Paimon');
+                setTxt('vicDesc', 'A Rainha do Gelo caiu diante dos 5 poderes arcanos. Continue explorando o Reino Profundo livremente ou reinicie uma nova jornada desde a Fase I.');
+                const btnP2 = document.getElementById('btnEnterPhase2');
+                if (btnP2) btnP2.style.display = 'none';
+                setTxt('vicDays', String(this.day));
+                setTxt('vicShadows', String(this.stats.shadowsBanished));
+                setTxt('vicLegion', String(this.acolytes.length));
+                document.getElementById('victoryModal').classList.remove('hidden');
             }
 
             triggerGameOver() {
@@ -5556,7 +6486,7 @@
                     p.y = p.onPlatform ? p.onPlatform.y : this.groundY;
                 }
 
-                // Jumpable Road Obstacles (Rocks, Thorn Bushes, Thorny Roots & Viscous Tar Pools) + Mario-Style Stomp Crushing
+                // Jumpable Road Obstacles (Rocks, Thorns, Roots, Ice Crystals, Stone Walls & Tar/Slush) + Mario-Style Stomp Crushing
                 for (let i = this.obstacles.length - 1; i >= 0; i--) {
                     const ob = this.obstacles[i];
                     if (ob.type === 'pit') continue;
@@ -5564,12 +6494,12 @@
                     const playerHeightAboveGround = Math.max(0, this.groundY - p.y);
 
                     if (ob.type === 'tarPool') {
-                        // Viscous Tar Pool: slows player on contact & briefly after leaving, ZERO damage, cannot be stomped!
+                        // Viscous Tar Pool (Phase 1) / Deep Frost Slush (Phase 2): slows player on contact, ZERO damage, cannot be stomped!
                         if (Math.abs(p.x - ob.x) < ob.w * 0.5 && playerHeightAboveGround < 6) {
                             const wasSlowed = p.tarSlowTimer > 0.15;
                             p.tarSlowTimer = Math.max(p.tarSlowTimer, 0.95);
                             if (!wasSlowed) {
-                                this.addFloatingText(p.x, p.y - 38, 'Piche! (Lento)', '#94a3b8');
+                                this.addFloatingText(p.x, p.y - 38, this.stage === 2 ? 'Neve Funda! (Lento)' : 'Piche! (Lento)', this.stage === 2 ? '#bae6fd' : '#94a3b8');
                             }
                             if (Math.abs(p.vx) > 12 && Math.random() < dt * 10) {
                                 this.particles.push({
@@ -5577,7 +6507,7 @@
                                     y: this.groundY - 1,
                                     vx: -p.facing * (12 + Math.random() * 14),
                                     vy: -10 - Math.random() * 12,
-                                    color: '#1b1e2e',
+                                    color: this.stage === 2 ? '#9ecae8' : '#1b1e2e',
                                     size: 2,
                                     life: 0.3,
                                     maxLife: 0.3,
@@ -5588,16 +6518,19 @@
                         continue;
                     }
 
-                    // Mario-Style Stomp Crush on small solid obstacles (rock, thorns, thornyRoots) when descending from above!
+                    // Mario-Style Stomp Crush on breakable obstacles (rock, thorns, thornyRoots, iceCrystal) — stoneWall is solid & jumpable, NOT stompable!
+                    const isBreakable = ob.type !== 'stoneWall';
                     const obTop = this.groundY - ob.h;
                     const stompSpan = ob.w * 0.5 + 9;
-                    if (!p.onGround && p.vy > 0 && Math.abs(p.x - ob.x) < stompSpan && p.y >= obTop - 5 && p.prevY <= obTop + 10) {
+                    if (isBreakable && !p.onGround && p.vy > 0 && Math.abs(p.x - ob.x) < stompSpan && p.y >= obTop - 5 && p.prevY <= obTop + 10) {
                         this.obstacles.splice(i, 1);
-                        const debrisPalette = ob.type === 'rock'
-                            ? ['#7c7585', '#555060', '#9c96a4']
-                            : (ob.type === 'thorns'
-                                ? ['#5c3040', '#3d222c', '#7a5042']
-                                : ['#684438', '#442b22', '#7d5645']);
+                        const debrisPalette = ob.type === 'iceCrystal'
+                            ? ['#dff2ff', '#7cb7e2', '#4a7bb0']
+                            : (ob.type === 'rock'
+                                ? ['#7c7585', '#555060', '#9c96a4']
+                                : (ob.type === 'thorns'
+                                    ? ['#5c3040', '#3d222c', '#7a5042']
+                                    : ['#684438', '#442b22', '#7d5645']));
                         for (let k = 0; k < 13; k++) {
                             const ang = -Math.PI * (0.15 + Math.random() * 0.7);
                             const spd = 48 + Math.random() * 92;
@@ -5620,7 +6553,7 @@
                         p.onGround = false;
                         p.onPlatform = null;
                         p.invulnTimer = Math.max(p.invulnTimer, 0.25);
-                        this.addFloatingText(ob.x, obTop - 14, 'Quebrou!', '#e5d2a4');
+                        this.addFloatingText(ob.x, obTop - 14, ob.type === 'iceCrystal' ? 'Estilhaçou!' : 'Quebrou!', ob.type === 'iceCrystal' ? '#bae6fd' : '#e5d2a4');
                         continue;
                     }
 
@@ -5628,26 +6561,28 @@
                     if (Math.abs(p.x - ob.x) < halfSpan && playerHeightAboveGround < ob.h - 3) {
                         const pushDir = p.x < ob.x ? -1 : 1;
                         const isRoots = ob.type === 'thornyRoots';
+                        const isWall = ob.type === 'stoneWall';
+                        const isCrystal = ob.type === 'iceCrystal';
                         p.x = clamp(ob.x + pushDir * (halfSpan + (isRoots ? 6 : 3)), 68, this.worldWidth - 68);
-                        p.vx = pushDir * (isRoots ? 155 : 95);
-                        if (p.invulnTimer <= 0 && p.dashTimer <= 0) {
+                        p.vx = pushDir * (isRoots ? 155 : (isWall ? 75 : 95));
+                        if (p.invulnTimer <= 0 && p.dashTimer <= 0 && !isWall) {
                             p.invulnTimer = isRoots ? 1.0 : 0.95;
                             this.sound.playHit();
                             this.triggerShake(isRoots ? 0.26 : 0.22, isRoots ? 3.4 : 2.8);
                             this.spawnBurst(
                                 ob.x,
                                 this.groundY - 8,
-                                isRoots ? '#684438' : (ob.type === 'thorns' ? '#6e3444' : '#7c7585'),
+                                isCrystal ? '#7cb7e2' : (isRoots ? '#684438' : (ob.type === 'thorns' ? '#6e3444' : '#7c7585')),
                                 isRoots ? 10 : 8
                             );
                             if (p.essence > 0) {
                                 p.essence -= 1;
-                                this.addFloatingText(p.x, p.y - 42, isRoots ? '-1 Essência (Raízes!)' : '-1 Essência', '#e5a3a8');
+                                this.addFloatingText(p.x, p.y - 42, isCrystal ? '-1 Essência (Gelo!)' : (isRoots ? '-1 Essência (Raízes!)' : '-1 Essência'), '#e5a3a8');
                             } else if (isRoots) {
                                 p.vigor = Math.max(0, p.vigor - 22);
                                 this.addFloatingText(p.x, p.y - 42, '-Vigor (Raízes!)', '#e5a3a8');
                             } else {
-                                this.addFloatingText(p.x, p.y - 42, ob.type === 'thorns' ? 'Espinhos!' : 'Pedra!', '#e5a3a8');
+                                this.addFloatingText(p.x, p.y - 42, isCrystal ? 'Cristal de Gelo!' : (ob.type === 'thorns' ? 'Espinhos!' : 'Pedra!'), '#e5a3a8');
                             }
                             this.syncHUD(true);
                         }
@@ -5757,9 +6692,9 @@
                     }
                 }
 
-                // 5. Night Shadow Spawning from unsealed portals
+                // 5. Night Shadow Spawning from unsealed portals (Phase 1 only)
                 const isNight = phase === 'Noite';
-                if (isNight) {
+                if (this.stage === 1 && isNight) {
                     const spawnInterval = Math.max(2.1, 4.6 - this.day * 0.35);
                     const maxShadows = Math.min(18, 6 + this.day * 2);
                     this.nightSpawnTimer += dt;
@@ -6030,11 +6965,17 @@
                 this.updateSpellEffects(dt);
                 this.updateContinuousBeam(dt);
 
-                // 9b. Shadow Critters (bats & crawlers), Ambient Sky Witches & Far-East Boss
+                // 9b. Critters (Phase 1 bats/crawlers, Phase 2 Ice Imps & Hooded Archers), Ambient Sky Witches & Far-East Boss
+                if (this.portalTransitionFlash > 0) {
+                    this.portalTransitionFlash = Math.max(0, this.portalTransitionFlash - dt * 1.6);
+                }
                 const isGallopingFast = (wantsGallop && Math.abs(p.vx) > 95) || Math.abs(p.vx) > 125;
                 this.updateCritters(dt, isGallopingFast);
-                this.updateSkyWitches(dt);
+                if (this.stage === 1) {
+                    this.updateSkyWitches(dt);
+                }
                 this.updateBoss(dt, isGallopingFast);
+                this.updateBossProjectilesAndIcicles(dt);
 
                 // Decay squashed critter visuals
                 if (this.squashedCritters) {
@@ -6079,45 +7020,66 @@
                 // Periodic road spawning ahead of the player (disabled during active boss fight or inside Sanctuary safe core)
                 this.critterSpawnTimer -= dt;
                 if (this.critterSpawnTimer <= 0) {
-                    this.critterSpawnTimer = 5.5 + Math.random() * 3.5;
+                    this.critterSpawnTimer = this.stage === 2 ? (7.5 + Math.random() * 4.0) : (5.5 + Math.random() * 3.5);
                     const inBossFight = this.boss && this.boss.active && !this.boss.defeated;
-                    if (!inBossFight && this.critters.length < 4) {
+                    const maxDynamic = this.stage === 2 ? 10 : 4;
+                    if (!inBossFight && this.critters.length < maxDynamic) {
                         const aheadDir = p.facing || (Math.random() < 0.5 ? -1 : 1);
-                        let sx = clamp(p.x + aheadDir * (215 + Math.random() * 90), 340, 3820);
-                        // Keep immediate sanctuary safe & away from pits
+                        let sx = clamp(p.x + aheadDir * (215 + Math.random() * 90), 340, 3680);
                         if (Math.abs(sx - this.sanctuary.x) < 120) {
                             sx = sx < this.sanctuary.x ? this.sanctuary.x - 165 : this.sanctuary.x + 165;
                         }
-                        const isBat = Math.random() < 0.58;
-                        this.critters.push({
-                            type: isBat ? 'bat' : 'crawler',
-                            x: sx,
-                            y: isBat ? this.groundY - 22 : this.groundY,
-                            baseY: isBat ? this.groundY - 22 : this.groundY,
-                            vx: 0,
-                            facing: sx > p.x ? -1 : 1,
-                            hp: 2,
-                            maxHp: 2,
-                            speed: isBat ? (42 + Math.random() * 14) : (36 + Math.random() * 10),
-                            phase: Math.random() * Math.PI * 2,
-                            knockVx: 0,
-                            freezeTimer: 0,
-                            slowTimer: 0,
-                            hitFlash: 0,
-                            dashHit: false
-                        });
+                        if (this.stage === 2) {
+                            this.critters.push({
+                                type: 'iceImp',
+                                x: sx,
+                                y: this.groundY,
+                                baseY: this.groundY,
+                                vx: 0,
+                                facing: sx > p.x ? -1 : 1,
+                                hp: 3,
+                                maxHp: 3,
+                                speed: 56 + Math.random() * 12,
+                                phase: Math.random() * Math.PI * 2,
+                                knockVx: 0,
+                                freezeTimer: 0,
+                                slowTimer: 0,
+                                hitFlash: 0,
+                                dashHit: false,
+                                escort: false
+                            });
+                        } else {
+                            const isBat = Math.random() < 0.58;
+                            this.critters.push({
+                                type: isBat ? 'bat' : 'crawler',
+                                x: sx,
+                                y: isBat ? this.groundY - 22 : this.groundY,
+                                baseY: isBat ? this.groundY - 22 : this.groundY,
+                                vx: 0,
+                                facing: sx > p.x ? -1 : 1,
+                                hp: 2,
+                                maxHp: 2,
+                                speed: isBat ? (42 + Math.random() * 14) : (36 + Math.random() * 10),
+                                phase: Math.random() * Math.PI * 2,
+                                knockVx: 0,
+                                freezeTimer: 0,
+                                slowTimer: 0,
+                                hitFlash: 0,
+                                dashHit: false
+                            });
+                        }
                     }
                 }
 
                 for (let i = this.critters.length - 1; i >= 0; i--) {
                     const c = this.critters[i];
-                    c.phase += dt * (c.type === 'bat' ? 7.2 : 5.4);
+                    c.phase += dt * (c.type === 'bat' ? 7.2 : (c.type === 'iceImp' ? 8.0 : 5.4));
                     if (c.hitFlash > 0) c.hitFlash = Math.max(0, c.hitFlash - dt);
                     if (c.freezeTimer > 0) c.freezeTimer = Math.max(0, c.freezeTimer - dt);
                     if (c.slowTimer > 0) c.slowTimer = Math.max(0, c.slowTimer - dt);
 
-                    // Despawn far-away critters so active ones stay relevant near player
-                    if (Math.abs(c.x - p.x) > 780) {
+                    // Despawn far-away roaming critters (NEVER despawn placed hoodedArchers or Ice Queen's escort imps!)
+                    if (c.type !== 'hoodedArcher' && !c.escort && Math.abs(c.x - p.x) > 780) {
                         this.critters.splice(i, 1);
                         continue;
                     }
@@ -6126,31 +7088,69 @@
                     const distX = Math.abs(dx);
                     const moveMult = c.freezeTimer > 0 ? 0.25 : ((c.slowTimer || 0) > 0 ? 0.38 : 1.0);
 
-                    if (Math.abs(c.knockVx) > 4) {
-                        c.x = clamp(c.x + c.knockVx * dt, 100, this.worldWidth - 100);
-                        c.knockVx *= Math.pow(0.025, dt);
-                    } else if (distX < 340) {
+                    if (c.type === 'hoodedArcher') {
+                        // Hooded Winter Archer: holds position near stone barricade, draws bow & shoots frost arrows!
+                        if (Math.abs(c.knockVx) > 4) {
+                            c.x = clamp(c.x + c.knockVx * dt, 100, this.worldWidth - 100);
+                            c.knockVx *= Math.pow(0.025, dt);
+                        } else if (c.homeX !== undefined && Math.abs(c.x - c.homeX) > 22) {
+                            c.x += Math.sign(c.homeX - c.x) * c.speed * moveMult * dt;
+                        }
                         c.facing = dx >= 0 ? 1 : -1;
-                        c.x = clamp(c.x + c.facing * c.speed * moveMult * dt, 100, this.worldWidth - 100);
-                    } else {
-                        c.x = clamp(c.x + c.facing * (c.speed * 0.45) * moveMult * dt, 100, this.worldWidth - 100);
-                    }
-
-                    if (c.type === 'bat') {
-                        // Gentle swoop toward player height when close
-                        const targetY = distX < 130 ? this.groundY - 16 : c.baseY;
-                        c.y = lerp(c.y, targetY + Math.sin(c.phase) * 5.5, clamp(dt * 4.5, 0, 1));
-                    } else {
                         c.y = this.groundY;
+                        if (distX < 245 && c.freezeTimer <= 0) {
+                            c.shootCd = (c.shootCd || 0) - dt * moveMult;
+                            if (c.shootCd <= 0.42 && c.shootCd > 0) {
+                                c.drawTimer = 0.45;
+                            }
+                            if (c.shootCd <= 0) {
+                                c.shootCd = 2.0 + Math.random() * 0.85;
+                                c.drawTimer = 0;
+                                this.sound.playShoot();
+                                this.bossProjectiles.push({
+                                    x: c.x + c.facing * 14,
+                                    y: this.groundY - 17,
+                                    vx: c.facing * 145,
+                                    vy: -8,
+                                    gravity: 14,
+                                    radius: 4.0,
+                                    life: 2.2,
+                                    style: 'frost_arrow'
+                                });
+                            }
+                        } else {
+                            c.drawTimer = Math.max(0, (c.drawTimer || 0) - dt);
+                        }
+                    } else {
+                        // Bats, Crawlers & Blue Ice Imps
+                        if (Math.abs(c.knockVx) > 4) {
+                            c.x = clamp(c.x + c.knockVx * dt, 100, this.worldWidth - 100);
+                            c.knockVx *= Math.pow(0.025, dt);
+                        } else if (c.escort && this.boss && !this.boss.active && !this.boss.defeated) {
+                            // Two escort Ice Imps guard beside the Rainha do Gelo until she awakens
+                            c.facing = dx >= 0 ? 1 : -1;
+                        } else if (distX < 340) {
+                            c.facing = dx >= 0 ? 1 : -1;
+                            c.x = clamp(c.x + c.facing * c.speed * moveMult * dt, 100, this.worldWidth - 100);
+                        } else if (!c.escort) {
+                            c.x = clamp(c.x + c.facing * (c.speed * 0.45) * moveMult * dt, 100, this.worldWidth - 100);
+                        }
+
+                        if (c.type === 'bat') {
+                            const targetY = distX < 130 ? this.groundY - 16 : c.baseY;
+                            c.y = lerp(c.y, targetY + Math.sin(c.phase) * 5.5, clamp(dt * 4.5, 0, 1));
+                        } else {
+                            c.y = this.groundY;
+                        }
                     }
 
                     // Collision with Player (Mario-style stomp check runs FIRST!)
-                    const critterTop = c.type === 'bat' ? c.y - 10 : this.groundY - 16;
+                    const critterTop = c.type === 'bat' ? c.y - 10 : (c.type === 'hoodedArcher' ? this.groundY - 24 : this.groundY - 16);
                     const critterBottom = c.type === 'bat' ? c.y + 8 : this.groundY;
-                    const critterCenterY = c.type === 'bat' ? c.y - 4 : this.groundY - 8;
+                    const critterCenterY = c.type === 'bat' ? c.y - 4 : (c.type === 'hoodedArcher' ? this.groundY - 12 : this.groundY - 8);
 
                     if (!p.onGround && p.vy > 0 && Math.abs(c.x - p.x) < 22 && p.y >= critterTop - 6 && p.y <= critterBottom + 4 && p.prevY <= critterCenterY + 8) {
-                        // Mario-Style Stomp Squash on small critter: squash visual + +2 Essences + upward bounce!
+                        // Mario-Style Stomp Squash on critter: squash visual + +2 Essences + upward bounce!
                         this.squashedCritters.push({
                             type: c.type,
                             x: c.x,
@@ -6161,7 +7161,7 @@
                         });
                         this.critters.splice(i, 1);
                         this.stats.shadowsBanished++;
-                        this.spawnBurst(c.x, critterCenterY, '#3a2c4a', 10);
+                        this.spawnBurst(c.x, critterCenterY, (c.type === 'iceImp' || c.type === 'hoodedArcher') ? '#7cb7e2' : '#3a2c4a', 10);
                         this.spawnBurst(c.x, critterCenterY, '#c28a38', 8);
                         for (let k = 0; k < 2; k++) {
                             this.spawnEssence(c.x, Math.min(critterCenterY - 4, this.groundY - 14), 1, (k === 0 ? -1 : 1) * 32, -82 - Math.random() * 22);
@@ -6180,7 +7180,6 @@
                     const playerCenterY = p.y - 16;
                     if (Math.abs(c.x - p.x) < 20 && Math.abs(critterCenterY - playerCenterY) < 20) {
                         if (isGallopingFast || p.dashTimer > 0) {
-                            // Galloping over / trampling defeats the critter cleanly!
                             this.damageCritter(c, 99, p.facing || 1);
                             this.triggerShake(0.12, 1.8);
                             continue;
@@ -6237,6 +7236,11 @@
                 const b = this.boss;
                 const p = this.player;
                 if (!b || b.defeated) return;
+
+                if (b.kind === 'ice_queen') {
+                    this.updateIceQueenBoss(dt, isGallopingFast);
+                    return;
+                }
 
                 b.wingPhase += dt * (b.state === 'charge' ? 11.5 : 4.8);
                 if (b.hitFlash > 0) b.hitFlash = Math.max(0, b.hitFlash - dt);
@@ -6307,7 +7311,6 @@
                         b.stateTimer = 0.35;
                         this.sound.playShoot();
                         const dir = b.facing;
-                        // Low shadow bolt (cleanly jumpable!)
                         this.bossProjectiles.push({
                             x: b.x + dir * 20,
                             y: this.groundY - 14,
@@ -6316,7 +7319,6 @@
                             radius: 5.2,
                             life: 2.6
                         });
-                        // Second arc bolt (always at slight higher arc, and 3rd when enraged)
                         this.bossProjectiles.push({
                             x: b.x + dir * 18,
                             y: b.y - 20,
@@ -6347,7 +7349,6 @@
                 } else if (b.state === 'telegraph_charge') {
                     b.facing = p.x >= b.x ? 1 : -1;
                     b.y = lerp(b.y, this.groundY - 14, clamp(dt * 6, 0, 1));
-                    // Subtle earth-dust telegraph (no neon!)
                     if (Math.random() < dt * 16) {
                         this.particles.push({
                             x: b.x - b.facing * 12 + (Math.random() * 14 - 7),
@@ -6392,7 +7393,6 @@
                 const playerHeightAboveGround = Math.max(0, this.groundY - p.y);
                 if (Math.abs(dx) < 28 && playerHeightAboveGround < 34) {
                     if (b.state !== 'charge' && isGallopingFast && b.hurtCd <= 0 && p.invulnTimer <= 0.6) {
-                        // Gallop strike damages the boss during non-charge windows & bounces player cleanly back!
                         b.hurtCd = 0.72;
                         this.damageBoss(2, p.facing || 1);
                         p.vx = -(p.facing || 1) * 125;
@@ -6413,8 +7413,252 @@
                         this.syncHUD(true);
                     }
                 }
+            }
 
-                // Update Boss Projectiles
+            updateIceQueenBoss(dt, isGallopingFast) {
+                const b = this.boss;
+                const p = this.player;
+                b.wingPhase += dt * (b.state === 'blizzard_rush' ? 12.0 : 5.2);
+                if (b.hitFlash > 0) b.hitFlash = Math.max(0, b.hitFlash - dt);
+                if (b.hurtCd > 0) b.hurtCd = Math.max(0, b.hurtCd - dt);
+
+                // Awaken Rainha do Gelo when player enters the frozen eastern citadel clearing
+                if (!b.active) {
+                    b.y = b.baseY + Math.sin(b.wingPhase * 0.65) * 4;
+                    if (p.x >= 3760) {
+                        b.active = true;
+                        b.state = 'hover';
+                        b.stateTimer = 1.35;
+                        this.sound.playNightBell();
+                        this.showBanner(
+                            'RAINHA DO GELO',
+                            'Desvie das lanças de gelo e estalactites — ataque com seus 5 Poderes!',
+                            '#93c5fd',
+                            4.8
+                        );
+                    }
+                    return;
+                }
+
+                // Pause aggression if player retreats far west
+                if (p.x < 3580) {
+                    b.y = lerp(b.y, b.baseY + Math.sin(b.wingPhase * 0.7) * 4, clamp(dt * 3, 0, 1));
+                    return;
+                }
+
+                b.stateTimer -= dt;
+                const enraged = b.hp <= b.maxHp * 0.5;
+
+                if (b.state === 'hover') {
+                    b.facing = p.x >= b.x ? 1 : -1;
+                    const desiredX = clamp(p.x - b.facing * 135, b.arenaMinX, b.arenaMaxX);
+                    const moveDiff = desiredX - b.x;
+                    b.x = clamp(b.x + clamp(moveDiff, -76, 76) * dt, b.arenaMinX, b.arenaMaxX);
+                    b.y = lerp(b.y, b.baseY + Math.sin(b.wingPhase * 0.9) * 5, clamp(dt * 4, 0, 1));
+
+                    if (b.stateTimer <= 0) {
+                        const mod = b.patternIdx % 3;
+                        const activeImps = this.critters.filter((c) => c.type === 'iceImp').length;
+                        if (enraged && !b.companionsSpawned && activeImps < 2) {
+                            b.companionsSpawned = true;
+                            b.state = 'summon_imps';
+                            b.stateTimer = 0.75;
+                        } else if (mod === 0) {
+                            b.state = 'telegraph_ice_shards';
+                            b.stateTimer = enraged ? 0.50 : 0.65;
+                        } else if (mod === 1) {
+                            b.state = 'telegraph_icicle_rain';
+                            b.stateTimer = enraged ? 0.58 : 0.72;
+                        } else {
+                            b.state = 'telegraph_blizzard_rush';
+                            b.stateTimer = enraged ? 0.56 : 0.70;
+                        }
+                        b.patternIdx++;
+                    }
+                } else if (b.state === 'telegraph_ice_shards') {
+                    b.facing = p.x >= b.x ? 1 : -1;
+                    b.y = lerp(b.y, b.baseY - 10, clamp(dt * 6, 0, 1));
+                    if (Math.random() < dt * 16) {
+                        this.particles.push({
+                            x: b.x + b.facing * 20 + (Math.random() * 14 - 7),
+                            y: b.y - 22 + (Math.random() * 12 - 6),
+                            vx: (Math.random() - 0.5) * 18,
+                            vy: -16 - Math.random() * 14,
+                            color: '#9dd8f8',
+                            size: 1.8,
+                            life: 0.32,
+                            maxLife: 0.32,
+                            gravity: 0
+                        });
+                    }
+                    if (b.stateTimer <= 0) {
+                        b.state = 'ice_shards';
+                        b.stateTimer = 0.38;
+                        this.sound.playShoot();
+                        const dir = b.facing;
+                        // Fan of 3 (or 4 enraged) hand-painted Ice Spears
+                        const speeds = enraged ? [195, 165, 138, 115] : [172, 145, 120];
+                        const vys = enraged ? [0, -28, -52, -74] : [0, -32, -58];
+                        for (let k = 0; k < speeds.length; k++) {
+                            this.bossProjectiles.push({
+                                x: b.x + dir * 22,
+                                y: k === 0 ? this.groundY - 14 : (b.y - 18 - k * 4),
+                                vx: dir * speeds[k],
+                                vy: vys[k],
+                                gravity: k === 0 ? 0 : 48,
+                                radius: 4.8,
+                                life: 2.7,
+                                style: 'ice_spear'
+                            });
+                        }
+                    }
+                } else if (b.state === 'ice_shards') {
+                    b.y = lerp(b.y, b.baseY, clamp(dt * 5, 0, 1));
+                    if (b.stateTimer <= 0) {
+                        b.state = 'hover';
+                        b.stateTimer = enraged ? 1.1 : 1.45;
+                    }
+                } else if (b.state === 'telegraph_icicle_rain') {
+                    b.facing = p.x >= b.x ? 1 : -1;
+                    b.y = lerp(b.y, b.baseY - 18, clamp(dt * 5, 0, 1));
+                    if (b.stateTimer <= 0) {
+                        b.state = 'icicle_rain';
+                        b.stateTimer = 0.55;
+                        this.sound.playSpell(1);
+                        const count = enraged ? 4 : 3;
+                        for (let k = 0; k < count; k++) {
+                            const offset = (k - (count - 1) / 2) * 58 + (Math.random() * 14 - 7);
+                            const ix = clamp(p.x + offset, b.arenaMinX + 18, b.arenaMaxX - 18);
+                            this.bossIcicles.push({
+                                x: ix,
+                                y: this.groundY - 165,
+                                vy: 0,
+                                telegraph: 0.65 + k * 0.14,
+                                falling: false
+                            });
+                        }
+                    }
+                } else if (b.state === 'icicle_rain') {
+                    b.y = lerp(b.y, b.baseY, clamp(dt * 4, 0, 1));
+                    if (b.stateTimer <= 0) {
+                        b.state = 'recover';
+                        b.stateTimer = enraged ? 0.95 : 1.25;
+                    }
+                } else if (b.state === 'telegraph_blizzard_rush') {
+                    b.facing = p.x >= b.x ? 1 : -1;
+                    b.y = lerp(b.y, this.groundY - 16, clamp(dt * 6, 0, 1));
+                    if (Math.random() < dt * 18) {
+                        this.particles.push({
+                            x: b.x - b.facing * 14 + (Math.random() * 14 - 7),
+                            y: this.groundY - 4,
+                            vx: -b.facing * (34 + Math.random() * 28),
+                            vy: -14 - Math.random() * 16,
+                            color: '#bfe3fa',
+                            size: 2,
+                            life: 0.34,
+                            maxLife: 0.34,
+                            gravity: 50
+                        });
+                    }
+                    if (b.stateTimer <= 0) {
+                        b.state = 'blizzard_rush';
+                        b.stateTimer = 0.88;
+                        b.vx = b.facing * (enraged ? 248 : 212);
+                        this.sound.playStep(0, true);
+                    }
+                } else if (b.state === 'blizzard_rush') {
+                    b.x += b.vx * dt;
+                    b.y = this.groundY - 16 + Math.sin(b.wingPhase) * 2.5;
+                    if (Math.random() < dt * 24) {
+                        this.particles.push({
+                            x: b.x - b.facing * 16,
+                            y: b.y - 12 + (Math.random() * 18 - 9),
+                            vx: -b.facing * 24,
+                            vy: (Math.random() - 0.5) * 22,
+                            color: '#d9f0ff',
+                            size: 2,
+                            life: 0.32,
+                            maxLife: 0.32,
+                            gravity: 30
+                        });
+                    }
+                    if (b.x <= b.arenaMinX || b.x >= b.arenaMaxX) {
+                        b.x = clamp(b.x, b.arenaMinX, b.arenaMaxX);
+                        b.stateTimer = 0;
+                    }
+                    if (b.stateTimer <= 0) {
+                        b.vx = 0;
+                        b.state = 'recover';
+                        b.stateTimer = enraged ? 1.1 : 1.45;
+                    }
+                } else if (b.state === 'summon_imps') {
+                    b.y = lerp(b.y, b.baseY - 12, clamp(dt * 5, 0, 1));
+                    if (b.stateTimer <= 0) {
+                        this.sound.playIgnite();
+                        for (const off of [-48, 48]) {
+                            const ix = clamp(b.x + off, b.arenaMinX + 20, b.arenaMaxX - 20);
+                            this.spawnBurst(ix, this.groundY - 12, '#7cbfe8', 14);
+                            this.critters.push({
+                                type: 'iceImp',
+                                x: ix,
+                                y: this.groundY,
+                                baseY: this.groundY,
+                                vx: 0,
+                                facing: p.x >= ix ? 1 : -1,
+                                hp: 3,
+                                maxHp: 3,
+                                speed: 64,
+                                phase: Math.random() * Math.PI * 2,
+                                knockVx: 0,
+                                freezeTimer: 0,
+                                slowTimer: 0,
+                                hitFlash: 0,
+                                dashHit: false,
+                                escort: true
+                            });
+                        }
+                        this.addFloatingText(b.x, b.y - 46, 'Diabretes de Gelo!', '#bae6fd');
+                        b.state = 'recover';
+                        b.stateTimer = 1.25;
+                    }
+                } else if (b.state === 'recover') {
+                    b.y = lerp(b.y, this.groundY - 20, clamp(dt * 4, 0, 1));
+                    if (b.stateTimer <= 0) {
+                        b.state = 'hover';
+                        b.stateTimer = enraged ? 1.05 : 1.38;
+                    }
+                }
+
+                // Boss <-> Player collision
+                const dx = p.x - b.x;
+                const playerHeightAboveGround = Math.max(0, this.groundY - p.y);
+                if (Math.abs(dx) < 28 && playerHeightAboveGround < 36) {
+                    if (b.state !== 'blizzard_rush' && isGallopingFast && b.hurtCd <= 0 && p.invulnTimer <= 0.6) {
+                        b.hurtCd = 0.72;
+                        this.damageBoss(2, p.facing || 1);
+                        p.vx = -(p.facing || 1) * 125;
+                        p.invulnTimer = Math.max(p.invulnTimer, 0.45);
+                    } else if (p.invulnTimer <= 0 && p.dashTimer <= 0) {
+                        p.invulnTimer = 1.15;
+                        const pushDir = dx >= 0 ? 1 : -1;
+                        p.vx = pushDir * 145;
+                        this.sound.playHit();
+                        this.triggerShake(0.28, 3.6);
+                        if (p.essence > 0) {
+                            const loss = Math.min(p.essence, b.state === 'blizzard_rush' ? 2 : 1);
+                            p.essence -= loss;
+                            this.addFloatingText(p.x, p.y - 44, `-${loss} Essência`, '#bae6fd');
+                        } else {
+                            this.addFloatingText(p.x, p.y - 44, 'Nevasca da Rainha!', '#bae6fd');
+                        }
+                        this.syncHUD(true);
+                    }
+                }
+            }
+
+            updateBossProjectilesAndIcicles(dt) {
+                const p = this.player;
+                // Update Boss & Archer Projectiles
                 for (let i = this.bossProjectiles.length - 1; i >= 0; i--) {
                     const bp = this.bossProjectiles[i];
                     bp.life -= dt;
@@ -6422,27 +7666,67 @@
                     if (bp.gravity) bp.vy += bp.gravity * dt;
                     bp.y += bp.vy * dt;
 
-                    if (bp.life <= 0 || bp.y >= this.groundY + 2 || bp.x < b.arenaMinX - 180 || bp.x > this.worldWidth - 40) {
-                        this.spawnBurst(bp.x, Math.min(bp.y, this.groundY - 4), '#4c2138', 5);
+                    if (bp.life <= 0 || bp.y >= this.groundY + 2 || bp.x < 40 || bp.x > this.worldWidth - 40) {
+                        const isFrost = bp.style === 'ice_spear' || bp.style === 'frost_arrow';
+                        this.spawnBurst(bp.x, Math.min(bp.y, this.groundY - 4), isFrost ? '#7cbfe8' : '#4c2138', 5);
                         this.bossProjectiles.splice(i, 1);
                         continue;
                     }
 
-                    // Hit Player (jump cleanly vaults over low bolts!)
+                    // Hit Player (jump cleanly vaults over low bolts/arrows!)
                     if (p.invulnTimer <= 0 && p.dashTimer <= 0 && Math.abs(bp.x - p.x) < 16 && Math.abs(bp.y - (p.y - 16)) < 17) {
                         p.invulnTimer = 1.05;
                         p.vx = Math.sign(bp.vx || 1) * 105;
+                        const isFrost = bp.style === 'ice_spear' || bp.style === 'frost_arrow';
                         this.sound.playHit();
                         this.triggerShake(0.24, 3.0);
-                        this.spawnBurst(bp.x, bp.y, '#8b2d3b', 8);
+                        this.spawnBurst(bp.x, bp.y, isFrost ? '#93c5fd' : '#8b2d3b', 8);
                         if (p.essence > 0) {
                             p.essence -= 1;
-                            this.addFloatingText(p.x, p.y - 42, '-1 Essência', '#e5a3a8');
+                            this.addFloatingText(p.x, p.y - 42, '-1 Essência', isFrost ? '#bae6fd' : '#e5a3a8');
                         } else {
-                            this.addFloatingText(p.x, p.y - 42, 'Feitiço Abissal!', '#e5a3a8');
+                            this.addFloatingText(p.x, p.y - 42, bp.style === 'frost_arrow' ? 'Flecha de Gelo!' : (bp.style === 'ice_spear' ? 'Lança de Gelo!' : 'Feitiço Abissal!'), isFrost ? '#bae6fd' : '#e5a3a8');
                         }
                         this.bossProjectiles.splice(i, 1);
                         this.syncHUD(true);
+                    }
+                }
+
+                // Update Rainha do Gelo's Telegraphed Falling Icicles
+                if (this.bossIcicles && this.bossIcicles.length > 0) {
+                    for (let i = this.bossIcicles.length - 1; i >= 0; i--) {
+                        const ic = this.bossIcicles[i];
+                        if (!ic.falling) {
+                            ic.telegraph -= dt;
+                            if (ic.telegraph <= 0) {
+                                ic.falling = true;
+                                ic.vy = 230;
+                            }
+                        } else {
+                            ic.vy += 460 * dt;
+                            ic.y += ic.vy * dt;
+                            // Player collision mid-fall
+                            if (p.invulnTimer <= 0 && p.dashTimer <= 0 && Math.abs(ic.x - p.x) < 15 && Math.abs(ic.y - (p.y - 18)) < 22) {
+                                p.invulnTimer = 1.05;
+                                p.vx = (p.x >= ic.x ? 1 : -1) * 95;
+                                this.sound.playHit();
+                                this.triggerShake(0.22, 2.8);
+                                this.spawnBurst(ic.x, ic.y, '#9dd8f8', 10);
+                                if (p.essence > 0) {
+                                    p.essence -= 1;
+                                    this.addFloatingText(p.x, p.y - 42, '-1 Essência (Estalactite!)', '#bae6fd');
+                                } else {
+                                    this.addFloatingText(p.x, p.y - 42, 'Estalactite!', '#bae6fd');
+                                }
+                                this.bossIcicles.splice(i, 1);
+                                this.syncHUD(true);
+                                continue;
+                            }
+                            if (ic.y >= this.groundY - 2) {
+                                this.spawnBurst(ic.x, this.groundY - 4, '#9dd8f8', 9);
+                                this.bossIcicles.splice(i, 1);
+                            }
+                        }
                     }
                 }
             }
@@ -6476,7 +7760,7 @@
             updateAmbientParticles(dt) {
                 const viewCenter = this.cameraX + this.W / 2;
 
-                // Torch embers & warm rising sparks
+                // Torch embers & rising sparks (amber in Phase 1, cool frost-blue in Phase 2)
                 for (const t of this.torches) {
                     if (t.lit && Math.abs(t.x - viewCenter) < this.W && Math.random() < dt * 11) {
                         this.particles.push({
@@ -6484,7 +7768,9 @@
                             y: this.groundY - 28,
                             vx: (Math.random() - 0.5) * 14,
                             vy: -18 - Math.random() * 20,
-                            color: Math.random() > 0.35 ? '#fbbf24' : '#f97316',
+                            color: this.stage === 2
+                                ? (Math.random() > 0.35 ? '#7ec4e8' : '#d8f1ff')
+                                : (Math.random() > 0.35 ? '#fbbf24' : '#f97316'),
                             size: 1,
                             life: 0.7 + Math.random() * 0.3,
                             maxLife: 1.0,
@@ -6493,11 +7779,26 @@
                     }
                 }
 
-                // Central Sanctuary embers
+                // Gentle falling snowflakes across the snowy valley in Phase 2
+                if (this.stage === 2 && Math.random() < dt * 18) {
+                    this.particles.push({
+                        x: this.cameraX + Math.random() * (this.W + 40) - 20,
+                        y: 6 + Math.random() * 20,
+                        vx: -10 - Math.random() * 14,
+                        vy: 16 + Math.random() * 14,
+                        color: Math.random() > 0.3 ? '#e2eefb' : '#b7d4ee',
+                        size: Math.random() > 0.65 ? 2 : 1,
+                        life: 3.4,
+                        maxLife: 3.4,
+                        gravity: 0
+                    });
+                }
+
+                // Central Sanctuary embers (warm campfire sparks in both phases)
                 if (Math.abs(this.sanctuary.x - viewCenter) < this.W && Math.random() < dt * 13) {
                     this.particles.push({
                         x: this.sanctuary.x + (Math.random() * 14 - 7),
-                        y: this.groundY - 32,
+                        y: this.groundY - (this.stage === 2 ? 18 : 32),
                         vx: (Math.random() - 0.5) * 12,
                         vy: -22 - Math.random() * 18,
                         color: Math.random() > 0.3 ? '#fde047' : '#f59e0b',
@@ -6508,68 +7809,68 @@
                     });
                 }
 
-                // Twin purple portal & active Abyssal portals arcane sparks
-                const twinP = this.landmarks.twinPortal;
-                if (Math.abs(twinP.x - viewCenter) < this.W && Math.random() < dt * 9) {
-                    this.particles.push({
-                        x: twinP.x + (Math.random() * 34 - 17),
-                        y: this.groundY - 20 - Math.random() * 32,
-                        vx: (Math.random() - 0.5) * 16,
-                        vy: -12 - Math.random() * 16,
-                        color: Math.random() > 0.4 ? '#c084fc' : '#818cf8',
-                        size: 1,
-                        life: 0.75,
-                        maxLife: 0.75,
-                        gravity: -3
-                    });
-                }
-                for (const pt of this.portals) {
-                    if (!pt.sealed && Math.abs(pt.x - viewCenter) < this.W && Math.random() < dt * 8) {
+                // Phase 1 outdoor landmarks & Abyssal portal sparks
+                if (this.stage === 1) {
+                    const twinP = this.landmarks.twinPortal;
+                    if (Math.abs(twinP.x - viewCenter) < this.W && Math.random() < dt * 9) {
                         this.particles.push({
-                            x: pt.x + (Math.random() * 24 - 12),
-                            y: this.groundY - 22 - Math.random() * 36,
-                            vx: (Math.random() - 0.5) * 18,
-                            vy: -14 - Math.random() * 16,
-                            color: '#d8b4fe',
+                            x: twinP.x + (Math.random() * 34 - 17),
+                            y: this.groundY - 20 - Math.random() * 32,
+                            vx: (Math.random() - 0.5) * 16,
+                            vy: -12 - Math.random() * 16,
+                            color: Math.random() > 0.4 ? '#c084fc' : '#818cf8',
                             size: 1,
-                            life: 0.7,
-                            maxLife: 0.7,
-                            gravity: -2
+                            life: 0.75,
+                            maxLife: 0.75,
+                            gravity: -3
                         });
                     }
-                }
+                    for (const pt of this.portals) {
+                        if ((!pt.sealed || (this.phase1VictoryUnlocked && pt.id === 'east')) && Math.abs(pt.x - viewCenter) < this.W && Math.random() < dt * 8) {
+                            this.particles.push({
+                                x: pt.x + (Math.random() * 24 - 12),
+                                y: this.groundY - 22 - Math.random() * 36,
+                                vx: (Math.random() - 0.5) * 18,
+                                vy: -14 - Math.random() * 16,
+                                color: (this.phase1VictoryUnlocked && pt.id === 'east') ? '#7ec4e8' : '#d8b4fe',
+                                size: 1,
+                                life: 0.7,
+                                maxLife: 0.7,
+                                gravity: -2
+                            });
+                        }
+                    }
 
-                // Runic Pillars arcane dust motes
-                for (const pil of this.landmarks.runicPillars) {
-                    if (Math.abs(pil.x - viewCenter) < this.W && Math.random() < dt * 5) {
+                    for (const pil of this.landmarks.runicPillars) {
+                        if (Math.abs(pil.x - viewCenter) < this.W && Math.random() < dt * 5) {
+                            this.particles.push({
+                                x: pil.x + (Math.random() * 26 - 13),
+                                y: this.groundY - 24 - Math.random() * 44,
+                                vx: (Math.random() - 0.5) * 8,
+                                vy: -8 - Math.random() * 10,
+                                color: '#a78bfa',
+                                size: 1,
+                                life: 1.0,
+                                maxLife: 1.0,
+                                gravity: -1
+                            });
+                        }
+                    }
+
+                    const st = this.landmarks.demonStatue;
+                    if (Math.abs(st.x - viewCenter) < this.W && Math.random() < dt * 7) {
                         this.particles.push({
-                            x: pil.x + (Math.random() * 26 - 13),
-                            y: this.groundY - 24 - Math.random() * 44,
-                            vx: (Math.random() - 0.5) * 8,
-                            vy: -8 - Math.random() * 10,
-                            color: '#a78bfa',
+                            x: st.x + (Math.random() * 30 - 15),
+                            y: this.groundY - 10 - Math.random() * 20,
+                            vx: (Math.random() - 0.5) * 10,
+                            vy: -16 - Math.random() * 14,
+                            color: Math.random() > 0.4 ? '#ef4444' : '#f97316',
                             size: 1,
-                            life: 1.0,
-                            maxLife: 1.0,
-                            gravity: -1
+                            life: 0.85,
+                            maxLife: 0.85,
+                            gravity: -4
                         });
                     }
-                }
-
-                // Demon Statue crimson embers at far east
-                const st = this.landmarks.demonStatue;
-                if (Math.abs(st.x - viewCenter) < this.W && Math.random() < dt * 7) {
-                    this.particles.push({
-                        x: st.x + (Math.random() * 30 - 15),
-                        y: this.groundY - 10 - Math.random() * 20,
-                        vx: (Math.random() - 0.5) * 10,
-                        vy: -16 - Math.random() * 14,
-                        color: Math.random() > 0.4 ? '#ef4444' : '#f97316',
-                        size: 1,
-                        life: 0.85,
-                        maxLife: 0.85,
-                        gravity: -4
-                    });
                 }
 
                 // Subtle golden embers rising from Rei Paimon's flaming staff
@@ -6926,6 +8227,10 @@
             }
 
             renderParallax(ctx, camX, atm) {
+                if (this.stage === 2) {
+                    this.renderPhase2Parallax(ctx, camX, atm);
+                    return;
+                }
                 const pa = this.paintedAssets;
                 const nightBlend = clamp((atm.darkAlpha - 0.10) / 0.66, 0, 1);
 
@@ -7379,29 +8684,260 @@
                 }
             }
 
+            renderPhase2Parallax(ctx, camX, atm) {
+                const pa = this.paintedAssets;
+                const W = this.W;
+                const gy = this.groundY;
+
+                // 1. Deep nocturnal arctic indigo sky gradient
+                const skyG = ctx.createLinearGradient(0, 0, 0, gy);
+                skyG.addColorStop(0, '#070b1e');
+                skyG.addColorStop(0.45, '#121a38');
+                skyG.addColorStop(0.82, '#222b4d');
+                skyG.addColorStop(1, '#313d63');
+                ctx.fillStyle = skyG;
+                ctx.fillRect(0, 0, W, this.waterY);
+
+                // Painterly gouache sky grain
+                if (pa && pa.brushGrain) {
+                    ctx.save();
+                    ctx.globalAlpha = 0.45;
+                    for (let gx = 0; gx < W; gx += 128) {
+                        for (let gy2 = 0; gy2 < gy; gy2 += 128) {
+                            ctx.drawImage(pa.brushGrain, gx, gy2);
+                        }
+                    }
+                    ctx.restore();
+                }
+
+                // 2. Crisp winter stars
+                for (const st of this.stars) {
+                    const tw = 0.35 + 0.65 * Math.sin(this.elapsed * 2.1 + st.phase);
+                    ctx.globalAlpha = clamp(0.85 * tw, 0, 1);
+                    ctx.fillStyle = '#e2eefb';
+                    ctx.fillRect(Math.round(st.x), Math.round(st.y), 1, 1);
+                }
+                ctx.globalAlpha = 1;
+
+                // 3. Hand-Painted Green & Violet Aurora Borealis Curtains (soft storybook wash, ZERO neon!)
+                ctx.save();
+                for (let band = 0; band < 2; band++) {
+                    const baseY = band === 0 ? 44 : 62;
+                    for (let sx = -12; sx <= W + 12; sx += 8) {
+                        const wave = Math.sin(sx * 0.015 + this.elapsed * (0.45 + band * 0.2) + band * 2.1 + camX * 0.0004) * 16;
+                        const sway = Math.cos(sx * 0.028 - this.elapsed * 0.3 + band) * 8;
+                        const topY = baseY + wave - 34;
+                        const botY = baseY + wave + sway + 48;
+                        const ag = ctx.createLinearGradient(sx, topY, sx, botY);
+                        if (band === 0) {
+                            ag.addColorStop(0, 'rgba(104, 78, 166, 0)');
+                            ag.addColorStop(0.28, 'rgba(116, 86, 182, 0.22)');
+                            ag.addColorStop(0.62, 'rgba(64, 178, 140, 0.32)');
+                            ag.addColorStop(1, 'rgba(64, 178, 140, 0)');
+                        } else {
+                            ag.addColorStop(0, 'rgba(72, 168, 152, 0)');
+                            ag.addColorStop(0.45, 'rgba(78, 192, 146, 0.24)');
+                            ag.addColorStop(0.78, 'rgba(130, 92, 184, 0.18)');
+                            ag.addColorStop(1, 'rgba(130, 92, 184, 0)');
+                        }
+                        ctx.fillStyle = ag;
+                        ctx.fillRect(sx, topY, 10, botY - topY);
+                    }
+                }
+                ctx.restore();
+
+                // 4. Full Luminous Pale Arctic Moon (upper right, matching reference image)
+                const moonX = W * 0.78 - (camX * 0.012);
+                const moonY = 58;
+                const halo = ctx.createRadialGradient(moonX, moonY, 16, moonX, moonY, 64);
+                halo.addColorStop(0, 'rgba(218, 236, 252, 0.28)');
+                halo.addColorStop(0.55, 'rgba(148, 192, 228, 0.10)');
+                halo.addColorStop(1, 'rgba(148, 192, 228, 0)');
+                ctx.fillStyle = halo;
+                ctx.beginPath();
+                ctx.arc(moonX, moonY, 64, 0, Math.PI * 2);
+                ctx.fill();
+
+                ctx.fillStyle = '#e5f2fb';
+                ctx.beginPath();
+                ctx.arc(moonX, moonY, 21, 0, Math.PI * 2);
+                ctx.fill();
+                // Painterly subtle moon craters
+                ctx.fillStyle = 'rgba(156, 184, 212, 0.35)';
+                ctx.beginPath();
+                ctx.arc(moonX - 6, moonY - 4, 5, 0, Math.PI * 2);
+                ctx.arc(moonX + 7, moonY + 5, 4, 0, Math.PI * 2);
+                ctx.arc(moonX + 3, moonY - 9, 2.8, 0, Math.PI * 2);
+                ctx.fill();
+
+                // 5. Storybook Dark Purple-Slate Clouds drifting across moon & aurora
+                if (pa && pa.clouds) {
+                    ctx.save();
+                    ctx.globalAlpha = 0.85;
+                    ctx.imageSmoothingEnabled = true;
+                    const cloudScroll = (camX * 0.05 + this.elapsed * 2.5) % (W + 180);
+                    for (let i = 0; i < 4; i++) {
+                        const sp = pa.clouds[i % pa.clouds.length];
+                        const cx = ((i * 155 - cloudScroll) % (W + 180) + (W + 180)) % (W + 180) - 90;
+                        const cy = 20 + (i % 3) * 24;
+                        ctx.drawImage(sp, cx, cy, 118, 40);
+                    }
+                    ctx.restore();
+                }
+
+                // 6. Snow-Capped Alpine Mountain Range (parallax 0.14)
+                const mScroll = camX * 0.14;
+                const peakSpan = 160;
+                const firstPeak = Math.floor(mScroll / peakSpan) - 1;
+                for (let idx = firstPeak; idx <= firstPeak + 6; idx++) {
+                    const px = idx * peakSpan - mScroll + 70;
+                    const ph = 72 + ((Math.abs(idx * 37) % 3) * 24);
+                    const pw = 105 + ((Math.abs(idx * 19) % 2) * 26);
+                    const baseY = gy - 20;
+
+                    // Dark slate-blue mountain flank
+                    ctx.fillStyle = '#334566';
+                    ctx.strokeStyle = '#182238';
+                    ctx.lineWidth = 1.4;
+                    ctx.beginPath();
+                    ctx.moveTo(px - pw, baseY);
+                    ctx.lineTo(px, baseY - ph);
+                    ctx.lineTo(px + pw, baseY);
+                    ctx.closePath();
+                    ctx.fill();
+                    ctx.stroke();
+
+                    // Moonlit snow-draped ridge facet
+                    ctx.fillStyle = '#b4c9e0';
+                    ctx.beginPath();
+                    ctx.moveTo(px, baseY - ph);
+                    ctx.lineTo(px + pw * 0.62, baseY - ph * 0.34);
+                    ctx.lineTo(px + pw * 0.25, baseY - ph * 0.42);
+                    ctx.lineTo(px + pw * 0.06, baseY - ph * 0.24);
+                    ctx.lineTo(px - pw * 0.22, baseY - ph * 0.46);
+                    ctx.closePath();
+                    ctx.fill();
+                }
+
+                // 7. Distant Dark Gothic Castle Silhouette in the Snowy Valley (matching reference image!)
+                const castleX = 285 - (camX - 1800) * 0.18;
+                if (castleX > -120 && castleX < W + 120) {
+                    const cy = gy - 22;
+                    ctx.save();
+                    ctx.fillStyle = '#23314d';
+                    ctx.strokeStyle = '#101829';
+                    ctx.lineWidth = 1.5;
+                    // Castle keep body
+                    ctx.fillRect(castleX - 36, cy - 34, 72, 34);
+                    ctx.strokeRect(castleX - 36, cy - 34, 72, 34);
+                    // Tall gothic pointed spires
+                    const spires = [
+                        [-32, 46, 12],
+                        [-16, 60, 14],
+                        [0, 74, 16],
+                        [18, 56, 13],
+                        [32, 44, 11]
+                    ];
+                    for (const [ox, sh, sw] of spires) {
+                        ctx.fillStyle = '#283858';
+                        ctx.fillRect(castleX + ox - sw * 0.5, cy - sh * 0.65, sw, sh * 0.65);
+                        ctx.strokeRect(castleX + ox - sw * 0.5, cy - sh * 0.65, sw, sh * 0.65);
+                        // Spire roof
+                        ctx.fillStyle = '#1b2640';
+                        ctx.beginPath();
+                        ctx.moveTo(castleX + ox - sw * 0.65, cy - sh * 0.65);
+                        ctx.lineTo(castleX + ox, cy - sh);
+                        ctx.lineTo(castleX + ox + sw * 0.65, cy - sh * 0.65);
+                        ctx.closePath();
+                        ctx.fill();
+                        ctx.stroke();
+                    }
+                    // Faint pale-blue castle windows
+                    ctx.fillStyle = 'rgba(148, 206, 240, 0.52)';
+                    ctx.fillRect(castleX - 2, cy - 42, 3, 6);
+                    ctx.fillRect(castleX - 18, cy - 28, 3, 5);
+                    ctx.fillRect(castleX + 16, cy - 28, 3, 5);
+                    ctx.restore();
+                }
+
+                // 8. Soft Rolling Snowy Midground Hills (parallax 0.32)
+                const hillScroll = camX * 0.32;
+                const hillG = ctx.createLinearGradient(0, gy - 44, 0, gy + 4);
+                hillG.addColorStop(0, '#9db7d4');
+                hillG.addColorStop(0.5, '#7795ba');
+                hillG.addColorStop(1, '#587499');
+                ctx.fillStyle = hillG;
+                ctx.beginPath();
+                ctx.moveTo(0, gy + 4);
+                for (let x = 0; x <= W + 24; x += 24) {
+                    const wx = x + hillScroll;
+                    const hy = gy - 26 + Math.sin(wx * 0.008) * 11 + Math.cos(wx * 0.019) * 5;
+                    ctx.lineTo(x, hy);
+                }
+                ctx.lineTo(W + 24, gy + 4);
+                ctx.closePath();
+                ctx.fill();
+                ctx.strokeStyle = '#2a3954';
+                ctx.lineWidth = 1.2;
+                ctx.stroke();
+
+                // 9. Midground Frost-Dusted Lilac Winter Bushes & Snow-Laden Pines (parallax 0.56 & 0.78)
+                if (pa && pa.snowBushes && pa.snowPines) {
+                    ctx.save();
+                    ctx.imageSmoothingEnabled = true;
+
+                    // Lilac frost bushes (parallax 0.56)
+                    const bushScroll = camX * 0.56;
+                    const bStep = 148;
+                    const firstB = Math.floor(bushScroll / bStep) - 1;
+                    for (let i = firstB; i <= firstB + 6; i++) {
+                        const bx = i * bStep - bushScroll + ((Math.abs(i * 41) % 36) - 18);
+                        const sp = pa.snowBushes[Math.abs(i) % pa.snowBushes.length];
+                        ctx.drawImage(sp, bx - 32, gy - 62, 64, 62);
+                    }
+
+                    // Snow-laden evergreen pines (parallax 0.78)
+                    const pineScroll = camX * 0.78;
+                    const pStep = 132;
+                    const firstP = Math.floor(pineScroll / pStep) - 1;
+                    for (let i = firstP; i <= firstP + 7; i++) {
+                        // Leave scenic clearings around Castle view & Sanctuary
+                        if (Math.abs(i) % 5 === 2) continue;
+                        const px = i * pStep - pineScroll + ((Math.abs(i * 29) % 30) - 15);
+                        const sp = pa.snowPines[Math.abs(i) % pa.snowPines.length];
+                        const scale = 0.72 + ((Math.abs(i * 17) % 3) * 0.14);
+                        const pw = Math.round(70 * scale);
+                        const ph = Math.round(100 * scale);
+                        ctx.drawImage(sp, px - pw * 0.5, gy - ph + 4, pw, ph);
+                    }
+                    ctx.restore();
+                }
+            }
+
             renderWorld(ctx, camX, atm) {
                 const viewLeft = camX - 110;
                 const viewRight = camX + this.W + 110;
                 const activeAtm = atm || this.getAtmosphere();
 
-                // 1. HAND-DRAWN STORYBOOK EARTH PLATFORM (wavy terracotta/brown earth, white wildflowers,
-                //    scalloped overhang lip, darker cliff wall with hand-drawn pebbles & undulating bottom!)
-                //    Dark shoreline water backing under the undulating cliff arches
-                ctx.fillStyle = '#060818';
+                // 1. HAND-DRAWN STORYBOOK PLATFORM (Terracotta in Phase 1, Snow & Stone Ledge in Phase 2)
+                ctx.fillStyle = this.stage === 2 ? '#0c1628' : '#060818';
                 ctx.fillRect(camX - 4, this.groundY + 11, this.W + 8, this.waterY - (this.groundY + 11));
-                if (this.paintedAssets && this.paintedAssets.groundTile) {
+                const activeGroundTile = this.stage === 2
+                    ? (this.paintedAssets && this.paintedAssets.snowGroundTile)
+                    : (this.paintedAssets && this.paintedAssets.groundTile);
+                if (activeGroundTile) {
                     const tileW = 560;
                     const tileH = 30;
                     const startTileX = Math.floor(camX / tileW) * tileW;
                     ctx.save();
                     ctx.imageSmoothingEnabled = true;
                     for (let tx = startTileX; tx < camX + this.W + tileW; tx += tileW) {
-                        ctx.drawImage(this.paintedAssets.groundTile, 0, 0, 1120, 60, tx, this.groundY - 5, tileW, tileH);
+                        ctx.drawImage(activeGroundTile, 0, 0, 1120, 60, tx, this.groundY - 5, tileW, tileH);
                     }
                     ctx.restore();
                 }
 
-                // 1b. Jumpable Chasms / Ground Pits carved cleanly through the terracotta path
+                // 1b. Jumpable Chasms / Ground Pits carved cleanly through the path
                 if (this.obstacles) {
                     for (const ob of this.obstacles) {
                         if (ob.type !== 'pit') continue;
@@ -7409,19 +8945,16 @@
                         const left = Math.round(ob.x - ob.w / 2);
                         const right = Math.round(ob.x + ob.w / 2);
 
-                        // Deep abyssal chasm opening down to water
                         const pitGrad = ctx.createLinearGradient(0, this.groundY - 5, 0, this.waterY);
-                        pitGrad.addColorStop(0, '#070917');
-                        pitGrad.addColorStop(0.65, '#0b0e22');
-                        pitGrad.addColorStop(1, '#111630');
+                        pitGrad.addColorStop(0, this.stage === 2 ? '#0b1526' : '#070917');
+                        pitGrad.addColorStop(0.65, this.stage === 2 ? '#12223a' : '#0b0e22');
+                        pitGrad.addColorStop(1, this.stage === 2 ? '#1b3152' : '#111630');
                         ctx.fillStyle = pitGrad;
                         ctx.fillRect(left, this.groundY - 5, ob.w, this.waterY - (this.groundY - 5));
 
-                        // Hand-inked jagged earth-cliff edges framing both sides of the pit
-                        ctx.fillStyle = '#5c3425';
-                        ctx.strokeStyle = '#180d14';
+                        ctx.fillStyle = this.stage === 2 ? '#364a66' : '#5c3425';
+                        ctx.strokeStyle = this.stage === 2 ? '#121b2c' : '#180d14';
                         ctx.lineWidth = 1.4;
-                        // Left cliff lip
                         ctx.beginPath();
                         ctx.moveTo(left - 3, this.groundY - 3);
                         ctx.lineTo(left + 3, this.groundY - 2);
@@ -7431,7 +8964,7 @@
                         ctx.closePath();
                         ctx.fill();
                         ctx.stroke();
-                        // Right cliff lip
+
                         ctx.beginPath();
                         ctx.moveTo(right + 3, this.groundY - 3);
                         ctx.lineTo(right - 3, this.groundY - 2);
@@ -7442,15 +8975,14 @@
                         ctx.fill();
                         ctx.stroke();
 
-                        // Subtle terracotta lip cap on both sides so edge is super clear
-                        ctx.fillStyle = '#c86a3a';
+                        ctx.fillStyle = this.stage === 2 ? '#dce9f7' : '#c86a3a';
                         ctx.fillRect(left - 4, this.groundY - 3, 6, 3);
                         ctx.fillRect(right - 2, this.groundY - 3, 6, 3);
                     }
                 }
 
-                // 2. WORLD LANDMARK 1: Runic Ruined Pillars (pilar-sprite.png) — seamlessly rooted in terrain!
-                if (this.worldArt && this.worldArt.pilar) {
+                // 2. WORLD LANDMARK 1: Runic Ruined Pillars (Phase 1 only)
+                if (this.stage === 1 && this.worldArt && this.worldArt.pilar) {
                     for (let idx = 0; idx < this.landmarks.runicPillars.length; idx++) {
                         const pil = this.landmarks.runicPillars[idx];
                         if (pil.x < viewLeft || pil.x > viewRight) continue;
@@ -7470,8 +9002,8 @@
                     }
                 }
 
-                // 3. WORLD LANDMARK 2: Demon Statue (estatua-sprite.png) at far east near Portal Oriental
-                if (this.worldArt && this.worldArt.estatua) {
+                // 3. WORLD LANDMARK 2: Demon Statue (Phase 1 only)
+                if (this.stage === 1 && this.worldArt && this.worldArt.estatua) {
                     const st = this.landmarks.demonStatue;
                     if (st.x >= viewLeft && st.x <= viewRight) {
                         const eyePulse = 0.65 + Math.sin(this.elapsed * 4.2) * 0.35;
@@ -7485,7 +9017,6 @@
 
                         this.drawLandmarkBaseBack(ctx, st.x, this.groundY, st.w * 1.32, 3);
                         this.drawSceneLitLandmark(ctx, this.worldArt.estatua, st.x - st.w / 2, this.groundY - st.h + 4, st.w, st.h, activeAtm, 1);
-                        // Pulsing crimson eyes aligned on the demon statue face
                         ctx.save();
                         ctx.fillStyle = `rgba(254, 202, 202, ${(0.85 * eyePulse).toFixed(2)})`;
                         ctx.beginPath();
@@ -7497,15 +9028,14 @@
                     }
                 }
 
-                // 4. WORLD LANDMARK 3: Twin Purple Portal (portal-sprite.png) beside Portal Ocidental
-                if (this.worldArt && this.worldArt.portal) {
+                // 4. WORLD LANDMARK 3: Twin Purple Portal (Phase 1 only)
+                if (this.stage === 1 && this.worldArt && this.worldArt.portal) {
                     const tp = this.landmarks.twinPortal;
                     if (tp.x >= viewLeft && tp.x <= viewRight) {
                         const westSealed = this.portals[0] && this.portals[0].sealed;
                         this.drawLandmarkBaseBack(ctx, tp.x, this.groundY, tp.w * 1.16, 2);
                         this.drawSceneLitLandmark(ctx, this.worldArt.portal, tp.x - tp.w / 2, this.groundY - tp.h + 4, tp.w, tp.h, activeAtm, 1);
 
-                        // Live spinning vortex swirling inside the twin purple portal archway!
                         if (!westSealed) {
                             this.drawSpinningVortex(ctx, tp.x - 2, this.groundY - 31, 14, 20, 2.2, '#7c3aed', '#c084fc');
                         } else {
@@ -7515,33 +9045,93 @@
                     }
                 }
 
-                // Central Sanctuary
+                // Central Sanctuary (Eternal Shrine in Phase 1, Warm Stone-Ring Snow Campfire in Phase 2!)
                 if (this.sanctuary.x >= viewLeft && this.sanctuary.x <= viewRight) {
-                    ctx.drawImage(this.sprites.sanctuary, this.sanctuary.x - 34, this.groundY - 56);
-                    // Flickering Eternal Golden Flame
+                    const sx = this.sanctuary.x;
                     const flicker = Math.sin(this.elapsed * 14) * 1.6 + Math.sin(this.elapsed * 23) * 0.8;
                     const sway = Math.sin(this.elapsed * 11) * 1.2;
-                    ctx.fillStyle = '#ea580c';
-                    ctx.fillRect(this.sanctuary.x - 5 + sway * 0.4, this.groundY - 36 - flicker, 10, 9 + flicker);
-                    ctx.fillStyle = '#f59e0b';
-                    ctx.fillRect(this.sanctuary.x - 4 + sway * 0.6, this.groundY - 35 - flicker * 0.8, 8, 8 + flicker * 0.8);
-                    ctx.fillStyle = '#fef08a';
-                    ctx.fillRect(this.sanctuary.x - 2.5, this.groundY - 33 - flicker * 0.4, 5, 5 + flicker * 0.3);
-                    if (this.sanctuary.tribute > 0) {
-                        const bob = Math.sin(this.elapsed * 4) * 2;
-                        ctx.fillStyle = '#fde047';
+                    if (this.stage === 2) {
+                        // Hand-painted snowy stone-ring campfire with crossed logs & warm flame (matching reference image!)
+                        ctx.save();
+                        ctx.fillStyle = '#3c4a60';
+                        ctx.strokeStyle = '#121826';
+                        ctx.lineWidth = 1.4;
+                        for (let k = -2; k <= 2; k++) {
+                            ctx.beginPath();
+                            ctx.ellipse(sx + k * 6, this.groundY + 0.5, 4.5, 2.8, 0, 0, Math.PI * 2);
+                            ctx.fill();
+                            ctx.stroke();
+                        }
+                        // Crossed logs
+                        ctx.strokeStyle = '#4a2e1f';
+                        ctx.lineWidth = 3.2;
                         ctx.beginPath();
-                        ctx.arc(this.sanctuary.x, this.groundY - 46 + bob, 4, 0, Math.PI * 2);
+                        ctx.moveTo(sx - 9, this.groundY - 1);
+                        ctx.lineTo(sx + 8, this.groundY - 6);
+                        ctx.moveTo(sx + 9, this.groundY - 1);
+                        ctx.lineTo(sx - 8, this.groundY - 6);
+                        ctx.stroke();
+                        // Layered painterly golden-orange campfire flame
+                        ctx.fillStyle = '#ea580c';
+                        ctx.beginPath();
+                        ctx.moveTo(sx - 9, this.groundY - 4);
+                        ctx.quadraticCurveTo(sx - 5 + sway, this.groundY - 22 - flicker, sx + sway * 0.5, this.groundY - 26 - flicker);
+                        ctx.quadraticCurveTo(sx + 7 + sway, this.groundY - 19 - flicker, sx + 9, this.groundY - 4);
+                        ctx.closePath();
                         ctx.fill();
+                        ctx.fillStyle = '#f59e0b';
+                        ctx.beginPath();
+                        ctx.moveTo(sx - 6, this.groundY - 4);
+                        ctx.quadraticCurveTo(sx + sway * 0.5, this.groundY - 20 - flicker * 0.8, sx + 6, this.groundY - 4);
+                        ctx.closePath();
+                        ctx.fill();
+                        ctx.fillStyle = '#fef08a';
+                        ctx.beginPath();
+                        ctx.ellipse(sx, this.groundY - 8 - flicker * 0.25, 3.5, 4.5, 0, 0, Math.PI * 2);
+                        ctx.fill();
+                        if (this.sanctuary.tribute > 0) {
+                            const bob = Math.sin(this.elapsed * 4) * 2;
+                            ctx.fillStyle = '#fde047';
+                            ctx.beginPath();
+                            ctx.arc(sx, this.groundY - 34 + bob, 4, 0, Math.PI * 2);
+                            ctx.fill();
+                        }
+                        ctx.restore();
+                    } else {
+                        ctx.drawImage(this.sprites.sanctuary, sx - 34, this.groundY - 56);
+                        ctx.fillStyle = '#ea580c';
+                        ctx.fillRect(sx - 5 + sway * 0.4, this.groundY - 36 - flicker, 10, 9 + flicker);
+                        ctx.fillStyle = '#f59e0b';
+                        ctx.fillRect(sx - 4 + sway * 0.6, this.groundY - 35 - flicker * 0.8, 8, 8 + flicker * 0.8);
+                        ctx.fillStyle = '#fef08a';
+                        ctx.fillRect(sx - 2.5, this.groundY - 33 - flicker * 0.4, 5, 5 + flicker * 0.3);
+                        if (this.sanctuary.tribute > 0) {
+                            const bob = Math.sin(this.elapsed * 4) * 2;
+                            ctx.fillStyle = '#fde047';
+                            ctx.beginPath();
+                            ctx.arc(sx, this.groundY - 46 + bob, 4, 0, Math.PI * 2);
+                            ctx.fill();
+                        }
                     }
                 }
 
-                // Abyssal Portals (with live rotating vortex!)
+                // Portals (Phase 1 Abyssal Portals + East Portal Phase 2 Gateway Rift, or Phase 2 Crystalline Ice Portal!)
                 for (const pt of this.portals) {
                     if (pt.x < viewLeft || pt.x > viewRight) continue;
-                    ctx.drawImage(pt.sealed ? this.sprites.portalSealed : this.sprites.portalActive, pt.x - 27, this.groundY - 78);
-                    if (!pt.sealed) {
-                        this.drawSpinningVortex(ctx, pt.x, this.groundY - 39, 12, 24, 2.7, '#7e22ce', '#d8b4fe');
+                    if (pt.isPhase2Entry && this.paintedAssets && this.paintedAssets.icePortal) {
+                        ctx.save();
+                        ctx.imageSmoothingEnabled = true;
+                        ctx.drawImage(this.paintedAssets.icePortal, pt.x - 38, this.groundY - 88, 76, 92);
+                        this.drawSpinningVortex(ctx, pt.x, this.groundY - 40, 14, 24, 1.8, '#5b8fd4', '#bae6fd');
+                        ctx.restore();
+                    } else {
+                        ctx.drawImage(pt.sealed ? this.sprites.portalSealed : this.sprites.portalActive, pt.x - 27, this.groundY - 78);
+                        if (!pt.sealed) {
+                            this.drawSpinningVortex(ctx, pt.x, this.groundY - 39, 12, 24, 2.7, '#7e22ce', '#d8b4fe');
+                        } else if (this.stage === 1 && this.phase1VictoryUnlocked && pt.id === 'east') {
+                            // Icy-violet gateway shimmer inviting Paimon to teleport to Phase 2!
+                            this.drawSpinningVortex(ctx, pt.x, this.groundY - 39, 13, 25, 2.2, '#4a8cc7', '#c4e8ff');
+                        }
                     }
                 }
 
@@ -7574,18 +9164,18 @@
                     ctx.fillRect(sc.x - 1, this.groundY - 6 - h, 2, h);
                 }
 
-                // Torches with lively multi-harmonic flickering flames
+                // Torches with lively multi-harmonic flickering flames (Amber in Phase 1, Blue Flame in Phase 2!)
                 for (const t of this.torches) {
                     if (t.x < viewLeft || t.x > viewRight) continue;
                     ctx.drawImage(this.sprites.torch, t.x - 8, this.groundY - 34);
                     if (t.lit) {
                         const f = Math.sin(this.elapsed * 15 + t.x) * 1.5 + Math.sin(this.elapsed * 24 + t.x * 1.7) * 0.9;
                         const sway = Math.sin(this.elapsed * 11 + t.x) * 1.0;
-                        ctx.fillStyle = '#dc2626';
+                        ctx.fillStyle = this.stage === 2 ? '#2b6cb0' : '#dc2626';
                         ctx.fillRect(Math.round(t.x - 3.5 + sway * 0.5), Math.round(this.groundY - 32 - f), 7, Math.round(8 + f));
-                        ctx.fillStyle = '#f59e0b';
+                        ctx.fillStyle = this.stage === 2 ? '#7ec4e8' : '#f59e0b';
                         ctx.fillRect(Math.round(t.x - 2.5 + sway * 0.7), Math.round(this.groundY - 30 - f * 0.8), 5, Math.round(6 + f * 0.8));
-                        ctx.fillStyle = '#fef9c3';
+                        ctx.fillStyle = this.stage === 2 ? '#e0f4ff' : '#fef9c3';
                         ctx.fillRect(Math.round(t.x - 1 + sway * 0.3), Math.round(this.groundY - 28 - f * 0.4), 2, 3);
                     }
                 }
@@ -7636,21 +9226,22 @@
                     }
                 }
 
-                // 7 Hand-Painted Mossy Stone Floating Platforms (storybook style, ZERO neon)
-                if (this.platforms && this.paintedAssets && this.paintedAssets.floatingPlatforms) {
+                // 7 Hand-Painted Floating Platforms (Mossy Stone in Phase 1, Frosted Snow-Stone in Phase 2)
+                const platSprites = this.stage === 2
+                    ? (this.paintedAssets && this.paintedAssets.snowPlatforms)
+                    : (this.paintedAssets && this.paintedAssets.floatingPlatforms);
+                if (this.platforms && platSprites) {
                     ctx.save();
                     ctx.imageSmoothingEnabled = true;
                     for (const pl of this.platforms) {
                         if (pl.x + pl.w < viewLeft || pl.x - pl.w > viewRight) continue;
-                        const sp = this.paintedAssets.floatingPlatforms[(pl.variant || 0) % this.paintedAssets.floatingPlatforms.length];
-                        // Soft ambient shadow cast faintly onto the terracotta road below
+                        const sp = platSprites[(pl.variant || 0) % platSprites.length];
                         const elev = Math.max(0, this.groundY - pl.y);
                         const shadowAlpha = clamp(0.24 - elev * 0.0022, 0.08, 0.24);
                         ctx.fillStyle = `rgba(10, 7, 16, ${shadowAlpha.toFixed(2)})`;
                         ctx.beginPath();
                         ctx.ellipse(pl.x, this.groundY + 1, pl.w * 0.44, 2.6, 0, 0, Math.PI * 2);
                         ctx.fill();
-                        // Draw mossy stone slab aligned with walkable top edge at pl.y
                         const drawW = pl.w + 6;
                         const drawH = 22;
                         ctx.drawImage(sp, Math.round(pl.x - drawW * 0.5), Math.round(pl.y - 5), drawW, drawH);
@@ -7705,7 +9296,7 @@
                     ctx.restore();
                 }
 
-                // Road Obstacles: Tar Pools, Mossy Boulders, Thorn Bushes & Thorny Roots (hand-painted, ZERO neon)
+                // Road Obstacles: Phase 1 (Tar, Rocks, Thorns, Roots) & Phase 2 (Frost Slush, Ice Crystals, Stone Walls!)
                 if (this.obstacles && this.paintedAssets) {
                     ctx.save();
                     ctx.imageSmoothingEnabled = true;
@@ -7713,24 +9304,37 @@
                         if (ob.type === 'pit') continue;
                         if (ob.x < viewLeft || ob.x > viewRight) continue;
 
-                        if (ob.type === 'tarPool' && this.paintedAssets.tarPool) {
-                            const sp = this.paintedAssets.tarPool[(ob.variant || 0) % this.paintedAssets.tarPool.length];
-                            ctx.drawImage(sp, ob.x - 24, this.groundY - 5, 48, 12);
-                            // Gentle viscous oil bubbles on puddle surface (non-neon muted slate)
-                            const bubPhase = (this.elapsed * 1.4 + ob.x * 0.03) % 1;
-                            const bubR = Math.sin(bubPhase * Math.PI) * 2.1;
-                            if (bubR > 0.35) {
-                                ctx.strokeStyle = 'rgba(110, 118, 148, 0.55)';
-                                ctx.lineWidth = 0.85;
+                        if (ob.type === 'tarPool') {
+                            if (this.stage === 2) {
+                                // Deep frost slush snow patch
+                                ctx.fillStyle = 'rgba(78, 118, 160, 0.55)';
+                                ctx.strokeStyle = '#253a54';
+                                ctx.lineWidth = 1.2;
                                 ctx.beginPath();
-                                ctx.arc(ob.x - 7 + ((ob.x % 15) - 7), this.groundY - 0.5 - bubPhase * 1.2, bubR, 0, Math.PI * 2);
+                                ctx.ellipse(ob.x, this.groundY + 0.5, ob.w * 0.52, 4.2, 0, 0, Math.PI * 2);
+                                ctx.fill();
                                 ctx.stroke();
+                                ctx.fillStyle = 'rgba(186, 224, 248, 0.55)';
+                                ctx.beginPath();
+                                ctx.ellipse(ob.x - 4, this.groundY - 0.5, ob.w * 0.3, 2, 0, 0, Math.PI * 2);
+                                ctx.fill();
+                            } else if (this.paintedAssets.tarPool) {
+                                const sp = this.paintedAssets.tarPool[(ob.variant || 0) % this.paintedAssets.tarPool.length];
+                                ctx.drawImage(sp, ob.x - 24, this.groundY - 5, 48, 12);
+                                const bubPhase = (this.elapsed * 1.4 + ob.x * 0.03) % 1;
+                                const bubR = Math.sin(bubPhase * Math.PI) * 2.1;
+                                if (bubR > 0.35) {
+                                    ctx.strokeStyle = 'rgba(110, 118, 148, 0.55)';
+                                    ctx.lineWidth = 0.85;
+                                    ctx.beginPath();
+                                    ctx.arc(ob.x - 7 + ((ob.x % 15) - 7), this.groundY - 0.5 - bubPhase * 1.2, bubR, 0, Math.PI * 2);
+                                    ctx.stroke();
+                                }
                             }
                             continue;
                         }
 
-                        // Soft contact shadow on earth
-                        ctx.fillStyle = 'rgba(12, 8, 16, 0.42)';
+                        ctx.fillStyle = 'rgba(12, 8, 16, 0.38)';
                         ctx.beginPath();
                         ctx.ellipse(ob.x, this.groundY + 1, ob.w * 0.56, 3, 0, 0, Math.PI * 2);
                         ctx.fill();
@@ -7744,26 +9348,38 @@
                         } else if (ob.type === 'thornyRoots' && this.paintedAssets.thornyRoots) {
                             const sp = this.paintedAssets.thornyRoots[(ob.variant || 0) % this.paintedAssets.thornyRoots.length];
                             ctx.drawImage(sp, ob.x - 17, this.groundY - 19, 34, 20);
+                        } else if (ob.type === 'iceCrystal' && this.paintedAssets.iceCrystals) {
+                            const sp = this.paintedAssets.iceCrystals[(ob.variant || 0) % this.paintedAssets.iceCrystals.length];
+                            ctx.drawImage(sp, ob.x - 17, this.groundY - 25, 34, 27);
+                        } else if (ob.type === 'stoneWall' && this.paintedAssets.stoneWalls) {
+                            const sp = this.paintedAssets.stoneWalls[(ob.variant || 0) % this.paintedAssets.stoneWalls.length];
+                            ctx.drawImage(sp, ob.x - 31, this.groundY - 33, 62, 35);
                         }
                     }
                     ctx.restore();
                 }
 
-                // Shadow Critters (hand-painted shadow bats & crawlers — zero neon)
+                // Critters: Phase 1 (Bats & Crawlers) + Phase 2 (Blue Ice Imps & Hooded Winter Archers)
                 if (this.critters && this.paintedAssets) {
                     ctx.save();
                     ctx.imageSmoothingEnabled = true;
                     for (const c of this.critters) {
                         if (c.x < viewLeft || c.x > viewRight) continue;
                         const isBat = c.type === 'bat';
-                        const set = isBat ? this.paintedAssets.critterBat : this.paintedAssets.critterCrawler;
+                        const isImp = c.type === 'iceImp';
+                        const isArcher = c.type === 'hoodedArcher';
+                        const set = isBat
+                            ? this.paintedAssets.critterBat
+                            : (isImp
+                                ? this.paintedAssets.iceImp
+                                : (isArcher ? this.paintedAssets.hoodedArcher : this.paintedAssets.critterCrawler));
                         if (!set) continue;
-                        const frame = set[Math.floor(c.phase) % 2];
-                        const cw = isBat ? 24 : 22;
-                        const ch = isBat ? 18 : 16;
+                        const frameIdx = isArcher ? ((c.drawTimer || 0) > 0 ? 1 : 0) : (Math.floor(c.phase) % 2);
+                        const frame = set[frameIdx];
+                        const cw = isArcher ? 28 : (isImp ? 26 : (isBat ? 24 : 22));
+                        const ch = isArcher ? 28 : (isImp ? 20 : (isBat ? 18 : 16));
 
-                        // Ground contact shadow
-                        ctx.fillStyle = isBat ? 'rgba(10, 7, 16, 0.24)' : 'rgba(10, 7, 16, 0.38)';
+                        ctx.fillStyle = isBat ? 'rgba(10, 7, 16, 0.24)' : 'rgba(10, 14, 24, 0.36)';
                         ctx.beginPath();
                         ctx.ellipse(c.x, this.groundY + 1, isBat ? 8 : 10, 2.5, 0, 0, Math.PI * 2);
                         ctx.fill();
@@ -7773,7 +9389,6 @@
                         if (c.facing < 0) ctx.scale(-1, 1);
                         if (c.hitFlash > 0) ctx.globalAlpha = 0.65;
                         ctx.drawImage(frame, -cw / 2, 0, cw, ch);
-                        // Subtle stone-dust slow indicator when slowed by Poeira de Pedra (zero neon)
                         if ((c.slowTimer || 0) > 0) {
                             ctx.fillStyle = 'rgba(140, 126, 114, 0.48)';
                             ctx.beginPath();
@@ -7785,18 +9400,24 @@
                     ctx.restore();
                 }
 
-                // Squashed Shadow Critters (brief Mario-style flattened impact visual)
+                // Squashed Critters (brief Mario-style flattened impact visual)
                 if (this.squashedCritters && this.squashedCritters.length > 0 && this.paintedAssets) {
                     ctx.save();
                     ctx.imageSmoothingEnabled = true;
                     for (const sc of this.squashedCritters) {
                         if (sc.x < viewLeft || sc.x > viewRight) continue;
                         const isBat = sc.type === 'bat';
-                        const set = isBat ? this.paintedAssets.critterBat : this.paintedAssets.critterCrawler;
+                        const isImp = sc.type === 'iceImp';
+                        const isArcher = sc.type === 'hoodedArcher';
+                        const set = isBat
+                            ? this.paintedAssets.critterBat
+                            : (isImp
+                                ? this.paintedAssets.iceImp
+                                : (isArcher ? this.paintedAssets.hoodedArcher : this.paintedAssets.critterCrawler));
                         if (!set) continue;
                         const alpha = clamp(sc.life / sc.maxLife, 0, 1);
-                        const cw = isBat ? 24 : 22;
-                        const ch = isBat ? 18 : 16;
+                        const cw = isArcher ? 28 : (isImp ? 26 : (isBat ? 24 : 22));
+                        const ch = isArcher ? 28 : (isImp ? 20 : (isBat ? 18 : 16));
                         ctx.save();
                         ctx.globalAlpha = alpha;
                         ctx.translate(Math.round(sc.x), Math.round(sc.y));
@@ -7807,37 +9428,42 @@
                     ctx.restore();
                 }
 
-                // Far-East Boss: Grande Bruxa Abissal (hand-painted staff + dark shadow wings, ZERO neon)
-                if (this.boss && !this.boss.defeated && this.paintedAssets && this.paintedAssets.bossWitch) {
+                // Far-East Boss: Grande Bruxa Abissal (Phase 1) OR Rainha do Gelo (Phase 2)
+                if (this.boss && !this.boss.defeated && this.paintedAssets) {
                     const b = this.boss;
-                    if (b.x >= viewLeft - 40 && b.x <= viewRight + 40) {
-                        const frame = this.paintedAssets.bossWitch[Math.floor(b.wingPhase) % 2];
-                        const bw = 72;
-                        const bh = 76;
+                    const isIceQueen = b.kind === 'ice_queen';
+                    const spriteSet = isIceQueen ? this.paintedAssets.bossIceQueen : this.paintedAssets.bossWitch;
+                    if (spriteSet && b.x >= viewLeft - 45 && b.x <= viewRight + 45) {
+                        const frame = spriteSet[Math.floor(b.wingPhase) % 2];
+                        const bw = isIceQueen ? 82 : 72;
+                        const bh = isIceQueen ? 86 : 76;
 
                         ctx.save();
                         ctx.imageSmoothingEnabled = true;
 
-                        // Grounded shadow beneath hovering witch
-                        ctx.fillStyle = 'rgba(10, 6, 16, 0.42)';
+                        ctx.fillStyle = isIceQueen ? 'rgba(14, 24, 42, 0.42)' : 'rgba(10, 6, 16, 0.42)';
                         ctx.beginPath();
-                        ctx.ellipse(b.x, this.groundY + 2, 22, 4.5, 0, 0, Math.PI * 2);
+                        ctx.ellipse(b.x, this.groundY + 2, isIceQueen ? 26 : 22, 4.5, 0, 0, Math.PI * 2);
                         ctx.fill();
 
                         ctx.save();
-                        ctx.translate(Math.round(b.x), Math.round(b.y - bh * 0.52));
-                        // Sprite faces left by default; flip horizontally when facing right
-                        if (b.facing > 0) ctx.scale(-1, 1);
-                        if (b.state === 'charge') ctx.rotate(-0.14);
-                        if (b.state === 'telegraph_cast') ctx.translate(0, -3);
+                        ctx.translate(Math.round(b.x), Math.round(b.y - bh * 0.54));
+                        if (!isIceQueen && b.facing > 0) ctx.scale(-1, 1);
+                        if (isIceQueen && b.facing > 0) ctx.scale(-1, 1);
+                        if (b.state === 'charge' || b.state === 'blizzard_rush') ctx.rotate(-0.14);
+                        if (b.state === 'telegraph_cast' || b.state === 'telegraph_ice_shards' || b.state === 'telegraph_icicle_rain') ctx.translate(0, -3);
                         if (b.hitFlash > 0) ctx.globalAlpha = 0.68;
                         ctx.drawImage(frame, -bw / 2, 0, bw, bh);
 
-                        // Subtle non-neon matte amber crystal glint during cast telegraph
                         if (b.state === 'telegraph_cast') {
                             ctx.fillStyle = 'rgba(217, 155, 67, 0.72)';
                             ctx.beginPath();
                             ctx.arc(-19, 15, 3.8 + Math.sin(this.elapsed * 22) * 1.1, 0, Math.PI * 2);
+                            ctx.fill();
+                        } else if (isIceQueen && (b.state === 'telegraph_ice_shards' || b.state === 'telegraph_icicle_rain')) {
+                            ctx.fillStyle = 'rgba(182, 232, 255, 0.78)';
+                            ctx.beginPath();
+                            ctx.arc(0, 12, 5.2 + Math.sin(this.elapsed * 22) * 1.4, 0, Math.PI * 2);
                             ctx.fill();
                         }
                         ctx.restore();
@@ -7845,22 +9471,91 @@
                     }
                 }
 
-                // Boss Dark-Ink & Muted-Crimson Projectiles (ZERO neon!)
+                // Boss & Archer Projectiles (Dark Crimson Bolts in Phase 1, Hand-Painted Ice Spears & Frost Arrows in Phase 2!)
                 if (this.bossProjectiles && this.bossProjectiles.length > 0) {
                     for (const bp of this.bossProjectiles) {
                         if (bp.x < viewLeft || bp.x > viewRight) continue;
-                        ctx.fillStyle = '#1b1024';
+                        if (bp.style === 'frost_arrow') {
+                            const ang = Math.atan2(bp.vy || 0, bp.vx || 1);
+                            ctx.save();
+                            ctx.translate(bp.x, bp.y);
+                            ctx.rotate(ang);
+                            ctx.strokeStyle = '#6c4b32';
+                            ctx.lineWidth = 1.6;
+                            ctx.beginPath();
+                            ctx.moveTo(-7, 0);
+                            ctx.lineTo(5, 0);
+                            ctx.stroke();
+                            ctx.fillStyle = '#c8ecff';
+                            ctx.strokeStyle = '#1d3452';
+                            ctx.lineWidth = 1;
+                            ctx.beginPath();
+                            ctx.moveTo(8, 0);
+                            ctx.lineTo(3, -2.5);
+                            ctx.lineTo(3, 2.5);
+                            ctx.closePath();
+                            ctx.fill();
+                            ctx.stroke();
+                            ctx.restore();
+                        } else if (bp.style === 'ice_spear') {
+                            const ang = Math.atan2(bp.vy || 0, bp.vx || 1);
+                            ctx.save();
+                            ctx.translate(bp.x, bp.y);
+                            ctx.rotate(ang);
+                            ctx.fillStyle = '#8ac8ef';
+                            ctx.strokeStyle = '#182b47';
+                            ctx.lineWidth = 1.3;
+                            ctx.beginPath();
+                            ctx.moveTo(10, 0);
+                            ctx.lineTo(-4, -3.5);
+                            ctx.lineTo(-9, 0);
+                            ctx.lineTo(-4, 3.5);
+                            ctx.closePath();
+                            ctx.fill();
+                            ctx.stroke();
+                            ctx.fillStyle = '#e5f6ff';
+                            ctx.fillRect(-3, -1, 8, 2);
+                            ctx.restore();
+                        } else {
+                            ctx.fillStyle = '#1b1024';
+                            ctx.beginPath();
+                            ctx.arc(bp.x, bp.y, bp.radius + 1.4, 0, Math.PI * 2);
+                            ctx.fill();
+                            ctx.fillStyle = '#8b2d3b';
+                            ctx.beginPath();
+                            ctx.arc(bp.x, bp.y, bp.radius, 0, Math.PI * 2);
+                            ctx.fill();
+                            ctx.fillStyle = '#d99b43';
+                            ctx.beginPath();
+                            ctx.arc(bp.x - 1, bp.y - 1, bp.radius * 0.42, 0, Math.PI * 2);
+                            ctx.fill();
+                        }
+                    }
+                }
+
+                // Rainha do Gelo's Telegraphed Falling Icicles
+                if (this.bossIcicles && this.bossIcicles.length > 0) {
+                    for (const ic of this.bossIcicles) {
+                        if (ic.x < viewLeft || ic.x > viewRight) continue;
+                        if (!ic.falling) {
+                            // Subtle pale frost column warning before drop (zero neon!)
+                            ctx.fillStyle = 'rgba(165, 215, 248, 0.16)';
+                            ctx.fillRect(ic.x - 5, this.groundY - 165, 10, 165);
+                            ctx.fillStyle = 'rgba(215, 240, 255, 0.55)';
+                            ctx.beginPath();
+                            ctx.ellipse(ic.x, this.groundY - 1, 9, 2.5, 0, 0, Math.PI * 2);
+                            ctx.fill();
+                        }
+                        ctx.fillStyle = '#a2d5f5';
+                        ctx.strokeStyle = '#172944';
+                        ctx.lineWidth = 1.4;
                         ctx.beginPath();
-                        ctx.arc(bp.x, bp.y, bp.radius + 1.4, 0, Math.PI * 2);
+                        ctx.moveTo(ic.x - 5.5, ic.y - 22);
+                        ctx.lineTo(ic.x + 5.5, ic.y - 22);
+                        ctx.lineTo(ic.x, ic.y + 4);
+                        ctx.closePath();
                         ctx.fill();
-                        ctx.fillStyle = '#8b2d3b';
-                        ctx.beginPath();
-                        ctx.arc(bp.x, bp.y, bp.radius, 0, Math.PI * 2);
-                        ctx.fill();
-                        ctx.fillStyle = '#d99b43';
-                        ctx.beginPath();
-                        ctx.arc(bp.x - 1, bp.y - 1, bp.radius * 0.42, 0, Math.PI * 2);
-                        ctx.fill();
+                        ctx.stroke();
                     }
                 }
 
@@ -8158,10 +9853,12 @@
                 lCtx.setTransform(sc, 0, 0, sc, 0, 0);
                 lCtx.clearRect(0, 0, this.W, this.waterY);
 
-                // 1. Fill offscreen lightmap with rich nocturnal violet-midnight tint (slightly gentler so painted world shines!)
+                // 1. Fill offscreen lightmap (rich midnight in Phase 1, crisp moonlit arctic twilight in Phase 2)
                 lCtx.globalCompositeOperation = 'source-over';
-                const nightTintAlpha = clamp(atm.darkAlpha * 0.84, 0.06, 0.68);
-                lCtx.fillStyle = `rgba(9, 7, 26, ${nightTintAlpha.toFixed(3)})`;
+                const nightTintAlpha = this.stage === 2 ? 0.24 : clamp(atm.darkAlpha * 0.84, 0.06, 0.68);
+                lCtx.fillStyle = this.stage === 2
+                    ? `rgba(10, 18, 38, ${nightTintAlpha.toFixed(3)})`
+                    : `rgba(9, 7, 26, ${nightTintAlpha.toFixed(3)})`;
                 lCtx.fillRect(0, 0, this.W, this.waterY);
 
                 // 2. Cut smooth light pools out of ONLY the offscreen darkness layer!
@@ -8179,16 +9876,13 @@
                     lCtx.fill();
                 };
 
-                // Player visibility cutout in night darkness (no colored glow for Paimon; Stolas keeps Astral Night Vision)
                 const d = DAEMONS[this.player.daemonIdx];
                 const fireFlicker = Math.sin(this.elapsed * 11) * 2.8 + Math.sin(this.elapsed * 19) * 1.4;
                 const playerFlicker = this.player.daemonIdx === 0 ? 0 : fireFlicker;
                 punchLight(this.player.x, this.player.y - 26, d.lightRadius + playerFlicker);
 
-                // Central Sanctuary oscillating eternal fire
-                punchLight(this.sanctuary.x, this.groundY - 32, 122 + fireFlicker * 1.4);
+                punchLight(this.sanctuary.x, this.groundY - (this.stage === 2 ? 18 : 32), 122 + fireFlicker * 1.4);
 
-                // Lit Torches with organic oscillating light radius
                 for (const t of this.torches) {
                     if (t.lit) {
                         const tf = Math.sin(this.elapsed * 13 + t.x) * 4.5 + Math.sin(this.elapsed * 21 + t.x * 1.3) * 2.2;
@@ -8196,31 +9890,29 @@
                     }
                 }
 
-                // Active Obelisks
                 for (const o of this.obelisks) {
                     if (o.level > 0) punchLight(o.x, this.groundY - 28, o.level === 2 ? 96 : 70);
                 }
 
-                // Altars, Portals & Integrated World Landmarks
                 punchLight(this.altarStolas.x, this.groundY - 28, this.altarStolas.active ? 84 : 52);
                 punchLight(this.altarEligos.x, this.groundY - 28, this.altarEligos.active ? 84 : 52);
                 for (const pt of this.portals) {
                     punchLight(pt.x, this.groundY - 40, pt.sealed ? 92 : 86 + Math.sin(this.elapsed * 6) * 4);
                 }
-                punchLight(this.landmarks.twinPortal.x, this.groundY - 32, 86 + Math.sin(this.elapsed * 5.2) * 4);
-                punchLight(this.landmarks.demonStatue.x, this.groundY - 48, 76 + Math.sin(this.elapsed * 4.2) * 3);
-                for (const pil of this.landmarks.runicPillars) {
-                    punchLight(pil.x, this.groundY - 42, 56 + Math.sin(this.elapsed * 2.8 + pil.x) * 3);
+                if (this.stage === 1) {
+                    punchLight(this.landmarks.twinPortal.x, this.groundY - 32, 86 + Math.sin(this.elapsed * 5.2) * 4);
+                    punchLight(this.landmarks.demonStatue.x, this.groundY - 48, 76 + Math.sin(this.elapsed * 4.2) * 3);
+                    for (const pil of this.landmarks.runicPillars) {
+                        punchLight(pil.x, this.groundY - 42, 56 + Math.sin(this.elapsed * 2.8 + pil.x) * 3);
+                    }
                 }
                 for (const e of this.essences) {
                     punchLight(e.x, e.y, 24);
                 }
                 lCtx.restore();
 
-                // 3. Apply 2x darkness mask onto sceneCanvas (mapped cleanly to virtual W x waterY!)
                 sceneCtx.drawImage(this.lightCanvas, 0, 0, this.W * sc, this.waterY * sc, 0, 0, this.W, this.waterY);
 
-                // 4. Additive warm/mystic bloom halos over sceneCanvas
                 sceneCtx.save();
                 sceneCtx.globalCompositeOperation = 'lighter';
                 const addGlow = (wx, wy, r, color) => {
@@ -8236,21 +9928,32 @@
                 };
 
                 const sancOsc = 1 + Math.sin(this.elapsed * 12) * 0.08;
-                addGlow(this.sanctuary.x, this.groundY - 32, 72 * sancOsc, 'rgba(245, 158, 11, 0.25)');
+                addGlow(this.sanctuary.x, this.groundY - (this.stage === 2 ? 16 : 32), 72 * sancOsc, 'rgba(245, 158, 11, 0.26)');
                 for (const t of this.torches) {
                     if (t.lit) {
                         const tOsc = 1 + Math.sin(this.elapsed * 14 + t.x) * 0.12 + Math.sin(this.elapsed * 23 + t.x) * 0.06;
-                        addGlow(t.x, this.groundY - 27, 48 * tOsc, `rgba(245, 158, 11, ${(0.23 * tOsc).toFixed(2)})`);
+                        const glowCol = this.stage === 2
+                            ? `rgba(96, 178, 232, ${(0.24 * tOsc).toFixed(2)})`
+                            : `rgba(245, 158, 11, ${(0.23 * tOsc).toFixed(2)})`;
+                        addGlow(t.x, this.groundY - 27, 48 * tOsc, glowCol);
                     }
                 }
                 for (const pt of this.portals) {
-                    addGlow(pt.x, this.groundY - 40, 58, pt.sealed ? 'rgba(234, 179, 8, 0.22)' : 'rgba(168, 85, 247, 0.30)');
+                    if (pt.isPhase2Entry) {
+                        addGlow(pt.x, this.groundY - 40, 66, 'rgba(110, 186, 236, 0.28)');
+                    } else if (this.stage === 1 && this.phase1VictoryUnlocked && pt.id === 'east') {
+                        addGlow(pt.x, this.groundY - 40, 68, 'rgba(110, 186, 236, 0.30)');
+                    } else {
+                        addGlow(pt.x, this.groundY - 40, 58, pt.sealed ? 'rgba(234, 179, 8, 0.22)' : 'rgba(168, 85, 247, 0.30)');
+                    }
                 }
-                const westSealed = this.portals[0] && this.portals[0].sealed;
-                addGlow(this.landmarks.twinPortal.x, this.groundY - 31, 60, westSealed ? 'rgba(234, 179, 8, 0.20)' : 'rgba(139, 92, 246, 0.30)');
-                addGlow(this.landmarks.demonStatue.x, this.groundY - 52, 50, 'rgba(220, 38, 38, 0.20)');
-                for (const pil of this.landmarks.runicPillars) {
-                    addGlow(pil.x, this.groundY - 44, 36, 'rgba(139, 92, 246, 0.20)');
+                if (this.stage === 1) {
+                    const westSealed = this.portals[0] && this.portals[0].sealed;
+                    addGlow(this.landmarks.twinPortal.x, this.groundY - 31, 60, westSealed ? 'rgba(234, 179, 8, 0.20)' : 'rgba(139, 92, 246, 0.30)');
+                    addGlow(this.landmarks.demonStatue.x, this.groundY - 52, 50, 'rgba(220, 38, 38, 0.20)');
+                    for (const pil of this.landmarks.runicPillars) {
+                        addGlow(pil.x, this.groundY - 44, 36, 'rgba(139, 92, 246, 0.20)');
+                    }
                 }
 
                 if (this.player.daemonIdx !== 0) {
@@ -8263,57 +9966,114 @@
             renderWaterReflection(ctx, camX, atm) {
                 const waterH = this.H - this.waterY;
                 const sc = this.renderScale || 1;
-                ctx.fillStyle = '#060818';
+                ctx.fillStyle = this.stage === 2 ? '#101d33' : '#060818';
                 ctx.fillRect(0, this.waterY, this.W, waterH);
 
-                // Sample vertically inverted scanlines from 2x offscreen sceneCanvas with smooth wave distortion
-                const t = this.elapsed * 2.5;
+                // Sample vertically inverted scanlines from 2x offscreen sceneCanvas (calmer glassy ice reflection in Phase 2!)
+                const t = this.elapsed * (this.stage === 2 ? 1.2 : 2.5);
                 for (let y = 0; y < waterH; y++) {
                     const srcY = this.waterY - 1 - Math.floor(y * 1.15);
                     if (srcY < 0) continue;
-                    const wave = Math.sin(y * 0.28 + t) * (0.9 + y * 0.05) + Math.cos(y * 0.14 - t * 0.7) * 0.6;
+                    const amp = this.stage === 2 ? 0.32 : 1.0;
+                    const wave = (Math.sin(y * 0.28 + t) * (0.9 + y * 0.05) + Math.cos(y * 0.14 - t * 0.7) * 0.6) * amp;
                     ctx.drawImage(this.sceneCanvas, 0, srcY * sc, this.W * sc, sc, wave, this.waterY + y, this.W, 1);
                 }
 
-                // Deep nocturnal violet-indigo water tint gradient
+                // Water / Frozen Lake tint gradient
                 const wGrd = ctx.createLinearGradient(0, this.waterY, 0, this.H);
-                wGrd.addColorStop(0, 'rgba(11, 10, 32, 0.42)');
-                wGrd.addColorStop(0.55, 'rgba(7, 8, 26, 0.64)');
-                wGrd.addColorStop(1, 'rgba(3, 5, 16, 0.86)');
+                if (this.stage === 2) {
+                    wGrd.addColorStop(0, 'rgba(28, 46, 74, 0.34)');
+                    wGrd.addColorStop(0.55, 'rgba(18, 32, 56, 0.48)');
+                    wGrd.addColorStop(1, 'rgba(10, 18, 36, 0.72)');
+                } else {
+                    wGrd.addColorStop(0, 'rgba(11, 10, 32, 0.42)');
+                    wGrd.addColorStop(0.55, 'rgba(7, 8, 26, 0.64)');
+                    wGrd.addColorStop(1, 'rgba(3, 5, 16, 0.86)');
+                }
                 ctx.fillStyle = wGrd;
                 ctx.fillRect(0, this.waterY, this.W, waterH);
 
-                // Shimmering horizontal water ripples & specular moonlight sparkles
-                for (let i = 0; i < 20; i++) {
-                    const ry = this.waterY + 4 + ((i * 17) % (waterH - 8));
-                    const rx = (((i * 97 - camX * 0.7 + Math.sin(t + i) * 10) % this.W) + this.W) % this.W;
-                    ctx.fillStyle = atm.darkAlpha > 0.5 ? 'rgba(216, 212, 254, 0.18)' : 'rgba(254, 240, 138, 0.20)';
-                    ctx.fillRect(Math.floor(rx), ry, 10 + (i % 8), 1);
-                }
+                if (this.stage === 2) {
+                    // Hand-painted cracked floating ice floes over the mirrored frozen lake (matching reference image!)
+                    const floeStep = 140;
+                    const firstF = Math.floor(camX / floeStep) - 1;
+                    ctx.save();
+                    for (let i = firstF; i <= firstF + 7; i++) {
+                        const fx = i * floeStep - camX + ((Math.abs(i * 47) % 52) - 26);
+                        const fy = this.waterY + 12 + ((Math.abs(i * 29) % 3) * 16);
+                        const fw = 34 + (Math.abs(i * 19) % 28);
+                        const fh = 9 + (Math.abs(i * 13) % 6);
 
-                // Soft wavy shoreline shimmer tucked right under the undulating rocky cliff base
-                ctx.strokeStyle = 'rgba(224, 200, 145, 0.24)';
-                ctx.lineWidth = 1;
-                ctx.beginPath();
-                for (let x = 0; x <= this.W; x += 6) {
-                    const wx = x + camX;
-                    const sy = this.waterY + Math.sin(wx * 0.06 + t * 0.4) * 1.1;
-                    if (x === 0) ctx.moveTo(x, sy);
-                    else ctx.lineTo(x, sy);
-                }
-                ctx.stroke();
+                        // Ice thickness edge
+                        ctx.fillStyle = '#5d84ad';
+                        ctx.strokeStyle = '#18263d';
+                        ctx.lineWidth = 1.4;
+                        ctx.beginPath();
+                        ctx.moveTo(fx - fw * 0.5, fy);
+                        ctx.lineTo(fx - fw * 0.25, fy - fh * 0.45);
+                        ctx.lineTo(fx + fw * 0.35, fy - fh * 0.35);
+                        ctx.lineTo(fx + fw * 0.52, fy + fh * 0.15);
+                        ctx.lineTo(fx + fw * 0.28, fy + fh * 0.65);
+                        ctx.lineTo(fx - fw * 0.38, fy + fh * 0.55);
+                        ctx.closePath();
+                        ctx.fill();
+                        ctx.stroke();
 
-                // Silhouetted lakeside reeds swaying along water edge
-                ctx.strokeStyle = '#070614';
-                ctx.lineWidth = 1.1;
-                for (const rd of this.reeds) {
-                    const sx = Math.floor(rd.x - camX);
-                    if (sx < -8 || sx > this.W + 8) continue;
-                    const sway = Math.sin(this.elapsed * 2 + rd.x * 0.05) * 1.6;
+                        // Snowy pale-blue ice top surface
+                        ctx.fillStyle = '#c8dff2';
+                        ctx.beginPath();
+                        ctx.moveTo(fx - fw * 0.46, fy - 1.5);
+                        ctx.lineTo(fx - fw * 0.22, fy - fh * 0.42);
+                        ctx.lineTo(fx + fw * 0.32, fy - fh * 0.32);
+                        ctx.lineTo(fx + fw * 0.46, fy);
+                        ctx.lineTo(fx + fw * 0.22, fy + fh * 0.32);
+                        ctx.lineTo(fx - fw * 0.32, fy + fh * 0.25);
+                        ctx.closePath();
+                        ctx.fill();
+                    }
+                    // Faint ice cracks & frost sheen lines on frozen lake
+                    ctx.strokeStyle = 'rgba(204, 228, 248, 0.26)';
+                    ctx.lineWidth = 1;
+                    for (let i = 0; i < 14; i++) {
+                        const ry = this.waterY + 5 + ((i * 19) % (waterH - 10));
+                        const rx = (((i * 103 - camX * 0.85) % this.W) + this.W) % this.W;
+                        ctx.beginPath();
+                        ctx.moveTo(rx, ry);
+                        ctx.lineTo(rx + 18 + (i % 10), ry + (i % 2 === 0 ? 1 : -1));
+                        ctx.stroke();
+                    }
+                    ctx.restore();
+                } else {
+                    // Phase 1 shimmering horizontal water ripples & reeds
+                    for (let i = 0; i < 20; i++) {
+                        const ry = this.waterY + 4 + ((i * 17) % (waterH - 8));
+                        const rx = (((i * 97 - camX * 0.7 + Math.sin(t + i) * 10) % this.W) + this.W) % this.W;
+                        ctx.fillStyle = atm.darkAlpha > 0.5 ? 'rgba(216, 212, 254, 0.18)' : 'rgba(254, 240, 138, 0.20)';
+                        ctx.fillRect(Math.floor(rx), ry, 10 + (i % 8), 1);
+                    }
+
+                    ctx.strokeStyle = 'rgba(224, 200, 145, 0.24)';
+                    ctx.lineWidth = 1;
                     ctx.beginPath();
-                    ctx.moveTo(sx, this.waterY + 2);
-                    ctx.quadraticCurveTo(sx + sway * 0.5, this.waterY - rd.h * 0.5, sx + sway, this.waterY - rd.h);
+                    for (let x = 0; x <= this.W; x += 6) {
+                        const wx = x + camX;
+                        const sy = this.waterY + Math.sin(wx * 0.06 + t * 0.4) * 1.1;
+                        if (x === 0) ctx.moveTo(x, sy);
+                        else ctx.lineTo(x, sy);
+                    }
                     ctx.stroke();
+
+                    ctx.strokeStyle = '#070614';
+                    ctx.lineWidth = 1.1;
+                    for (const rd of this.reeds) {
+                        const sx = Math.floor(rd.x - camX);
+                        if (sx < -8 || sx > this.W + 8) continue;
+                        const sway = Math.sin(this.elapsed * 2 + rd.x * 0.05) * 1.6;
+                        ctx.beginPath();
+                        ctx.moveTo(sx, this.waterY + 2);
+                        ctx.quadraticCurveTo(sx + sway * 0.5, this.waterY - rd.h * 0.5, sx + sway, this.waterY - rd.h);
+                        ctx.stroke();
+                    }
                 }
             }
 
@@ -8371,9 +10131,11 @@
                 }
                 ctx.globalAlpha = 1;
 
-                // Boss Health Bar (refined dark slate + antique gold border + matte crimson fill, ZERO neon)
-                if (this.state === 'PLAYING' && this.boss && this.boss.active && !this.boss.defeated && this.player.x >= 3680) {
+                // Boss Health Bar (dynamic name & palette for Grande Bruxa Abissal vs Rainha do Gelo, ZERO neon)
+                const bossRangeMin = this.stage === 2 ? 3580 : 3680;
+                if (this.state === 'PLAYING' && this.boss && this.boss.active && !this.boss.defeated && this.player.x >= bossRangeMin) {
                     const b = this.boss;
+                    const isIceQueen = b.kind === 'ice_queen';
                     const barW = 192;
                     const barH = 7;
                     const bx = Math.round(this.W / 2 - barW / 2);
@@ -8383,25 +10145,24 @@
                     ctx.save();
                     ctx.fillStyle = 'rgba(12, 16, 32, 0.86)';
                     ctx.fillRect(bx - 6, by - 13, barW + 12, 25);
-                    ctx.strokeStyle = '#b89438';
+                    ctx.strokeStyle = isIceQueen ? '#7eb5db' : '#b89438';
                     ctx.lineWidth = 1;
                     ctx.strokeRect(bx - 5.5, by - 12.5, barW + 11, 24);
 
                     ctx.font = '700 8px "Cinzel", Georgia, serif';
-                    ctx.fillStyle = '#f1e6d2';
+                    ctx.fillStyle = isIceQueen ? '#e0f2fe' : '#f1e6d2';
                     ctx.textAlign = 'left';
-                    ctx.fillText('GRANDE BRUXA ABISSAL', bx, by - 3);
+                    ctx.fillText((b.name || 'Grande Bruxa Abissal').toUpperCase(), bx, by - 3);
                     ctx.font = '600 8px "Plus Jakarta Sans", sans-serif';
-                    ctx.fillStyle = '#d9c5a0';
+                    ctx.fillStyle = isIceQueen ? '#bae6fd' : '#d9c5a0';
                     ctx.textAlign = 'right';
                     ctx.fillText(`${Math.ceil(b.hp)}/${b.maxHp}`, bx + barW, by - 3);
 
-                    // Track & matte crimson fill
                     ctx.fillStyle = '#1b1626';
                     ctx.fillRect(bx, by, barW, barH);
-                    ctx.fillStyle = '#9b2c36';
+                    ctx.fillStyle = isIceQueen ? '#3b7bb0' : '#9b2c36';
                     ctx.fillRect(bx, by, Math.round(barW * ratio), barH);
-                    ctx.fillStyle = '#c4525c';
+                    ctx.fillStyle = isIceQueen ? '#8ac8ef' : '#c4525c';
                     ctx.fillRect(bx, by, Math.round(barW * ratio), 2);
                     ctx.restore();
                 }
@@ -8422,6 +10183,14 @@
                     ctx.fillStyle = '#cbd5e1';
                     ctx.font = '500 8.5px "Plus Jakarta Sans", sans-serif';
                     ctx.fillText(this.banner.subtext, this.W / 2, 85);
+                    ctx.restore();
+                }
+
+                // Smooth fade-out icy portal teleport transition veil
+                if (this.portalTransitionFlash > 0.01) {
+                    ctx.save();
+                    ctx.fillStyle = `rgba(186, 224, 248, ${(clamp(this.portalTransitionFlash, 0, 1) * 0.65).toFixed(3)})`;
+                    ctx.fillRect(0, 0, this.W, this.H);
                     ctx.restore();
                 }
             }
@@ -8454,18 +10223,20 @@
                 ctx.fillStyle = '#fde047';
                 ctx.fillRect(mapX(this.sanctuary.x) - 1, 4, 3, 9);
 
-                // Portals (West & East)
+                // Portals (West & East in Phase 1, Ice Portal in Phase 2)
                 for (const pt of this.portals) {
-                    ctx.fillStyle = pt.sealed ? '#fde047' : '#c084fc';
+                    ctx.fillStyle = pt.isPhase2Entry
+                        ? '#7ec4e8'
+                        : (this.stage === 1 && this.phase1VictoryUnlocked && pt.id === 'east' ? '#7ec4e8' : (pt.sealed ? '#fde047' : '#c084fc'));
                     ctx.fillRect(mapX(pt.x) - 2, 3, 4, 10);
                 }
 
-                // Boss marker (crimson diamond at far east while undefeated)
+                // Boss marker (crimson diamond in Phase 1, icy-blue diamond for Rainha do Gelo in Phase 2)
                 if (this.boss && !this.boss.defeated) {
                     const bx = mapX(this.boss.x);
-                    ctx.fillStyle = '#b83242';
+                    ctx.fillStyle = this.boss.kind === 'ice_queen' ? '#5ea8d8' : '#b83242';
                     ctx.fillRect(bx - 1, 4, 3, 7);
-                    ctx.fillStyle = '#e5c17b';
+                    ctx.fillStyle = this.boss.kind === 'ice_queen' ? '#e0f4ff' : '#e5c17b';
                     ctx.fillRect(bx, 6, 1, 3);
                 }
 
@@ -8560,11 +10331,16 @@
                 document.getElementById('hudDaemonTitle').textContent = d.title;
                 document.getElementById('hudEssence').textContent = String(p.essence);
                 document.getElementById('hudLegion').textContent = String(this.acolytes.length);
-                const sealed = this.portals.filter((pt) => pt.sealed).length;
-                document.getElementById('hudPortals').textContent = `${sealed}/2`;
-
-                document.getElementById('hudDayLabel').textContent = `Dia ${toRoman(this.day)}`;
-                document.getElementById('hudPhaseLabel').textContent = this.getPhaseName(this.timeOfDay);
+                if (this.stage === 2) {
+                    document.getElementById('hudPortals').textContent = (this.boss && this.boss.defeated) ? 'Vitória' : 'Rainha';
+                    document.getElementById('hudDayLabel').textContent = 'Fase II · Gelo';
+                    document.getElementById('hudPhaseLabel').textContent = 'O Reino Profundo';
+                } else {
+                    const sealed = this.portals.filter((pt) => pt.sealed).length;
+                    document.getElementById('hudPortals').textContent = `${sealed}/2`;
+                    document.getElementById('hudDayLabel').textContent = `Dia ${toRoman(this.day)}`;
+                    document.getElementById('hudPhaseLabel').textContent = this.getPhaseName(this.timeOfDay);
+                }
                 const crownEl = document.getElementById('hudCrownLabel');
                 crownEl.textContent = p.hasCrown ? 'Coroa Segura' : 'Coroa Caída!';
                 crownEl.style.color = p.hasCrown ? '#cbd5e1' : '#f87171';
