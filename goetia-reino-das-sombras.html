@@ -767,6 +767,95 @@
             background: rgba(49, 46, 129, 0.72);
         }
 
+        /* Portrait & narrow mobile screens (e.g. 390x844): all 8 powers visible & tappable in 2x4 grid with ZERO horizontal scroll, landscape untouched */
+        @media (max-width: 640px), (orientation: portrait) and (max-width: 768px) {
+            #hudLayer {
+                padding: 8px 8px;
+            }
+            .hud-bottom {
+                gap: 6px;
+            }
+            .hud-bottom-bars {
+                flex-direction: column-reverse;
+                align-items: stretch;
+                gap: 4px;
+                padding: 0;
+            }
+            .power-bar {
+                display: grid;
+                grid-template-columns: repeat(4, minmax(0, 1fr));
+                gap: 3px;
+                padding: 3px;
+                width: 100%;
+                margin-left: 0;
+                overflow-x: visible;
+            }
+            .power-tab {
+                min-width: 0;
+                width: 100%;
+                padding: 4px 3px 5px;
+                gap: 1px;
+            }
+            .power-tab-key {
+                font-size: 7.5px;
+            }
+            .power-tab-name {
+                font-size: 8.5px;
+                max-width: 100%;
+            }
+            .power-tab-cd {
+                font-size: 7.5px;
+            }
+            .daemon-bar {
+                width: 100%;
+                justify-content: space-between;
+                padding: 3px 4px;
+                gap: 3px;
+            }
+            .daemon-tab {
+                flex: 1 1 0;
+                min-width: 0;
+                justify-content: center;
+                text-align: center;
+                padding: 4px 4px;
+            }
+            .daemon-tab-name {
+                font-size: 8.5px;
+                overflow: hidden;
+                text-overflow: ellipsis;
+            }
+            #touchControls {
+                padding: 0;
+                gap: 6px;
+            }
+            .touch-step-row {
+                display: none;
+            }
+            .virtual-joystick {
+                width: 92px;
+                height: 92px;
+            }
+            .joystick-knob {
+                width: 38px;
+                height: 38px;
+                margin-left: -19px;
+                margin-top: -19px;
+            }
+            .touch-action-grid {
+                gap: 5px;
+            }
+            .touch-btn {
+                min-width: 48px;
+                height: 42px;
+                padding: 0 9px;
+                font-size: 11px;
+                max-width: 148px;
+                white-space: nowrap;
+                overflow: hidden;
+                text-overflow: ellipsis;
+            }
+        }
+
         .mode-selector-bar {
             display: flex;
             align-items: center;
@@ -2329,9 +2418,16 @@
                 this.pressedKeys = new Set();
                 this.touch = { left: false, right: false, gallop: false };
                 this.joystick = { active: false, pointerId: null, dx: 0, dy: 0 };
-                const isCoarseTouch = typeof window !== 'undefined' && typeof window.matchMedia === 'function'
-                    && window.matchMedia('(hover: none) and (pointer: coarse)').matches;
-                this.controlMode = isCoarseTouch ? 'joystick' : 'keyboard';
+                const prefersTouchControls = typeof window !== 'undefined' && (
+                    (typeof window.matchMedia === 'function' && (
+                        window.matchMedia('(pointer: coarse)').matches ||
+                        window.matchMedia('(hover: none) and (any-pointer: coarse)').matches ||
+                        window.matchMedia('(max-width: 768px)').matches
+                    )) ||
+                    (window.innerWidth > 0 && window.innerWidth <= 768) ||
+                    (typeof navigator !== 'undefined' && navigator.maxTouchPoints > 0 && window.innerWidth <= 1024)
+                );
+                this.controlMode = prefersTouchControls ? 'joystick' : 'keyboard';
 
                 // Pre-generate deterministic background details (stars, ruins, reeds, fireflies, dust)
                 const starColors = ['#f8fafc', '#e0e7ff', '#fef3c7', '#cbd5e1'];
@@ -3182,11 +3278,11 @@
                 const joyEl = byId('virtualJoystick');
                 const knobEl = byId('joystickKnob');
                 if (joyEl && knobEl) {
-                    const maxR = 34;
                     const updateStick = (clientX, clientY) => {
                         const rect = typeof joyEl.getBoundingClientRect === 'function'
                             ? joyEl.getBoundingClientRect()
                             : { left: 0, top: 0, width: 106, height: 106 };
+                        const maxR = Math.max(24, Math.round((rect.width || 106) * 0.32));
                         const cx = rect.left + rect.width / 2;
                         const cy = rect.top + rect.height / 2;
                         let vx = clientX - cx;
