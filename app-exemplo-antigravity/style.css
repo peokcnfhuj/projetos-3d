@@ -1,0 +1,661 @@
+:root {
+  --bg-space: #05060b;
+  --bg-deep: #090c14;
+  --bg-card-top: rgba(18, 22, 34, 0.94);
+  --bg-card-bottom: rgba(8, 10, 17, 0.98);
+  --bg-inset: rgba(5, 7, 12, 0.72);
+
+  --gold-100: #fbf1d4;
+  --gold-200: #f5dc8e;
+  --gold-300: #e5c158;
+  --gold-500: #c89d3c;
+  --gold-700: #7f611f;
+  --gold-hairline: rgba(212, 175, 55, 0.28);
+  --gold-hairline-strong: rgba(229, 193, 88, 0.52);
+
+  --text-primary: #f4efe3;
+  --text-secondary: #b9b19f;
+  --text-muted: #8c8576;
+  --error-color: #f08686;
+
+  --font-display: "Palatino Linotype", "Book Antiqua", Palatino, Georgia, "Times New Roman", serif;
+  --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+
+  --radius-lg: 20px;
+  --radius-md: 14px;
+  --radius-sm: 10px;
+  --shadow-card: 0 24px 60px rgba(0, 0, 0, 0.7), 0 0 0 1px rgba(212, 175, 55, 0.14);
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+  color-scheme: dark;
+}
+
+body {
+  margin: 0;
+  min-height: 100dvh;
+  background-color: var(--bg-space);
+  color: var(--text-primary);
+  font-family: var(--font-sans);
+  font-size: 16px;
+  line-height: 1.55;
+  overflow-x: hidden;
+  display: flex;
+  justify-content: center;
+}
+
+/* Fundo cósmico 100% CSS (offline) */
+.cosmos-bg {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  overflow: hidden;
+  background:
+    radial-gradient(circle at 50% -10%, rgba(30, 38, 68, 0.55) 0%, transparent 55%),
+    radial-gradient(circle at 50% 110%, rgba(200, 157, 60, 0.11) 0%, transparent 45%),
+    linear-gradient(180deg, #05060b 0%, #070910 50%, #040509 100%);
+}
+
+.cosmos-stars {
+  position: absolute;
+  inset: 0;
+}
+
+.cosmos-stars--far {
+  background-image:
+    radial-gradient(1px 1px at 12% 18%, rgba(245, 220, 142, 0.55), transparent),
+    radial-gradient(1px 1px at 28% 72%, rgba(255, 255, 255, 0.45), transparent),
+    radial-gradient(1px 1px at 44% 34%, rgba(245, 220, 142, 0.4), transparent),
+    radial-gradient(1px 1px at 67% 14%, rgba(255, 255, 255, 0.5), transparent),
+    radial-gradient(1px 1px at 81% 58%, rgba(245, 220, 142, 0.48), transparent),
+    radial-gradient(1px 1px at 91% 24%, rgba(255, 255, 255, 0.35), transparent),
+    radial-gradient(1px 1px at 18% 89%, rgba(255, 255, 255, 0.38), transparent),
+    radial-gradient(1px 1px at 56% 84%, rgba(245, 220, 142, 0.36), transparent);
+  background-size: 280px 280px;
+  opacity: 0.7;
+}
+
+.cosmos-stars--near {
+  background-image:
+    radial-gradient(1.5px 1.5px at 20% 25%, rgba(251, 241, 212, 0.75), transparent),
+    radial-gradient(1.5px 1.5px at 74% 40%, rgba(229, 193, 88, 0.65), transparent),
+    radial-gradient(1.2px 1.2px at 48% 66%, rgba(255, 255, 255, 0.55), transparent),
+    radial-gradient(1.5px 1.5px at 86% 82%, rgba(245, 220, 142, 0.7), transparent);
+  background-size: 360px 360px;
+  animation: starTwinkle 7s ease-in-out infinite alternate;
+}
+
+.cosmos-glow {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  border-radius: 50%;
+  filter: blur(60px);
+}
+
+.cosmos-glow--top {
+  top: -120px;
+  width: 340px;
+  height: 240px;
+  background: radial-gradient(circle, rgba(200, 157, 60, 0.14), transparent 70%);
+}
+
+.cosmos-glow--bottom {
+  bottom: -140px;
+  width: 320px;
+  height: 220px;
+  background: radial-gradient(circle, rgba(200, 157, 60, 0.08), transparent 70%);
+}
+
+/* Estrutura principal mobile-first */
+.app-shell {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  max-width: 480px;
+  min-height: 100dvh;
+  padding: 24px 16px 20px;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Cabeçalho */
+.app-header {
+  text-align: center;
+  margin-bottom: 20px;
+}
+
+.brand-emblem {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 8px;
+}
+
+.brand-kicker {
+  margin: 0 0 4px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--gold-300);
+}
+
+.brand-title {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: clamp(1.75rem, 6vw, 2.2rem);
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  line-height: 1.15;
+  background: linear-gradient(180deg, var(--gold-100) 0%, var(--gold-300) 58%, var(--gold-500) 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.brand-subtitle {
+  margin: 4px 0 0;
+  font-size: 0.92rem;
+  color: var(--text-secondary);
+  letter-spacing: 0.03em;
+}
+
+/* Navegação por abas */
+.tab-nav {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+  padding: 5px;
+  margin-bottom: 18px;
+  background: rgba(11, 14, 22, 0.9);
+  border: 1px solid var(--gold-hairline);
+  border-radius: 14px;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);
+}
+
+.tab-btn {
+  appearance: none;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--text-secondary);
+  font-family: var(--font-sans);
+  font-size: 0.92rem;
+  font-weight: 600;
+  min-height: 46px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: color 0.2s ease, background-color 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.tab-btn:hover {
+  color: var(--gold-100);
+}
+
+.tab-btn.is-active {
+  color: var(--gold-100);
+  background: linear-gradient(180deg, rgba(212, 175, 55, 0.2), rgba(200, 157, 60, 0.08));
+  border-color: var(--gold-hairline-strong);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35);
+}
+
+.tab-btn:focus-visible,
+.btn:focus-visible,
+.date-input:focus-visible,
+.tarot-back:focus-visible {
+  outline: 2px solid var(--gold-200);
+  outline-offset: 2px;
+}
+
+/* Área principal */
+.main-stage {
+  flex: 1;
+}
+
+.tab-panel[hidden] {
+  display: none;
+}
+
+.surface-card {
+  background: linear-gradient(170deg, var(--bg-card-top) 0%, var(--bg-card-bottom) 100%);
+  border: 1px solid var(--gold-hairline);
+  border-radius: var(--radius-lg);
+  padding: 22px 18px;
+  box-shadow: var(--shadow-card);
+  position: relative;
+}
+
+.surface-card::before {
+  content: "";
+  position: absolute;
+  inset: 6px;
+  border-radius: calc(var(--radius-lg) - 5px);
+  border: 1px solid rgba(212, 175, 55, 0.09);
+  pointer-events: none;
+}
+
+.panel-intro {
+  text-align: center;
+  margin-bottom: 20px;
+}
+
+.panel-heading {
+  margin: 0 0 8px;
+  font-family: var(--font-display);
+  font-size: 1.28rem;
+  font-weight: 600;
+  color: var(--gold-100);
+  letter-spacing: 0.02em;
+}
+
+.panel-copy {
+  margin: 0;
+  font-size: 0.92rem;
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+
+/* Formulário Caminho de Vida */
+.lifepath-form {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.field-group {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+
+.field-label {
+  font-size: 0.84rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--gold-200);
+}
+
+.date-input {
+  width: 100%;
+  min-height: 50px;
+  padding: 12px 14px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--gold-hairline);
+  background-color: var(--bg-inset);
+  color: var(--text-primary);
+  font-family: var(--font-sans);
+  font-size: 1rem;
+  font-variant-numeric: tabular-nums;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.date-input:hover {
+  border-color: var(--gold-hairline-strong);
+}
+
+.date-input:focus {
+  border-color: var(--gold-300);
+  box-shadow: 0 0 0 3px rgba(212, 175, 55, 0.14);
+}
+
+.field-error {
+  margin: 2px 0 0;
+  font-size: 0.85rem;
+  color: var(--error-color);
+}
+
+/* Botões */
+.btn {
+  appearance: none;
+  border-radius: var(--radius-sm);
+  font-family: var(--font-sans);
+  font-size: 0.98rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  min-height: 50px;
+  padding: 12px 20px;
+  cursor: pointer;
+  transition: transform 0.14s ease, filter 0.2s ease, background-color 0.2s ease, border-color 0.2s ease;
+}
+
+.btn:active {
+  transform: scale(0.985);
+}
+
+.btn-full {
+  width: 100%;
+}
+
+.btn-gold {
+  border: 1px solid rgba(251, 241, 212, 0.45);
+  background: linear-gradient(135deg, #f3d67b 0%, #cfa139 55%, #b48626 100%);
+  color: #090a0f;
+  box-shadow: 0 10px 24px rgba(200, 157, 60, 0.24);
+}
+
+.btn-gold:hover {
+  filter: brightness(1.06);
+}
+
+.btn-outline-gold {
+  border: 1px solid var(--gold-hairline-strong);
+  background: rgba(212, 175, 55, 0.09);
+  color: var(--gold-100);
+}
+
+.btn-outline-gold:hover {
+  background: rgba(212, 175, 55, 0.18);
+  border-color: var(--gold-200);
+}
+
+/* Resultado do Caminho de Vida */
+.lifepath-result {
+  text-align: center;
+  margin-top: 22px;
+  animation: fadeSlideUp 0.32s ease-out;
+}
+
+.result-divider {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 20px;
+}
+
+.result-divider span {
+  display: block;
+  width: 100%;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--gold-hairline-strong), transparent);
+}
+
+.number-medallion {
+  width: 90px;
+  height: 90px;
+  margin: 0 auto 12px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background:
+    radial-gradient(circle at 35% 30%, rgba(245, 220, 142, 0.22), rgba(14, 17, 27, 0.96) 70%);
+  border: 1.5px solid var(--gold-300);
+  box-shadow:
+    0 0 0 5px rgba(212, 175, 55, 0.09),
+    0 12px 30px rgba(0, 0, 0, 0.55);
+}
+
+.number-value {
+  font-family: var(--font-display);
+  font-size: 2.35rem;
+  font-weight: 700;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+  color: var(--gold-100);
+}
+
+.master-badge {
+  display: inline-block;
+  margin-bottom: 10px;
+  padding: 4px 12px;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--gold-100);
+  background: rgba(212, 175, 55, 0.16);
+  border: 1px solid var(--gold-hairline-strong);
+}
+
+.result-title {
+  margin: 0 0 10px;
+  font-family: var(--font-display);
+  font-size: 1.48rem;
+  font-weight: 600;
+  color: var(--gold-200);
+}
+
+.result-text {
+  margin: 0 0 18px;
+  font-size: 0.97rem;
+  line-height: 1.62;
+  color: var(--text-primary);
+  text-align: left;
+}
+
+.calc-trace {
+  padding: 12px 14px;
+  border-radius: var(--radius-sm);
+  background: var(--bg-inset);
+  border: 1px solid rgba(212, 175, 55, 0.18);
+  text-align: left;
+}
+
+.calc-trace-label {
+  display: block;
+  margin-bottom: 4px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--gold-300);
+}
+
+.calc-trace-steps {
+  margin: 0;
+  font-size: 0.84rem;
+  line-height: 1.5;
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+
+/* Aba Carta do Dia */
+.oracle-initial {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 18px;
+}
+
+.tarot-back {
+  appearance: none;
+  padding: 10px;
+  border: 1px solid var(--gold-hairline);
+  border-radius: 16px;
+  background: radial-gradient(circle at 50% 45%, rgba(212, 175, 55, 0.1), rgba(8, 10, 16, 0.95));
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 16px 36px rgba(0, 0, 0, 0.55);
+  transition: transform 0.22s ease, border-color 0.22s ease, box-shadow 0.22s ease;
+}
+
+.tarot-back:hover {
+  transform: translateY(-3px);
+  border-color: var(--gold-300);
+  box-shadow: 0 20px 42px rgba(200, 157, 60, 0.16);
+}
+
+.oracle-revealed {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.oracle-revealed[hidden],
+.oracle-initial[hidden],
+.lifepath-result[hidden],
+.master-badge[hidden] {
+  display: none;
+}
+
+.tarot-face {
+  padding: 10px;
+  border-radius: 18px;
+  background: linear-gradient(160deg, rgba(22, 26, 40, 0.95) 0%, rgba(9, 11, 18, 0.98) 100%);
+  border: 1px solid var(--gold-hairline-strong);
+  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.6);
+}
+
+.tarot-face.is-animating {
+  animation: cardReveal 0.36s ease-out;
+}
+
+.tarot-face-inner {
+  padding: 20px 16px;
+  border-radius: 12px;
+  border: 1px solid rgba(212, 175, 55, 0.24);
+  text-align: center;
+  background:
+    radial-gradient(circle at 50% 24%, rgba(212, 175, 55, 0.09) 0%, transparent 55%);
+}
+
+.card-arcana {
+  display: inline-block;
+  margin-bottom: 10px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--gold-300);
+}
+
+.card-symbol {
+  width: 112px;
+  height: 112px;
+  margin: 0 auto 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.card-symbol svg {
+  width: 100%;
+  height: 100%;
+}
+
+.card-symbol-label {
+  margin: 0 0 8px;
+  font-size: 0.76rem;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
+}
+
+.card-name {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 1.65rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: var(--gold-100);
+}
+
+.card-rule {
+  width: 68px;
+  height: 1px;
+  margin: 14px auto;
+  background: linear-gradient(90deg, transparent, var(--gold-300), transparent);
+}
+
+.card-meaning {
+  margin: 0;
+  font-size: 0.96rem;
+  line-height: 1.62;
+  color: var(--text-primary);
+  text-align: left;
+}
+
+/* Rodapé */
+.app-footer {
+  margin-top: 24px;
+  padding-top: 4px;
+  text-align: center;
+}
+
+.footer-rule {
+  width: 100%;
+  height: 1px;
+  margin-bottom: 14px;
+  background: linear-gradient(90deg, transparent, var(--gold-hairline), transparent);
+}
+
+.footer-text {
+  margin: 0;
+  font-size: 0.8rem;
+  letter-spacing: 0.08em;
+  color: var(--text-muted);
+}
+
+.footer-brand {
+  color: var(--gold-300);
+  font-weight: 600;
+}
+
+@keyframes fadeSlideUp {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes cardReveal {
+  from {
+    opacity: 0;
+    transform: scale(0.96) translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+@keyframes starTwinkle {
+  0% {
+    opacity: 0.45;
+  }
+  100% {
+    opacity: 0.9;
+  }
+}
+
+@media (min-width: 520px) {
+  .app-shell {
+    padding: 36px 20px 28px;
+  }
+
+  .surface-card {
+    padding: 28px 26px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cosmos-stars--near,
+  .lifepath-result,
+  .tarot-face.is-animating {
+    animation: none;
+  }
+
+  .tab-btn,
+  .btn,
+  .tarot-back,
+  .date-input {
+    transition: none;
+  }
+}

@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#05060b">
+  <meta name="description" content="Arcanum Mini — Oráculo &amp; Caminho de Vida. Numerologia do caminho de vida e carta do dia em português, offline.">
+  <title>Arcanum Mini — Oráculo &amp; Caminho de Vida</title>
+  <link rel="stylesheet" href="style.css">
+  <script src="app.js" defer></script>
+</head>
+<body>
+  <div class="cosmos-bg" aria-hidden="true">
+    <div class="cosmos-stars cosmos-stars--far"></div>
+    <div class="cosmos-stars cosmos-stars--near"></div>
+    <div class="cosmos-glow cosmos-glow--top"></div>
+    <div class="cosmos-glow cosmos-glow--bottom"></div>
+  </div>
+
+  <div class="app-shell">
+    <header class="app-header">
+      <div class="brand-emblem" aria-hidden="true">
+        <svg viewBox="0 0 64 64" width="52" height="52" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <circle cx="32" cy="32" r="28" stroke="#c89d3c" stroke-width="1" stroke-opacity="0.55"/>
+          <circle cx="32" cy="32" r="22" stroke="#e5c158" stroke-width="1" stroke-dasharray="2 4" stroke-opacity="0.65"/>
+          <path d="M36 17a14 14 0 1 0 11 22.6A11.5 11.5 0 0 1 36 17Z" stroke="#f5dc8e" stroke-width="1.6" stroke-linejoin="round"/>
+          <path d="M40 20l1.4 3.6L45 25l-3.6 1.4L40 30l-1.4-3.6L35 25l3.6-1.4L40 20Z" fill="#f5dc8e"/>
+        </svg>
+      </div>
+      <p class="brand-kicker">Numerologia &amp; Tarô</p>
+      <h1 class="brand-title">Arcanum Mini</h1>
+      <p class="brand-subtitle">Oráculo &amp; Caminho de Vida</p>
+    </header>
+
+    <nav class="tab-nav" role="tablist" aria-label="Seções do oráculo">
+      <button
+        type="button"
+        id="tab-caminho"
+        class="tab-btn is-active"
+        role="tab"
+        aria-selected="true"
+        aria-controls="panel-caminho"
+        tabindex="0"
+      >
+        Caminho de Vida
+      </button>
+      <button
+        type="button"
+        id="tab-carta"
+        class="tab-btn"
+        role="tab"
+        aria-selected="false"
+        aria-controls="panel-carta"
+        tabindex="-1"
+      >
+        Carta do Dia
+      </button>
+    </nav>
+
+    <main class="main-stage">
+      <!-- Aba 1: Caminho de Vida -->
+      <section
+        id="panel-caminho"
+        class="tab-panel is-active"
+        role="tabpanel"
+        aria-labelledby="tab-caminho"
+      >
+        <div class="surface-card">
+          <div class="panel-intro">
+            <h2 class="panel-heading">Seu Número de Caminho de Vida</h2>
+            <p class="panel-copy">
+              Informe sua data de nascimento para revelar a vibração central da sua jornada, preservando os números mestres 11, 22 e 33.
+            </p>
+          </div>
+
+          <form id="lifepath-form" class="lifepath-form" novalidate>
+            <div class="field-group">
+              <label for="birth-date" class="field-label">Data de nascimento</label>
+              <input
+                type="date"
+                id="birth-date"
+                name="birth-date"
+                class="date-input"
+                required
+                aria-describedby="birth-date-error"
+              >
+              <p id="birth-date-error" class="field-error" role="alert" hidden></p>
+            </div>
+
+            <button type="submit" id="btn-calcular" class="btn btn-gold btn-full">
+              Calcular
+            </button>
+          </form>
+
+          <div
+            id="lifepath-result"
+            class="lifepath-result"
+            aria-live="polite"
+            hidden
+          >
+            <div class="result-divider" aria-hidden="true">
+              <span></span>
+            </div>
+
+            <div class="number-medallion">
+              <span id="result-number" class="number-value"></span>
+            </div>
+
+            <span id="result-master-badge" class="master-badge" hidden>Número Mestre</span>
+
+            <h3 id="result-title" class="result-title"></h3>
+            <p id="result-interpretation" class="result-text"></p>
+
+            <div class="calc-trace">
+              <span class="calc-trace-label">Redução numerológica</span>
+              <p id="result-breakdown" class="calc-trace-steps"></p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Aba 2: Carta do Dia -->
+      <section
+        id="panel-carta"
+        class="tab-panel"
+        role="tabpanel"
+        aria-labelledby="tab-carta"
+        hidden
+      >
+        <div class="surface-card oracle-surface">
+          <div class="panel-intro">
+            <h2 class="panel-heading">Carta do Dia</h2>
+            <p class="panel-copy">
+              Concentre-se em uma intenção para hoje e sorteie um dos sete arcanos maiores do oráculo.
+            </p>
+          </div>
+
+          <!-- Estado inicial: verso da carta -->
+          <div id="oracle-initial" class="oracle-initial">
+            <button
+              type="button"
+              id="card-back-trigger"
+              class="tarot-back"
+              aria-label="Sortear carta do dia"
+            >
+              <svg viewBox="0 0 180 240" width="160" height="214" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <rect x="6" y="6" width="168" height="228" rx="12" stroke="#c89d3c" stroke-width="1.2" stroke-opacity="0.7"/>
+                <rect x="14" y="14" width="152" height="212" rx="8" stroke="#e5c158" stroke-width="0.9" stroke-opacity="0.45"/>
+                <circle cx="90" cy="120" r="46" stroke="#c89d3c" stroke-width="1" stroke-opacity="0.65"/>
+                <circle cx="90" cy="120" r="32" stroke="#e5c158" stroke-width="0.9" stroke-dasharray="3 4" stroke-opacity="0.7"/>
+                <path d="M90 66l4.8 49.2L144 120l-49.2 4.8L90 174l-4.8-49.2L36 120l49.2-4.8L90 66Z" stroke="#f5dc8e" stroke-width="1.2" stroke-linejoin="round"/>
+                <circle cx="90" cy="120" r="7" fill="#0d1018" stroke="#f5dc8e" stroke-width="1.3"/>
+                <path d="M90 28a10 10 0 0 0 10 10 10 10 0 0 0-10 10 10 10 0 0 0-10-10 10 10 0 0 0 10-10Z" stroke="#c89d3c" stroke-width="1"/>
+                <path d="M90 192a10 10 0 0 0 10 10 10 10 0 0 0-10 10 10 10 0 0 0-10-10 10 10 0 0 0 10-10Z" stroke="#c89d3c" stroke-width="1"/>
+              </svg>
+            </button>
+
+            <button type="button" id="btn-sortear" class="btn btn-gold btn-full">
+              Sortear carta
+            </button>
+          </div>
+
+          <!-- Estado sorteado: carta revelada -->
+          <div
+            id="oracle-revealed"
+            class="oracle-revealed"
+            aria-live="polite"
+            hidden
+          >
+            <article id="tarot-card-face" class="tarot-face">
+              <div class="tarot-face-inner">
+                <span id="card-arcana" class="card-arcana"></span>
+                <div id="card-symbol" class="card-symbol" aria-hidden="true"></div>
+                <p id="card-symbol-label" class="card-symbol-label"></p>
+                <h3 id="card-name" class="card-name"></h3>
+                <div class="card-rule" aria-hidden="true"></div>
+                <p id="card-meaning" class="card-meaning"></p>
+              </div>
+            </article>
+
+            <button type="button" id="btn-sortear-outra" class="btn btn-outline-gold btn-full">
+              Sortear outra
+            </button>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <footer class="app-footer">
+      <div class="footer-rule" aria-hidden="true"></div>
+      <p class="footer-text">Feito pela <span class="footer-brand">PVSR HOLDING TECH</span></p>
+    </footer>
+  </div>
+</body>
+</html>
